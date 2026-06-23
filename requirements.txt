@@ -1,6 +1,6 @@
 asgiref==3.11.1
 charset-normalizer==3.4.7
-Django==5.0.14
+Django==5.1.15
 et_xmlfile==2.0.0
 gunicorn==26.0.0
 mysqlclient==2.2.8
