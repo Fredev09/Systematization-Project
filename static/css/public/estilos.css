@@ -603,7 +603,7 @@ section {
     transform: translateY(0);
 }
 
-body.dark-mode {
+html.dark-mode {
     --principal: #8b5cf6;
     --principal-oscuro: #5b21b6;
     --secundario: #f97316;
@@ -621,175 +621,175 @@ body.dark-mode {
     color: #ffffff;
 }
 
-body.dark-mode .navbar {
+html.dark-mode .navbar {
     background: rgba(23, 19, 33, 0.96);
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
 }
 
-body.dark-mode .navbar-scroll {
+html.dark-mode .navbar-scroll {
     background: rgba(23, 19, 33, 0.72);
     backdrop-filter: blur(18px);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
 }
 
-body.dark-mode .navbar-brand,
-body.dark-mode .nav-link {
+html.dark-mode .navbar-brand,
+html.dark-mode .nav-link {
     color: rgba(255, 255, 255, 0.9) !important;
 }
 
-body.dark-mode .nav-link:hover {
+html.dark-mode .nav-link:hover {
     color: #ffffff !important;
 }
 
-body.dark-mode .theme-action {
+html.dark-mode .theme-action {
     background: rgba(255, 255, 255, 0.12);
     color: #ffffff;
     border-color: rgba(255, 255, 255, 0.18);
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
 }
 
-body.dark-mode .theme-action:hover {
+html.dark-mode .theme-action:hover {
     background: rgba(255, 255, 255, 0.18);
     color: #ffffff;
 }
 
-body.dark-mode .hero {
+html.dark-mode .hero {
     background:
         radial-gradient(circle at 20% 15%, rgba(249, 115, 22, 0.28), transparent 30%),
         radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.42), transparent 30%),
         linear-gradient(135deg, #171321 0%, #2a164d 52%, #111827 100%);
 }
 
-body.dark-mode .hero::before {
+html.dark-mode .hero::before {
     opacity: 0.45;
     background-image:
         linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
         linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
 }
 
-body.dark-mode .hero::after {
+html.dark-mode .hero::after {
     background:
         radial-gradient(circle at 50% 45%, rgba(139, 92, 246, 0.12), transparent 36%),
         linear-gradient(rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
 }
 
-body.dark-mode .hero h1 {
+html.dark-mode .hero h1 {
     color: #ffffff;
 }
 
-body.dark-mode .hero-text {
+html.dark-mode .hero-text {
     color: rgba(255, 255, 255, 0.82);
 }
 
-body.dark-mode .etiqueta,
-body.dark-mode .subtitulo {
+html.dark-mode .etiqueta,
+html.dark-mode .subtitulo {
     color: #ffffff;
     background: rgba(255, 255, 255, 0.14);
     border-color: rgba(255, 255, 255, 0.14);
 }
 
-body.dark-mode .subtitulo.claro {
+html.dark-mode .subtitulo.claro {
     color: #ffffff;
     background: rgba(255, 255, 255, 0.14);
 }
 
-body.dark-mode .btn-principal,
-body.dark-mode .btn-sistema {
+html.dark-mode .btn-principal,
+html.dark-mode .btn-sistema {
     background: linear-gradient(135deg, #8b5cf6, #f97316);
     color: #ffffff;
     box-shadow: 0 12px 26px rgba(139, 92, 246, 0.28);
 }
 
-body.dark-mode .btn-principal:hover,
-body.dark-mode .btn-sistema:hover {
+html.dark-mode .btn-principal:hover,
+html.dark-mode .btn-sistema:hover {
     background: linear-gradient(135deg, #7c3aed, #ea580c);
     color: #ffffff;
     box-shadow: 0 16px 34px rgba(139, 92, 246, 0.36);
 }
 
-body.dark-mode .btn-claro {
+html.dark-mode .btn-claro {
     background: rgba(255, 255, 255, 0.12);
     color: #ffffff;
     border-color: rgba(255, 255, 255, 0.35);
 }
 
-body.dark-mode .btn-claro:hover {
+html.dark-mode .btn-claro:hover {
     background: #ffffff;
     color: #5b21b6;
 }
 
-body.dark-mode .seccion-suave {
+html.dark-mode .seccion-suave {
     background: #21172f;
 }
 
-body.dark-mode .titulo-seccion {
+html.dark-mode .titulo-seccion {
     color: #ffffff;
 }
 
-body.dark-mode .texto-seccion,
-body.dark-mode .texto-centro {
+html.dark-mode .texto-seccion,
+html.dark-mode .texto-centro {
     color: rgba(255, 255, 255, 0.72);
 }
 
-body.dark-mode .mini-card,
-body.dark-mode .coleccion-card,
-body.dark-mode .contacto-card,
-body.dark-mode .stats-box,
-body.dark-mode .valores {
+html.dark-mode .mini-card,
+html.dark-mode .coleccion-card,
+html.dark-mode .contacto-card,
+html.dark-mode .stats-box,
+html.dark-mode .valores {
     background: rgba(255, 255, 255, 0.08);
     color: #ffffff;
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: 0 18px 45px rgba(0, 0, 0, 0.28);
 }
 
-body.dark-mode .mini-card i,
-body.dark-mode .coleccion-card i,
-body.dark-mode .contacto-item i {
+html.dark-mode .mini-card i,
+html.dark-mode .coleccion-card i,
+html.dark-mode .contacto-item i {
     background: linear-gradient(135deg, #8b5cf6, #f97316);
 }
 
-body.dark-mode .stats-box {
+html.dark-mode .stats-box {
     background: rgba(255, 255, 255, 0.08);
 }
 
-body.dark-mode .stats-box h3 {
+html.dark-mode .stats-box h3 {
     color: #ffffff;
 }
 
-body.dark-mode .stats-box p,
-body.dark-mode .valor-item p,
-body.dark-mode .coleccion-card p,
-body.dark-mode .producto-info p,
-body.dark-mode .contacto-card p {
+html.dark-mode .stats-box p,
+html.dark-mode .valor-item p,
+html.dark-mode .coleccion-card p,
+html.dark-mode .producto-info p,
+html.dark-mode .contacto-card p {
     color: rgba(255, 255, 255, 0.72);
 }
 
-body.dark-mode .valor-item:not(:last-child) {
+html.dark-mode .valor-item:not(:last-child) {
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-body.dark-mode .valor-item i {
+html.dark-mode .valor-item i {
     color: #f97316;
 }
 
-body.dark-mode .producto-precio,
-body.dark-mode .producto-info h5 {
+html.dark-mode .producto-precio,
+html.dark-mode .producto-info h5 {
     color: #ffffff;
 }
 
-body.dark-mode .producto-img-box {
+html.dark-mode .producto-img-box {
     background: rgba(255, 255, 255, 0.08);
 }
 
-body.dark-mode .cta-sistema {
+html.dark-mode .cta-sistema {
     background: linear-gradient(135deg, #5b21b6, #171321);
 }
 
-body.dark-mode .contacto-item {
+html.dark-mode .contacto-item {
     color: #ffffff;
 }
 
-body.dark-mode .footer {
+html.dark-mode .footer {
     background: #111827;
 }
 
@@ -826,7 +826,7 @@ body.dark-mode .footer {
         backdrop-filter: blur(16px);
     }
 
-    body.dark-mode .navbar-collapse {
+    html.dark-mode .navbar-collapse {
         background: rgba(23, 19, 33, 0.96);
     }
 

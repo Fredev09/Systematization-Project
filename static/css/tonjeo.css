@@ -104,6 +104,31 @@ html.dark-mode {
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
     --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.25);
     --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.3);
+
+    /* Brand colors — versión más clara para contraste sobre fondo oscuro */
+    --primary: #60a5fa;
+    --primary-dark: #3b82f6;
+    --primary-light: #93c5fd;
+    --secondary: #cbd5e1;
+    --secondary-light: #e2e8f0;
+
+    /* Valores que antes solo estaban en usuarios.css o no tenían dark mode */
+    --input-bg: #1e293b;
+    --soft-accent: rgba(59, 130, 246, 0.12);
+    --hover-bg: rgba(59, 130, 246, 0.08);
+    --success-soft: rgba(16, 185, 129, 0.15);
+    --warning-soft: rgba(245, 158, 11, 0.15);
+    --danger-soft: rgba(239, 68, 68, 0.15);
+    --accent-dark: #0e7490;
+    --danger-dark: #dc2626;
+
+    /* Dark mode overrides para Alertas */
+    --alert-success-color: #4ade80;
+    --alert-danger-color: #f87171;
+    --alert-warning-color: #fbbf24;
+    --alert-info-color: #60a5fa;
+    --badge-success-color: #4ade80;
+    --badge-warning-color: #fbbf24;
 }
 
 /* ============================================================
@@ -989,6 +1014,47 @@ a:hover {
 }
 
 /* ============================================================
+   Panel Cards (usados en Dashboard, Usuarios y otros módulos)
+   ============================================================ */
+.panel-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+    transition: all var(--transition-base);
+    animation: fadeInUp 0.5s ease;
+}
+
+.panel-card:hover {
+    box-shadow: var(--shadow-lg);
+}
+
+.panel-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.panel-header h2 {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.panel-header p {
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin: 4px 0 0;
+}
+
+/* ============================================================
    Form Elements
    ============================================================ */
 .form-label {
@@ -1270,8 +1336,10 @@ textarea.form-control {
    ============================================================ */
 .pagination {
     display: flex;
+    justify-content: center;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
+    margin: 24px 0;
 }
 
 .page-link {
@@ -1280,11 +1348,11 @@ textarea.form-control {
     justify-content: center;
     min-width: 36px;
     height: 36px;
-    padding: 0 10px;
+    padding: 0 12px;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 500;
     text-decoration: none;
     transition: all var(--transition-fast);
@@ -1295,17 +1363,28 @@ textarea.form-control {
     border-color: var(--primary);
     color: var(--primary);
     background: rgba(30, 64, 175, 0.05);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(30, 64, 175, 0.15);
 }
 
 .page-item.active .page-link {
     background: var(--gradient-primary);
     color: #fff;
     border-color: transparent;
+    box-shadow: 0 4px 12px rgba(30, 64, 175, 0.3);
 }
 
 .page-item.disabled .page-link {
     opacity: 0.5;
     cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.page-item.disabled .page-link:hover {
+    background: var(--card-bg);
+    color: var(--text-secondary);
+    border-color: var(--border);
 }
 
 /* ============================================================
@@ -1492,6 +1571,129 @@ textarea.form-control {
         font-size: 13px;
     }
 }
+
+/* ============================================================
+   Table Pagination (usado en productos, ventas, inventario, clientes, usuarios)
+   ============================================================ */
+.table-pagination {
+    padding: 18px 24px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.table-pagination a,
+.table-pagination span {
+    min-height: 42px;
+    padding: 0 16px;
+    border-radius: 999px;
+    background: var(--input-bg);
+    color: var(--primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    font-size: 13px;
+    font-weight: 900;
+    text-decoration: none;
+    border: 1px solid var(--border);
+}
+
+.table-pagination a:hover {
+    background: var(--soft-accent);
+    color: var(--accent);
+}
+
+.table-pagination span {
+    opacity: .55;
+}
+
+.table-pagination strong {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 900;
+}
+
+/* Per-page size form (incluido via base/per_page_control.html) */
+.table-page-size-form {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 30px 4px;
+    flex-wrap: wrap;
+}
+
+.table-page-size-form label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.table-page-size-form select {
+    height: 38px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    background: var(--card-bg);
+    cursor: pointer;
+    outline: none;
+    transition: border-color var(--transition-fast);
+}
+
+.table-page-size-form select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.08);
+}
+
+.table-page-size-form span {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+/* ============================================================
+   Alerts & Badges — dark mode overrides
+   ============================================================ */
+html.dark-mode .alert-success {
+    color: #4ade80;
+    border-color: rgba(74, 222, 128, 0.2);
+}
+
+html.dark-mode .alert-danger,
+html.dark-mode .alert-error {
+    color: #f87171;
+    border-color: rgba(248, 113, 113, 0.2);
+}
+
+html.dark-mode .alert-warning {
+    color: #fbbf24;
+    border-color: rgba(251, 191, 36, 0.2);
+}
+
+html.dark-mode .alert-info {
+    color: #60a5fa;
+    border-color: rgba(96, 165, 250, 0.2);
+}
+
+html.dark-mode .badge-success {
+    color: #4ade80;
+}
+
+html.dark-mode .badge-warning {
+    color: #fbbf24;
+}
+
+/* ============================================================
+   Utility Classes
+   ============================================================ */
+.text-danger { color: #ef4444 !important; }
+.border-danger-soft { border-color: rgba(239, 68, 68, 0.3) !important; }
+.bg-danger-soft { background: rgba(239, 68, 68, 0.04) !important; }
 
 /* ============================================================
    Reduced Motion

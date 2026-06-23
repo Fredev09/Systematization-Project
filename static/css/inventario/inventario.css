@@ -523,100 +523,7 @@
 
 
 
-.inventory-pagination {
-    padding: 18px 24px;
-    border-top: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 14px;
-}
-
-.inventory-pagination a,
-.inventory-pagination span,
-.table-pagination a,
-.table-pagination span {
-    min-height: 42px;
-    padding: 0 16px;
-    border-radius: 999px;
-    background: var(--input-bg);
-    color: var(--primary);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-    font-size: 13px;
-    font-weight: 900;
-    text-decoration: none;
-    border: 1px solid var(--border);
-}
-
-.inventory-pagination a:hover,
-.table-pagination a:hover {
-    background: var(--soft-accent);
-    color: var(--accent);
-}
-
-.inventory-pagination span,
-.table-pagination span {
-    opacity: .55;
-}
-
-.inventory-pagination strong,
-.table-pagination strong {
-    color: var(--muted);
-    font-size: 13px;
-    font-weight: 900;
-}
-
-.table-pagination {
-    padding: 18px 24px;
-    border-top: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 14px;
-}
-
-/* Per-page size form */
-.table-page-size-form {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 16px 30px 4px;
-    flex-wrap: wrap;
-}
-
-.table-page-size-form label {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-muted);
-}
-
-.table-page-size-form select {
-    height: 38px;
-    padding: 0 12px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-primary);
-    background: var(--card-bg);
-    cursor: pointer;
-    outline: none;
-    transition: border-color var(--transition-fast);
-}
-
-.table-page-size-form select:focus {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.08);
-}
-
-.table-page-size-form span {
-    font-size: 13px;
-    color: var(--text-muted);
-    font-weight: 500;
-}
+/* .inventory-pagination base styles provistos por .table-pagination en tonjeo.css */
 
 .product-fallback-icon {
     width: 100%;
@@ -655,39 +562,31 @@
     background-clip: content-box;
 }
 
-body.dark-mode .inventory-value-card,
-body.dark-mode .inventory-health-card,
-body.dark-mode .inventory-priority-panel,
-body.dark-mode .inventory-movement-summary,
-body.dark-mode .inventory-movements-panel {
-    background: var(--card);
-    border-color: var(--border);
-    box-shadow: var(--shadow);
-}
+/* Panel-card items: dark mode manejado por .panel-card en tonjeo.css */
 
-body.dark-mode .inventory-health-list article,
-body.dark-mode .movement-summary-list article {
+html.dark-mode .inventory-health-list article,
+html.dark-mode .movement-summary-list article {
     background: var(--input-bg);
     border-color: var(--border);
 }
 
-body.dark-mode .movement-entry {
+html.dark-mode .movement-entry {
     background: rgba(21, 128, 61, 0.18);
     color: #86efac;
 }
 
-body.dark-mode .movement-exit {
+html.dark-mode .movement-exit {
     background: rgba(197, 48, 48, 0.18);
     color: #fecaca;
 }
 
-body.dark-mode .movement-fix {
+html.dark-mode .movement-fix {
     background: rgba(3, 105, 161, 0.18);
     color: #bae6fd;
 }
 
-body.dark-mode .inventory-pagination a,
-body.dark-mode .inventory-pagination span {
+html.dark-mode .inventory-pagination a,
+html.dark-mode .inventory-pagination span {
     background: var(--input-bg);
     border-color: var(--border);
     color: var(--text);

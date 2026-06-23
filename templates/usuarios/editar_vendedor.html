@@ -11,6 +11,16 @@
     <link rel="stylesheet" href="{% static 'css/usuarios/crear_vendedor.css' %}">
     <link rel="stylesheet" href="{% static 'css/base/sweetalert_custom.css' %}">
     <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+    <script>
+        (function() {
+            try {
+                var savedTheme = localStorage.getItem('theme');
+                if (savedTheme === 'dark') {
+                    document.documentElement.classList.add('dark-mode');
+                }
+            } catch(e) {}
+        })();
+    </script>
 </head>
 
 <body>

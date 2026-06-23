@@ -173,13 +173,13 @@
     padding-left: 18px;
 }
 
-body.dark-mode .config-section {
+html.dark-mode .config-section {
     background: rgba(31, 41, 55, 0.58);
 }
 
-body.dark-mode .config-form .form-control,
-body.dark-mode .config-form .form-select,
-body.dark-mode .config-check {
+html.dark-mode .config-form .form-control,
+html.dark-mode .config-form .form-select,
+html.dark-mode .config-check {
     background: var(--card);
     color: var(--text);
 }

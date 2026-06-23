@@ -108,12 +108,12 @@ body {
 }
 
 .btn-cancel {
-    background: #f3f4f6;
+    background: var(--input-bg);
     color: var(--text-primary);
 }
 
 .btn-cancel:hover {
-    background: #e5e7eb;
+    background: var(--soft-accent);
     color: var(--text-primary);
     text-decoration: none;
 }
@@ -209,9 +209,9 @@ body {
 .checkmark {
     width: 30px;
     height: 30px;
-    border: 2px solid #d7dce5;
+    border: 2px solid var(--border);
     border-radius: 9px;
-    background: #ffffff;
+    background: var(--card-bg);
     position: relative;
     flex-shrink: 0;
     transition: 0.2s ease;
@@ -251,7 +251,7 @@ body {
     padding: 0 22px;
     border-radius: 14px;
     border: 1px solid var(--primary);
-    background: #ffffff;
+    background: var(--card-bg);
     color: var(--primary);
     font-weight: 900;
     font-size: 17px;
@@ -361,19 +361,14 @@ body {
     margin-top: 18px;
     padding: 16px 20px;
     border-radius: 18px;
-    background: rgba(255, 255, 255, 0.92);
-    color: #6b7280;
+    background: var(--card-bg);
+    color: var(--text-muted);
     display: flex;
     justify-content: space-between;
     gap: 12px;
     flex-wrap: wrap;
     font-size: 13px;
     font-weight: 800;
-}
-
-.form-footer strong {
-    color: #111827;
-    font-weight: 900;
 }
 
 @media (max-width: 640px) {

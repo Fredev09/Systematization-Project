@@ -157,7 +157,7 @@
 .df-panel-card .panel-footer {
     padding: 16px 24px;
     border-top: 1px solid var(--border-light);
-    background: rgba(30, 64, 175, 0.02);
+    background: var(--soft-accent);
 }
 
 /* --- Responsive table styles --- */
@@ -181,7 +181,7 @@
     border-bottom: 2px solid var(--border);
     text-align: left;
     white-space: nowrap;
-    background: rgba(30, 64, 175, 0.03);
+    background: var(--soft-accent);
 }
 
 .df-table tbody td {
@@ -197,7 +197,7 @@
 }
 
 .df-table tbody tr:hover {
-    background: rgba(30, 64, 175, 0.03);
+    background: var(--soft-accent);
 }
 
 .df-table tbody tr:last-child td {
@@ -293,7 +293,7 @@
 
 /* --- Inline error display --- */
 .df-error-text {
-    color: #dc2626;
+    color: var(--danger);
     font-size: 13px;
     margin-top: 4px;
 }
@@ -318,9 +318,43 @@
 /* --- Delete confirmation specific --- */
 .df-delete-icon {
     font-size: 4rem;
-    color: #ef4444;
+    color: var(--danger);
     margin-bottom: 16px;
     display: block;
+}
+
+.df-warning-icon {
+    color: var(--warning);
+}
+
+.df-delete-panel {
+    border-color: var(--danger) !important;
+    border-width: 2px !important;
+}
+
+.df-delete-panel .panel-header {
+    background: var(--danger-soft) !important;
+}
+
+.df-delete-panel .panel-header h2 {
+    color: var(--danger) !important;
+}
+
+.df-delete-panel .panel-header .badge-danger {
+    background: var(--danger);
+    color: #fff;
+    padding: 6px 16px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+html.dark-mode .df-delete-panel {
+    border-color: rgba(248, 113, 113, 0.35) !important;
+}
+
+html.dark-mode .df-delete-panel .panel-header {
+    background: rgba(239, 68, 68, 0.12) !important;
 }
 
 /* --- Responsive --- */

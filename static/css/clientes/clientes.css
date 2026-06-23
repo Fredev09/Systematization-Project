@@ -539,27 +539,29 @@
     background-clip: content-box;
 }
 
-body.dark-mode .clientes-filter-panel,
-body.dark-mode .cliente-profile-card,
-body.dark-mode .cliente-summary-card,
-body.dark-mode .clientes-panel,
-body.dark-mode .cliente-sales-panel,
-body.dark-mode .cliente-form-panel {
-    background: var(--card);
-    border-color: var(--border);
-}
-
-body.dark-mode .cliente-extra-info article,
-body.dark-mode .cliente-summary-list article {
+/* Dark mode: estos elementos ya usan .panel-card con variables CSS,
+   pero la paginación y las cards de detalle necesitan override explícito */
+html.dark-mode .cliente-extra-info article,
+html.dark-mode .cliente-summary-list article {
     background: var(--input-bg);
     border-color: var(--border);
 }
 
-body.dark-mode .clientes-pagination a,
-body.dark-mode .clientes-pagination span {
+html.dark-mode .clientes-pagination a,
+html.dark-mode .clientes-pagination span {
     background: var(--input-bg);
     border-color: var(--border);
     color: var(--text);
+}
+
+html.dark-mode .status-pill.active {
+    background: rgba(22, 163, 74, 0.2);
+    color: #4ade80;
+}
+
+html.dark-mode .status-pill.inactive {
+    background: rgba(220, 38, 38, 0.18);
+    color: #f87171;
 }
 
 @media (max-width: 1400px) {

@@ -447,41 +447,41 @@
     width: 15%;
 }
 
-body.dark-mode .sale-form-panel,
-body.dark-mode .recent-sales-panel,
-body.dark-mode .sales-filter-panel,
-body.dark-mode .sales-table-panel,
-body.dark-mode .recent-sale-item,
-body.dark-mode .history-cta-panel,
-body.dark-mode .vp-products-card,
-body.dark-mode .vp-product-row {
+html.dark-mode .sale-form-panel,
+html.dark-mode .recent-sales-panel,
+html.dark-mode .sales-filter-panel,
+html.dark-mode .sales-table-panel,
+html.dark-mode .recent-sale-item,
+html.dark-mode .history-cta-panel,
+html.dark-mode .vp-products-card,
+html.dark-mode .vp-product-row {
     background: var(--card);
     border-color: var(--border);
 }
 
-body.dark-mode .vp-control,
-body.dark-mode .sales-date-input,
-body.dark-mode .recent-sale-item {
+html.dark-mode .vp-control,
+html.dark-mode .sales-date-input,
+html.dark-mode .recent-sale-item {
     background: var(--input-bg);
 }
 
-body.dark-mode .vp-control select,
-body.dark-mode .vp-control input {
+html.dark-mode .vp-control select,
+html.dark-mode .vp-control input {
     color: #ffffff;
 }
 
-body.dark-mode .vp-control select option {
+html.dark-mode .vp-control select option {
     background: #1f2937;
     color: #ffffff;
 }
 
-body.dark-mode .vp-control select option:disabled {
+html.dark-mode .vp-control select option:disabled {
     color: #9ca3af;
     background: #111827;
 }
 
-body.dark-mode .vp-remove-btn,
-body.dark-mode .vp-add-btn {
+html.dark-mode .vp-remove-btn,
+html.dark-mode .vp-add-btn {
     background: var(--input-bg);
     border-color: var(--border);
 }
@@ -591,15 +591,13 @@ body.dark-mode .vp-add-btn {
     align-self: start;
 }
 
+/* Eliminado overflow-y y max-height para usar paginación en vez de scroll vertical */
 .vp-products-list {
-    max-height: 430px;
-    overflow-y: auto;
     padding-right: 8px;
 }
 
+/* Eliminado overflow-y y max-height para usar paginación en vez de scroll vertical */
 .recent-sales-list {
-    max-height: 540px;
-    overflow-y: auto;
     padding-right: 8px;
 }
 
@@ -872,29 +870,29 @@ body.dark-mode .vp-add-btn {
     font-weight: 900;
 }
 
-body.dark-mode .history-tabs {
+html.dark-mode .history-tabs {
     background: var(--card);
     border-color: var(--border);
 }
 
-body.dark-mode .inventory-pagination a,
-body.dark-mode .inventory-pagination span {
+html.dark-mode .inventory-pagination a,
+html.dark-mode .inventory-pagination span {
     background: var(--input-bg);
     border-color: var(--border);
     color: var(--text);
 }
 
-body.dark-mode .movement-entry {
+html.dark-mode .movement-entry {
     background: rgba(21, 128, 61, 0.18);
     color: #86efac;
 }
 
-body.dark-mode .movement-exit {
+html.dark-mode .movement-exit {
     background: rgba(197, 48, 48, 0.18);
     color: #fecaca;
 }
 
-body.dark-mode .movement-fix {
+html.dark-mode .movement-fix {
     background: rgba(3, 105, 161, 0.18);
     color: #bae6fd;
 }
@@ -1137,13 +1135,13 @@ body.dark-mode .movement-fix {
     gap: 14px;
 }
 
-body.dark-mode .vp-client-card,
-body.dark-mode .vp-client-option span {
+html.dark-mode .vp-client-card,
+html.dark-mode .vp-client-option span {
     background: var(--card);
     border-color: var(--border);
 }
 
-body.dark-mode .vp-client-option input:checked + span {
+html.dark-mode .vp-client-option input:checked + span {
     background: var(--accent);
     border-color: var(--accent);
 }
@@ -1177,8 +1175,6 @@ body.dark-mode .vp-client-option input:checked + span {
 }
 
 .sales-bottom-grid .recent-sales-list {
-    max-height: 520px;
-    overflow-y: auto;
     padding-right: 8px;
 }
 .vp-client-grid,
@@ -1380,9 +1376,7 @@ body.dark-mode .vp-client-option input:checked + span {
     align-self: start;
 }
 
-.sales-bottom-grid .recent-sales-list {
-    max-height: 560px;
-}
+
 
 @media (max-width: 1200px) {
     .sales-bottom-grid .history-cta-panel {

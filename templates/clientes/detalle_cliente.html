@@ -31,17 +31,17 @@
     </header>
 
     <nav class="header-actions">
-        <a href="{% url 'clientes' %}" class="btn-outline">
+        <a href="{% url 'clientes' %}" class="btn btn-outline-secondary">
             <i class='fas fa-arrow-left'></i>
             Volver a clientes
         </a>
 
-        <a href="{% url 'editar_cliente' cliente.id %}" class="btn-clear">
+        <a href="{% url 'editar_cliente' cliente.id %}" class="btn btn-outline-secondary">
             <i class='fas fa-edit'></i>
             Editar cliente
         </a>
 
-        <a href="{% url 'nueva_venta' %}" class="btn-primary">
+        <a href="{% url 'nueva_venta' %}" class="btn btn-primary">
             <i class='fas fa-cart-plus'></i>
             Nueva venta
         </a>
@@ -96,14 +96,14 @@
         </section>
 
         <section class="cliente-detail-actions">
-            <a href="{% url 'editar_cliente' cliente.id %}" class="btn-primary">
+            <a href="{% url 'editar_cliente' cliente.id %}" class="btn btn-primary">
                 <i class='fas fa-edit'></i>
                 Editar datos
             </a>
 
             <form method="POST" action="{% url 'cambiar_estado_cliente' cliente.id %}">
                 {% csrf_token %}
-                <button type="submit" class="btn-clear">
+                <button type="submit" class="btn btn-outline-secondary">
                     {% if cliente.activo %}
                         <i class='fas fa-user-times'></i>
                         Desactivar cliente

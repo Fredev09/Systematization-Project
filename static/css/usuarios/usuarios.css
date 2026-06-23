@@ -1,22 +1,6 @@
 
 
-:root {
-    --soft-accent: rgba(30, 64, 175, 0.06);
-    --input-bg: #f8fafc;
-    --hover-bg: #f1f5f9;
-    --success: #10b981;
-    --success-soft: #d1fae5;
-    --warning: #f59e0b;
-    --warning-soft: #fef3c7;
-    --danger: #ef4444;
-    --danger-soft: #fee2e2;
-}
-
-body.dark-mode {
-    --soft-accent: rgba(30, 64, 175, 0.15);
-    --input-bg: #1f2937;
-    --hover-bg: #1f2937;
-}
+/* Variables de modo oscuro y colores base ahora definidas en tonjeo.css */
 
 .page-header {
     display: flex;
@@ -44,41 +28,7 @@ body.dark-mode {
     flex-wrap: wrap;
 }
 
-.btn-primary,
-.btn-outline {
-    min-height: 52px;
-    padding: 0 20px;
-    border-radius: 14px;
-    font-weight: 800;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    transition: 0.25s ease;
-    cursor: pointer;
-    text-decoration: none;
-}
-
-.btn-primary {
-    background: var(--primary);
-    color: #ffffff;
-    border: 1px solid var(--primary);
-}
-
-.btn-primary:hover {
-    background: var(--primary-dark);
-    transform: translateY(-2px);
-}
-
-.btn-outline {
-    color: var(--primary);
-    border: 1px solid var(--primary);
-    background: var(--card-bg);
-}
-
-.btn-outline:hover {
-    background: var(--soft-accent);
-}
+/* Botones unificados con tonjeo.css (eliminados duplicados) */
 
 .stats-grid {
     display: grid;
@@ -87,70 +37,8 @@ body.dark-mode {
     margin-bottom: 24px;
 }
 
-.stat-card {
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 20px 22px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    min-height: 135px;
-    box-shadow: var(--shadow-md);
-    transition: 0.25s ease;
-}
-
-.stat-card:hover {
-    transform: translateY(-3px);
-}
-
-.stat-icon {
-    width: 54px;
-    height: 54px;
-    border-radius: 16px;
-    background: var(--soft-accent);
-    color: var(--primary);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 27px;
-    flex-shrink: 0;
-}
-
-.stat-icon.warning {
-    background: var(--warning-soft);
-    color: var(--warning);}.stat-card span {
-    color: var(--text-muted);
-    font-size: 15px;
-}
-
-.stat-card h3 {
-    color: var(--text-primary);
-    font-size: 28px;
-    font-weight: 900;
-    margin-top: 4px;}.stat-card p {
-    color: #64748b;
-    font-weight: 600;
-    margin-top: 3px;
-    font-size: 13px;
-}
-
 .warning-text {
     color: var(--warning) !important;
-}
-
-.content-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 24px;
-    align-items: start;
-}
-
-.panel-card {
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 22px;
-    box-shadow: var(--shadow-md);
 }
 
 .users-panel {
@@ -161,26 +49,6 @@ body.dark-mode {
 .activity-panel {
     padding: 26px 28px;
     min-width: 0;
-}
-
-.panel-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 18px;
-    gap: 14px;
-}
-
-.panel-header h2 {
-    font-size: 24px;
-    font-weight: 900;
-    color: var(--text-primary);
-}
-
-.panel-header p {
-    color: var(--text-muted);
-    margin-top: 4px;
-    font-size: 14px;
 }
 
 .badge-custom {
@@ -567,15 +435,15 @@ body.dark-mode {
     box-shadow: var(--shadow-xl);
 }
 
-body.dark-mode .modal-feedback-card {
+html.dark-mode .modal-feedback-card {
     background: #111827;
 }
 
-body.dark-mode .modal-feedback-card h2 {
+html.dark-mode .modal-feedback-card h2 {
     color: #ffffff;
 }
 
-body.dark-mode .modal-feedback-card p {
+html.dark-mode .modal-feedback-card p {
     color: #cbd5e1;
 }
 
@@ -619,13 +487,13 @@ body.dark-mode .modal-feedback-card p {
     background: #f3f4f6;
 }
 
-body.dark-mode .modal-confirm-cancel {
+html.dark-mode .modal-confirm-cancel {
     background: #1f2937;
     color: #ffffff;
     border-color: #374151;
 }
 
-body.dark-mode .modal-confirm-cancel:hover {
+html.dark-mode .modal-confirm-cancel:hover {
     background: #374151;
 }
 

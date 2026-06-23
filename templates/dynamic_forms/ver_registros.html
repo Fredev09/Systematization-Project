@@ -27,13 +27,13 @@
     </header>
 
     <nav class="header-actions">
-        <a href="{% url 'dynamic_forms:llenar_formulario' formulario.id %}" class="btn-accent">
+        <a href="{% url 'dynamic_forms:llenar_formulario' formulario.id %}" class="btn btn-accent">
             <i class='fas fa-plus'></i> Nuevo registro
         </a>
-        <a href="{% url 'dynamic_forms:exportar_excel' formulario.id %}" class="btn-primary">
+        <a href="{% url 'dynamic_forms:exportar_excel' formulario.id %}" class="btn btn-primary">
             <i class='fas fa-file-excel'></i> Exportar Excel
         </a>
-        <a href="{% url 'dynamic_forms:listar_formularios' %}" class="btn-outline">
+        <a href="{% url 'dynamic_forms:listar_formularios' %}" class="btn btn-outline-secondary">
             <i class='fas fa-arrow-left'></i> Volver
         </a>
     </nav>
@@ -118,7 +118,7 @@
         <i class='fas fa-database'></i>
         <h4>No hay registros aún</h4>
         <p>Comienza a llenar el formulario para ver los registros aquí.</p>
-        <a href="{% url 'dynamic_forms:llenar_formulario' formulario.id %}" class="btn-primary">
+        <a href="{% url 'dynamic_forms:llenar_formulario' formulario.id %}" class="btn btn-primary">
             <i class='fas fa-plus'></i> Nuevo registro
         </a>
     </div>
