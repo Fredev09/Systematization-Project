@@ -84,34 +84,26 @@ function cambiarIconoTema() {
         return;
     }
 
-    if (document.body.classList.contains("dark-mode")) {
+    if (document.documentElement.classList.contains("dark-mode")) {
         icono.className = "bi bi-sun";
     } else {
         icono.className = "bi bi-moon-stars";
     }
 }
 
-const temaGuardado = localStorage.getItem("tema");
+const temaGuardado = localStorage.getItem("theme");
 
-if (temaGuardado === "oscuro") {
-    document.body.classList.add("dark-mode");
-}
-
-if (temaGuardado === "claro") {
-    document.body.classList.remove("dark-mode");
+if (temaGuardado === "dark") {
+    document.documentElement.classList.add("dark-mode");
 }
 
 cambiarIconoTema();
 
 if (themeToggle) {
     themeToggle.addEventListener("click", () => {
-        document.body.classList.toggle("dark-mode");
+        const isDark = document.documentElement.classList.toggle("dark-mode");
 
-        if (document.body.classList.contains("dark-mode")) {
-            localStorage.setItem("tema", "oscuro");
-        } else {
-            localStorage.setItem("tema", "claro");
-        }
+        localStorage.setItem("theme", isDark ? "dark" : "light");
 
         cambiarIconoTema();
     });

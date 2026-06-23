@@ -13,8 +13,11 @@
             window.SYSTEM_DEFAULT_THEME = selectedTheme;
 
             if (themeIcon) {
-                themeIcon.classList.toggle('bx-moon', !isDark);
-                themeIcon.classList.toggle('bx-sun', isDark);
+                if (isDark) {
+                    themeIcon.className = 'fas fa-sun';
+                } else {
+                    themeIcon.className = 'fas fa-moon';
+                }
             }
 
             if (persist) {

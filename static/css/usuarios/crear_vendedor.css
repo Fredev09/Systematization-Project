@@ -238,6 +238,125 @@ body {
     margin-top: 30px;
 }
 
+/* ============================================================
+   Dark Mode
+   ============================================================ */
+html.dark-mode {
+    --primary: #f1f5f9;
+    --secondary: #cbd5e1;
+    --muted: #94a3b8;
+    --accent: #60a5fa;
+    --accent-dark: #3b82f6;
+    --soft-accent: rgba(30, 64, 175, 0.2);
+    --border: #334155;
+    --bg: #0f172a;
+    --card: #1e293b;
+    --input-bg: #1e293b;
+    --danger: #ef4444;
+    --danger-soft: rgba(239, 68, 68, 0.15);
+    --shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+
+html.dark-mode body {
+    background:
+        radial-gradient(circle at top left, rgba(59, 130, 246, 0.08), transparent 32%),
+        radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.06), transparent 30%),
+        var(--bg);
+}
+
+html.dark-mode .back-link {
+    color: var(--accent);
+}
+
+html.dark-mode .back-link:hover {
+    color: var(--accent-dark);
+}
+
+html.dark-mode .input-box {
+    background: rgba(15, 23, 42, 0.6);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+html.dark-mode .input-box:focus-within {
+    background: rgba(15, 23, 42, 0.8);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+html.dark-mode .toggle-password:hover {
+    color: var(--accent);
+}
+
+html.dark-mode .btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+html.dark-mode .btn-primary:hover {
+    background: var(--accent-dark);
+}
+
+html.dark-mode .btn-secondary {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: var(--secondary);
+}
+
+html.dark-mode .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+html.dark-mode .header-icon {
+    background: var(--soft-accent);
+    color: var(--accent);
+}
+
+html.dark-mode .seller-card {
+    background: var(--card);
+    border-color: var(--border);
+    box-shadow: var(--shadow);
+}
+
+html.dark-mode .password-tips {
+    background: var(--soft-accent);
+    color: var(--accent);
+}
+
+html.dark-mode .form-alert {
+    background: var(--danger-soft);
+    color: var(--danger);
+}
+
+html.dark-mode .header-content p {
+    color: var(--accent);
+}
+
+html.dark-mode .header-content h1 {
+    color: var(--primary);
+}
+
+html.dark-mode .header-content span {
+    color: var(--muted);
+}
+
+html.dark-mode .form-group label {
+    color: var(--secondary);
+}
+
+html.dark-mode .input-box input {
+    color: var(--primary);
+}
+
+html.dark-mode .input-box input::placeholder {
+    color: var(--muted);
+}
+
+html.dark-mode .input-box > i {
+    color: var(--accent);
+}
+
 .btn-primary,
 .btn-secondary {
     min-height: 54px;

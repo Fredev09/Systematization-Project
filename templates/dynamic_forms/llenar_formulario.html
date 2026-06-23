@@ -29,7 +29,7 @@
     </header>
 
     <nav class="header-actions">
-        <a href="{% url 'dynamic_forms:listar_formularios' %}" class="btn-outline">
+        <a href="{% url 'dynamic_forms:listar_formularios' %}" class="btn btn-outline-secondary">
             <i class='fas fa-arrow-left'></i>
             Volver
         </a>
@@ -47,10 +47,10 @@
 
 <section class="panel-card">
     <div class="df-empty-state">
-        <i class='fas fa-ban' style="color: #f59e0b;"></i>
+        <i class='fas fa-ban df-warning-icon'></i>
         <h4>Este formulario no está disponible actualmente</h4>
         <p>El administrador ha desactivado este formulario.</p>
-        <a href="/" class="btn-primary">
+        <a href="/" class="btn btn-primary">
             <i class='fas fa-home'></i> Ir al inicio
         </a>
     </div>
@@ -139,7 +139,7 @@
 
             <div class="df-submit-area">
                 <a href="{% url 'dynamic_forms:listar_formularios' %}" class="btn btn-outline-secondary">Cancelar</a>
-                <button type="submit" class="btn-primary">
+                <button type="submit" class="btn btn-primary">
                     <i class='fas fa-check'></i> Guardar registro
                 </button>
             </div>

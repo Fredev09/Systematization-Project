@@ -31,7 +31,7 @@
     </header>
 
     <nav class="header-actions">
-        <a href="{% url 'historial_ventas' %}" class="btn-outline">
+        <a href="{% url 'historial_ventas' %}" class="btn btn-outline-secondary">
             <i class='fas fa-clock'></i>
             Ver historial
         </a>
@@ -321,7 +321,7 @@
                 <small id="vpStockPreview">Selecciona productos</small>
             </section>
 
-            <button type="submit" class="btn-primary vp-submit" {% if not productos_disponibles %}disabled{% endif %}>
+            <button type="submit" class="btn btn-primary vp-submit" {% if not productos_disponibles %}disabled{% endif %}>
                 <i class='fas fa-cart-plus'></i>
                 Registrar venta
             </button>
@@ -388,7 +388,7 @@
             <p>Consulta todas las ventas registradas, filtra por fecha, producto, cliente o vendedor y exporta el reporte.</p>
         </section>
 
-        <a href="{% url 'historial_ventas' %}" class="btn-primary history-cta-button">
+        <a href="{% url 'historial_ventas' %}" class="btn btn-primary history-cta-button">
             <i class='fas fa-arrow-right'></i>
             Ir al historial de ventas
         </a>

@@ -225,12 +225,12 @@
     background: var(--soft-accent);
 }
 
-body.dark-mode .stock-ok {
+html.dark-mode .stock-ok {
     background: rgba(22, 163, 74, 0.2);
     color: #4ade80;
 }
 
-body.dark-mode .stock-low {
+html.dark-mode .stock-low {
     background: rgba(249, 115, 22, 0.18);
     color: #fb923c;
 }

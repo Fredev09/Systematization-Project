@@ -317,13 +317,13 @@
     color: #0369a1;
 }
 
-body.dark-mode .stock-product-card,
-body.dark-mode .stock-form-card {
+html.dark-mode .stock-product-card,
+html.dark-mode .stock-form-card {
     background: var(--card);
     border-color: var(--border);
 }
 
-body.dark-mode .stock-help-box {
+html.dark-mode .stock-help-box {
     background: rgba(3, 105, 161, 0.15);
 }
 
@@ -438,22 +438,22 @@ body.dark-mode .stock-help-box {
     background-clip: content-box;
 }
 
-body.dark-mode .stock-history-card {
+html.dark-mode .stock-history-card {
     background: var(--card);
     border-color: var(--border);
 }
 
-body.dark-mode .movement-entry {
+html.dark-mode .movement-entry {
     background: rgba(21, 128, 61, 0.18);
     color: #86efac;
 }
 
-body.dark-mode .movement-exit {
+html.dark-mode .movement-exit {
     background: rgba(197, 48, 48, 0.18);
     color: #fecaca;
 }
 
-body.dark-mode .movement-fix {
+html.dark-mode .movement-fix {
     background: rgba(3, 105, 161, 0.18);
     color: #bae6fd;
 }

@@ -32,12 +32,12 @@
     </header>
 
     <nav class="header-actions reportes-actions">
-        <a href="{% url 'reporte_excel' %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" class="btn-primary">
+        <a href="{% url 'reporte_excel' %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" class="btn btn-primary">
             <i class='fas fa-file'></i>
             Exportar Excel
         </a>
 
-        <a href="{% url 'reporte_pdf_completo' %}?{{ request.GET.urlencode }}" class="btn-primary">
+        <a href="{% url 'reporte_pdf_completo' %}?{{ request.GET.urlencode }}" class="btn btn-primary">
             <i class='fas fa-file-pdf'></i>
             Exportar PDF
         </a>
