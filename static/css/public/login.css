@@ -1,0 +1,449 @@
+/* TONJEO - Login Page
+   Estilos específicos para la página de inicio de sesión.
+   Los estilos base (form-control, btn-primary, alert, etc.) vienen de tonjeo.css */
+.login-body {
+    font-family: var(--font-body);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0f172a;
+    position: relative;
+    overflow: hidden;
+}
+
+.login-body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+        radial-gradient(ellipse at 20% 30%, rgba(30,64,175,0.15), transparent 50%),
+        radial-gradient(ellipse at 80% 70%, rgba(15,23,42,0.2), transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(8,145,178,0.08), transparent 50%);
+    pointer-events: none;
+}
+
+.login-container {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+/* --- Floating background shapes --- */
+.login-bg-shapes {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.login-shape {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(60px);
+    opacity: 0.3;
+    animation: loginFloat 12s ease-in-out infinite;
+}
+
+.login-shape-1 {
+    width: 400px;
+    height: 400px;
+    background: rgba(30,64,175,0.2);
+    top: -10%;
+    left: -10%;
+}
+
+.login-shape-2 {
+    width: 350px;
+    height: 350px;
+    background: rgba(15,23,42,0.25);
+    bottom: -10%;
+    right: -10%;
+    animation-delay: 3s;
+}
+
+.login-shape-3 {
+    width: 200px;
+    height: 200px;
+    background: rgba(8,145,178,0.12);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    animation-delay: 6s;
+}
+
+@keyframes loginFloat {
+    0%,100%{transform:translateY(0) scale(1)}
+    33%{transform:translateY(-20px) scale(1.05)}
+    66%{transform:translateY(10px) scale(0.95)}
+}
+
+/* --- Theme toggle button (fixed position) --- */
+.login-theme-btn {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 20;
+    width: 48px;
+    height: 48px;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: var(--radius-md);
+    background: rgba(255,255,255,0.05);
+    color: rgba(255,255,255,0.6);
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+    transition: all var(--transition-base);
+}
+
+.login-theme-btn:hover {
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    transform: translateY(-2px);
+}
+
+/* --- Card wrapper --- */
+.login-wrapper {
+    width: 100%;
+    max-width: 440px;
+}
+
+/* --- Glassmorphism card --- */
+.login-card-modern {
+    background: rgba(30,41,59,0.8);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: var(--radius-xl);
+    padding: 48px 40px;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.3);
+    animation: fadeInUp 0.6s ease;
+}
+
+/* --- Brand header --- */
+.login-brand-modern {
+    text-align: center;
+    margin-bottom: 36px;
+}
+
+.login-logo {
+    width: 72px;
+    height: 72px;
+    margin: 0 auto 20px;
+    background: var(--gradient-primary);
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    color: #fff;
+    box-shadow: 0 8px 32px rgba(30,64,175,0.3);
+}
+
+.login-brand-modern h1 {
+    font-family: var(--font-heading);
+    font-size: 28px;
+    font-weight: 800;
+    color: #fff;
+    margin: 0;
+    letter-spacing: -0.5px;
+}
+
+.login-subtitle {
+    color: rgba(255,255,255,0.5);
+    font-size: 14px;
+    margin-top: 6px;
+}
+
+/* --- Messages --- */
+.messages {
+    margin-bottom: 20px;
+}
+
+/* --- Form layout --- */
+.login-form-modern {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-group .form-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255,255,255,0.7);
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 0;
+}
+
+.form-group .form-label i {
+    font-size: 14px;
+    color: rgba(59,130,246,0.6);
+}
+
+/* --- Override form-control for dark backgrounds --- */
+.form-group .form-control {
+    height: 50px;
+    padding: 0 16px;
+    border: 2px solid rgba(255,255,255,0.08);
+    border-radius: var(--radius-md);
+    background: rgba(255,255,255,0.04);
+    color: #fff;
+    font-size: 15px;
+}
+
+.form-group .form-control::placeholder {
+    color: rgba(255,255,255,0.25);
+}
+
+.form-group .form-control:focus {
+    border-color: rgba(59,130,246,0.4);
+    background: rgba(255,255,255,0.06);
+    box-shadow: 0 0 0 4px rgba(30,64,175,0.08);
+}
+
+/* --- Password visibility toggle --- */
+.password-wrapper {
+    position: relative;
+}
+
+.password-wrapper .form-control {
+    padding-right: 48px;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: transparent;
+    color: rgba(255,255,255,0.3);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    transition: color var(--transition-fast);
+}
+
+.toggle-password:hover {
+    color: rgba(255,255,255,0.6);
+}
+
+/* --- Remember me & forgot password --- */
+.login-options-modern {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.remember-me {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255,255,255,0.5);
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.remember-me input {
+    accent-color: var(--primary);
+    width: 16px;
+    height: 16px;
+}
+
+.forgot-link {
+    color: rgba(59,130,246,0.6);
+    font-size: 14px;
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.forgot-link:hover {
+    color: #60a5fa;
+    text-decoration: underline;
+}
+
+/* --- Submit button override for dark card --- */
+.login-form-modern .btn-primary {
+    width: 100%;
+    height: 52px;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: var(--radius-md);
+    box-shadow: 0 4px 20px rgba(30,64,175,0.25);
+}
+
+.login-form-modern .btn-primary i {
+    font-size: 18px;
+}
+
+/* --- Back to login link (recovery page) --- */
+.recovery-back-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: rgba(255,255,255,0.5);
+    font-size: 14px;
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.recovery-back-link i {
+    font-size: 16px;
+}
+
+.recovery-back-link:hover {
+    color: rgba(59,130,246,0.7);
+}
+
+html:not(.dark-mode) .recovery-back-link {
+    color: rgba(29,53,87,0.5);
+}
+
+html:not(.dark-mode) .recovery-back-link:hover {
+    color: var(--primary);
+}
+
+/* --- Footer text --- */
+.login-access-text {
+    text-align: center;
+    color: rgba(255,255,255,0.3);
+    font-size: 13px;
+    margin: 0;
+}
+
+/* ============================================================
+   LIGHT MODE
+   ============================================================ */
+html:not(.dark-mode) .login-body {
+    background: var(--bg);
+}
+
+html:not(.dark-mode) .login-body::before {
+    background:
+        radial-gradient(ellipse at 20% 30%, rgba(30,64,175,0.08), transparent 50%),
+        radial-gradient(ellipse at 80% 70%, rgba(15,23,42,0.05), transparent 50%);
+}
+
+html:not(.dark-mode) .login-shape-1 {
+    background: rgba(30,64,175,0.1);
+}
+
+html:not(.dark-mode) .login-shape-2 {
+    background: rgba(15,23,42,0.08);
+}
+
+html:not(.dark-mode) .login-shape-3 {
+    background: rgba(8,145,178,0.06);
+}
+
+html:not(.dark-mode) .login-card-modern {
+    background: rgba(255,255,255,0.9);
+    border-color: rgba(0,0,0,0.06);
+    box-shadow: 0 24px 80px rgba(29,53,87,0.1);
+}
+
+html:not(.dark-mode) .login-brand-modern h1 {
+    color: var(--secondary);
+}
+
+html:not(.dark-mode) .login-subtitle {
+    color: rgba(29,53,87,0.5);
+}
+
+html:not(.dark-mode) .form-group .form-label {
+    color: rgba(29,53,87,0.7);
+}
+
+html:not(.dark-mode) .form-group .form-label i {
+    color: rgba(30,64,175,0.4);
+}
+
+html:not(.dark-mode) .form-group .form-control {
+    background: rgba(0,0,0,0.02);
+    border-color: rgba(0,0,0,0.08);
+    color: var(--secondary);
+}
+
+html:not(.dark-mode) .form-group .form-control::placeholder {
+    color: rgba(29,53,87,0.25);
+}
+
+html:not(.dark-mode) .form-group .form-control:focus {
+    border-color: rgba(30,64,175,0.3);
+    background: rgba(255,255,255,0.9);
+    box-shadow: 0 0 0 4px rgba(30,64,175,0.08);
+}
+
+html:not(.dark-mode) .login-theme-btn {
+    background: rgba(255,255,255,0.6);
+    border-color: rgba(0,0,0,0.06);
+    color: rgba(29,53,87,0.6);
+}
+
+html:not(.dark-mode) .login-theme-btn:hover {
+    background: rgba(255,255,255,0.8);
+    color: var(--secondary);
+}
+
+html:not(.dark-mode) .remember-me {
+    color: rgba(29,53,87,0.5);
+}
+
+html:not(.dark-mode) .login-access-text {
+    color: rgba(29,53,87,0.3);
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 480px) {
+    .login-card-modern {
+        padding: 32px 24px;
+        border-radius: var(--radius-lg);
+    }
+
+    .login-brand-modern h1 {
+        font-size: 24px;
+    }
+
+    .login-logo {
+        width: 60px;
+        height: 60px;
+        font-size: 26px;
+    }
+
+    .login-theme-btn {
+        top: 16px;
+        right: 16px;
+        width: 42px;
+        height: 42px;
+        font-size: 17px;
+    }
+
+    .login-form-modern .btn-primary {
+        height: 48px;
+        font-size: 15px;
+    }
+}

@@ -1,0 +1,145 @@
+{% extends 'base/form_base.html' %}
+{% load static %}
+
+{% block titulo %}Editar producto | {{ configuracion_tienda.nombre_tienda|default:'Tonjeo' }}{% endblock %}
+
+{% block estilos %}
+<link rel="stylesheet" href="{% static 'css/productos/agregar_producto.css' %}">
+{% endblock %}
+
+{% block contenido %}
+
+<section class="page-header form-page-header">
+    <header>
+        <p>Catálogo</p>
+        <h1>Editar producto</h1>
+        <span>Actualiza la información de {{ producto.nombre }}</span>
+    </header>
+
+    <nav class="header-actions">
+        <a href="{% url 'productos' %}" class="btn-outline-secondary">
+            <i class='fas fa-arrow-left'></i>
+            Volver
+        </a>
+    </nav>
+</section>
+
+<form method="POST" enctype="multipart/form-data" class="product-form confirm-form"
+      data-confirm-title="¿Guardar cambios?"
+      data-confirm-text="Se actualizará la información del producto."
+      data-confirm-icon="question"
+      data-confirm-button="Sí, guardar"
+      data-loading-text="Guardando...">
+    {% csrf_token %}
+
+    <section class="mb-3 form-field">
+        <label class="form-label" for="{{ form.nombre.id_for_label }}">Nombre</label>
+        <section class="input-icon">
+            <i class='fas fa-box'></i>
+            {{ form.nombre }}
+        </section>
+        {{ form.nombre.errors }}
+    </section>
+
+    <section class="mb-3 form-field">
+        <label class="form-label" for="{{ form.categoria.id_for_label }}">Categoría</label>
+        {{ form.categoria }}
+        {{ form.categoria.errors }}
+    </section>
+
+    <a href="{% url 'agregar_categoria' %}" class="btn btn-accent btn-sm mb-3">
+        <i class='fas fa-plus'></i>
+        Crear categoría
+    </a>
+
+    <section class="row g-3 mt-1">
+        <section class="col-md-6 form-field">
+            <label class="form-label" for="{{ form.talla.id_for_label }}">Talla</label>
+            <section class="input-icon">
+                <i class='fas fa-ruler'></i>
+                {{ form.talla }}
+            </section>
+            {{ form.talla.errors }}
+        </section>
+
+        <section class="col-md-6 form-field">
+            <label class="form-label" for="{{ form.color.id_for_label }}">Color</label>
+            <section class="input-icon">
+                <i class='fas fa-palette'></i>
+                {{ form.color }}
+            </section>
+            {{ form.color.errors }}
+        </section>
+    </section>
+
+    <section class="row g-3 mt-1">
+        <section class="col-md-12 form-field">
+            <label class="form-label" for="{{ form.precio.id_for_label }}">Precio</label>
+            <section class="input-icon">
+                <i class='fas fa-dollar-sign'></i>
+                {{ form.precio }}
+            </section>
+            {{ form.precio.errors }}
+        </section>
+    </section>
+
+    <section class="mb-3 mt-3 form-field">
+        <label class="form-label">Imagen</label>
+
+        <section class="image-source-grid">
+            <section>
+                <label class="form-label" for="{{ form.imagen.id_for_label }}">Subir archivo</label>
+                <section class="input-icon">
+                    <i class='fas fa-image'></i>
+                    {{ form.imagen }}
+                </section>
+                {{ form.imagen.errors }}
+            </section>
+
+            <section>
+                <label class="form-label" for="{{ form.imagen_url.id_for_label }}">URL de internet</label>
+                <section class="input-icon">
+                    <i class='fas fa-link'></i>
+                    {{ form.imagen_url }}
+                </section>
+                {{ form.imagen_url.errors }}
+            </section>
+        </section>
+
+        <p class="image-help-text">
+            Puedes subir una imagen desde tu equipo o pegar una URL. Si usas URL, esa imagen tendrá prioridad.
+        </p>
+
+        <section class="image-preview-box" id="imagePreviewBox">
+            {% if producto.imagen_final_url %}
+                <img id="imagePreview" src="{{ producto.imagen_final_url }}" alt="Vista previa de {{ producto.nombre }}">
+                <section class="image-preview-empty-icon" id="imagePreviewIcon" style="display: none;">
+                    <i class='fas fa-box'></i>
+                </section>
+                <p id="imagePreviewText" style="display: none;">Sin imagen. El producto se mostrará con icono.</p>
+            {% else %}
+                <img id="imagePreview" src="" alt="Vista previa de la imagen seleccionada">
+                <section class="image-preview-empty-icon" id="imagePreviewIcon">
+                    <i class='fas fa-box'></i>
+                </section>
+                <p id="imagePreviewText">Sin imagen. El producto se mostrará con icono.</p>
+            {% endif %}
+        </section>
+    </section>
+
+    <section class="form-actions">
+        <a href="{% url 'productos' %}" class="btn-cancel">
+            Cancelar
+        </a>
+        <button type="submit" class="btn-save">
+            <i class='fas fa-save'></i>
+            Guardar cambios
+        </button>
+    </section>
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/productos/agregar_producto.js' %}"></script>
+{% endblock %}

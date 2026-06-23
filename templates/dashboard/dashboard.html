@@ -1,0 +1,181 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load formatos %}
+
+{% block titulo %}Dashboard | Tonjeo{% endblock %}
+
+{% block estilos %}
+<link rel="stylesheet" href="{% static 'css/dashboard/dashboard.css' %}">
+{% endblock %}
+
+{% block topbar_info %}
+<section class="topbar-icon">
+    <i class="fas fa-th-large"></i>
+</section>
+<section>
+    <strong>Resumen general</strong>
+    <span>Tonjeo — Plataforma empresarial</span>
+</section>
+{% endblock %}
+
+{% block contenido %}
+
+<section class="page-header">
+    <header>
+        <p>Bienvenido, {{ request.user.username }}</p>
+        <h1>{% if es_admin %}Panel principal{% else %}Panel de vendedor{% endif %}</h1>
+    </header>
+
+    <nav class="header-actions" aria-label="Acciones rapidas">
+        {% if not es_admin %}
+        <a href="{% url 'catalogo_publico' %}" class="btn btn-outline-primary" target="_blank">
+            <i class="fas fa-eye"></i> Ver catalogo
+        </a>
+        {% endif %}
+        <a href="{% url 'exportar_ventas' %}" class="btn btn-outline-primary">
+            <i class="fas fa-download"></i>
+            {% if es_admin %}Exportar ventas{% else %}Descargar reporte{% endif %}
+        </a>
+        <a href="{% url 'nueva_venta' %}" class="btn btn-primary">
+            <i class="fas fa-cart-plus"></i> Nueva venta
+        </a>
+        {% if es_admin %}
+        <a href="{% url 'agregar_producto' %}" class="btn btn-accent">
+            <i class="fas fa-plus"></i> Agregar producto
+        </a>
+        {% endif %}
+    </nav>
+</section>
+
+<section class="stats-grid" aria-label="Resumen general">
+    <article class="stat-card">
+        <section class="stat-icon primary">
+            <i class="fas fa-coins"></i>
+        </section>
+        <section>
+            <span>{% if es_admin %}Ventas{% else %}Mis ventas{% endif %}</span>
+            <h3>{{ total_ventas|default:"0"|formato_pesos }}</h3>
+            <p>Total registrado</p>
+        </section>
+    </article>
+
+    <article class="stat-card">
+        <section class="stat-icon accent">
+            <i class="fas fa-box"></i>
+        </section>
+        <section>
+            <span>Productos</span>
+            <h3>{{ total_productos|default:"0" }}</h3>
+            <p>Disponibles</p>
+        </section>
+    </article>
+
+    {% if es_admin %}
+    <article class="stat-card">
+        <section class="stat-icon info">
+            <i class="fas fa-user-plus"></i>
+        </section>
+        <section>
+            <span>Vendedores</span>
+            <h3>{{ total_clientes|default:"0" }}</h3>
+            <p>Registrados</p>
+        </section>
+    </article>
+    {% endif %}
+
+    <article class="stat-card">
+        <section class="stat-icon warning">
+            <i class="fas fa-exclamation-triangle"></i>
+        </section>
+        <section>
+            <span>Stock bajo</span>
+            <h3>{{ stock_bajo|default:"0" }}</h3>
+            <p class="warning-text">Revisar inventario</p>
+        </section>
+    </article>
+</section>
+
+<section class="content-grid">
+    <article class="panel-card products-panel">
+        <header class="panel-header">
+            <section>
+                <h2>Top productos vendidos</h2>
+                <p>Mayor cantidad de ventas registradas</p>
+            </section>
+            <span class="badge badge-primary">Top ventas</span>
+        </header>
+        {% if productos %}
+        <section class="table-responsive">
+            <table class="table table-stagger">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Producto</th>
+                        <th>Categoria</th>
+                        <th>Precio</th>
+                        <th>Stock</th>
+                        <th>Vendidos</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for producto in productos %}
+                    <tr>
+                        <td><span class="top-number">{{ forloop.counter }}</span></td>
+                        <td><strong>{{ producto.nombre }}</strong></td>
+                        <td>{{ producto.categoria.nombre|default:"Sin categoria" }}</td>
+                        <td><span class="price-text">{{ producto.precio|formato_pesos }}</span></td>
+                        <td>
+                            {% if producto.stock <= stock_minimo_alerta %}
+                            <span class="stock-badge stock-low">{{ producto.stock }}</span>
+                            {% else %}
+                            <span class="stock-badge stock-ok">{{ producto.stock }}</span>
+                            {% endif %}
+                        </td>
+                        <td><span class="sold-badge">{{ producto.total_vendidos|default:"0" }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+        {% else %}
+        <p class="empty-text">No hay productos vendidos registrados.</p>
+        {% endif %}
+    </article>
+
+    <article class="panel-card sales-panel">
+        <header class="panel-header">
+            <section>
+                <h2>{% if es_admin %}Ventas recientes{% else %}Mis ventas{% endif %}</h2>
+                <p>Ultimos movimientos</p>
+            </section>
+            <i class="fas fa-receipt panel-icon"></i>
+        </header>
+        {% if ventas_recientes %}
+        <section class="sales-list">
+            {% for venta in ventas_recientes %}
+            <article class="sale-item">
+                <section>
+                    <strong>Venta #{{ venta.id }}</strong>
+                    <span>{{ venta.fecha|date:"d/m/Y h:i A" }}</span>
+                    {% if venta.producto %}
+                    <small>{{ venta.producto.nombre }}</small>
+                    {% endif %}
+                </section>
+                <p>{{ venta.total|formato_pesos }}</p>
+            </article>
+            {% endfor %}
+        </section>
+        {% else %}
+        <p class="empty-text">No hay ventas registradas.</p>
+        {% endif %}
+        <a href="{% url 'historial_ventas' %}" class="history-btn">
+            <i class="fas fa-clock"></i> Ver historial completo
+        </a>
+    </article>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/dashboard/dashboard.js' %}"></script>
+{% endblock %}

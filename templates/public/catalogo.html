@@ -1,0 +1,166 @@
+{% load static %}
+{% load formatos %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catalogo | {{ configuracion.nombre_tienda|default:'Tonjeo' }}</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'css/public/catalogo.css' %}">
+</head>
+
+<body>
+
+<header class="catalog-header">
+    <nav class="catalog-nav">
+        <section class="brand-box">
+            <img src="#" alt="Logo {{ configuracion.nombre_tienda|default:'Tonjeo' }}">
+
+            <section>
+                <h1>{{ configuracion.nombre_tienda|default:'Tonjeo' }}</h1>
+                <p>Catalogo comercial</p>
+            </section>
+        </section>
+
+        <a href="#productos" class="nav-action">
+            <i class='fas fa-shopping-bag'></i>
+            Ver productos
+        </a>
+    </nav>
+
+    <section class="hero-content">
+        <span class="hero-badge">
+            <i class='fas fa-store'></i>
+            Catalogo disponible
+        </span>
+
+        <h2>Productos seleccionados para ti</h2>
+
+        <p>
+            Explora nuestro catalogo, revisa colores, tallas y disponibilidad.
+            Para realizar un pedido o consultar detalles, comunicate con nosotros por WhatsApp.
+        </p>
+
+        <section class="hero-actions">
+            <a href="#productos" class="hero-primary-btn">
+                <i class='fas fa-search'></i>
+                Explorar catalogo
+            </a>
+
+            <a
+                href="https://wa.me/{{ telefono_whatsapp }}?text=Hola,%20quiero%20consultar%20el%20catalogo%20de%20{{ configuracion.nombre_tienda|urlencode }}"
+                target="_blank"
+                class="hero-whatsapp-btn"
+            >
+                <i class='fab fa-whatsapp'></i>
+                WhatsApp
+            </a>
+        </section>
+    </section>
+</header>
+
+<main class="catalog-main" id="productos">
+    <section class="catalog-title">
+        <section>
+            <p>Productos</p>
+            <h2>Catalogo {{ configuracion.nombre_tienda|default:'Tonjeo' }}</h2>
+        </section>
+
+        <span class="product-count">
+            {% if productos|length == 1 %}
+                1 producto
+            {% else %}
+                {{ productos|length }} productos
+            {% endif %}
+        </span>
+    </section>
+
+    <section class="products-grid">
+        {% for producto in productos %}
+        <article class="product-card">
+            <section class="product-image">
+                {% if producto.imagen_final_url %}
+                    <img 
+                        src="{{ producto.imagen_final_url }}" 
+                        alt="{{ producto.nombre }}"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+              >
+
+        <section class="empty-image image-fallback" style="display: none;">
+            <i class='fas fa-box'></i>
+        </section>
+    {% else %}
+        <section class="empty-image">
+            <i class='fas fa-box'></i>
+        </section>
+    {% endif %}
+
+                {% if producto.stock > stock_minimo_alerta %}
+                    <span class="availability available">Disponible</span>
+                {% elif producto.stock > 0 %}
+                    <span class="availability low">Pocas unidades</span>
+                {% else %}
+                    <span class="availability out">Agotado</span>
+                {% endif %}
+            </section>
+
+            <section class="product-body">
+                {% if producto.categoria %}
+                    <span class="category">{{ producto.categoria.nombre }}</span>
+                {% else %}
+                    <span class="category">Producto</span>
+                {% endif %}
+
+                <h3>{{ producto.nombre }}</h3>
+
+                <section class="product-meta">
+                    <span>
+                        <i class='fas fa-palette'></i>
+                        {{ producto.color }}
+                    </span>
+
+                    <span>
+                        <i class='fas fa-ruler'></i>
+                        Talla {{ producto.talla }}
+                    </span>
+                </section>
+
+                <section class="product-footer">
+                    <strong>{{ producto.precio|formato_pesos }}</strong>
+
+                    {% if producto.stock > 0 %}
+                    <a
+                        href="https://wa.me/{{ telefono_whatsapp }}?text=Hola,%20quiero%20consultar%20por%20el%20producto%20{{ producto.nombre|urlencode }}"
+                        target="_blank"
+                        class="whatsapp-btn"
+                    >
+                        <i class='fab fa-whatsapp'></i>
+                        Consultar
+                    </a>
+                    {% else %}
+                    <button class="disabled-btn" disabled>
+                        Agotado
+                    </button>
+                    {% endif %}
+                </section>
+            </section>
+        </article>
+        {% empty %}
+        <section class="empty-catalog">
+            <i class='fas fa-box'></i>
+            <h3>No hay productos disponibles</h3>
+            <p>Pronto agregaremos nuevos productos al catalogo.</p>
+        </section>
+        {% endfor %}
+    </section>
+</main>
+
+<footer class="catalog-footer">
+    <p>{{ configuracion.nombre_tienda|default:'Tonjeo' }} - Catalogo comercial</p>
+</footer>
+
+</body>
+</html>

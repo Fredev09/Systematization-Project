@@ -1,0 +1,347 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load formatos %}
+
+{% block titulo %}Ajustar stock | {{ configuracion_tienda.nombre_tienda|default:'Tonjeo' }}{% endblock %}
+
+{% block estilos %}
+<link rel="stylesheet" href="{% static 'css/usuarios/usuarios.css' %}">
+<link rel="stylesheet" href="{% static 'css/productos/productos.css' %}">
+<link rel="stylesheet" href="{% static 'css/productos/actualizar_stock.css' %}">
+{% endblock %}
+
+{% block topbar_info %}
+<section class="topbar-icon">
+    <i class='fas fa-exchange-alt'></i>
+</section>
+
+<section>
+    <strong>Ajustar stock</strong>
+    <span>Entrada, salida o corrección de inventario</span>
+</section>
+{% endblock %}
+
+{% block contenido %}
+
+<section class="page-header">
+    <header>
+        <p>Inventario</p>
+        <h1>Ajustar stock</h1>
+    </header>
+
+    <nav class="header-actions">
+        <a href="{% url 'inventario' %}" class="btn-outline">
+            <i class='fas fa-arrow-left'></i>
+            Volver al inventario
+        </a>
+    </nav>
+</section>
+
+{% if messages %}
+<section class="messages-wrapper">
+    {% for message in messages %}
+    <article class="message-alert {{ message.tags }}">
+        <i class='fas fa-info-circle'></i>
+        <span>{{ message }}</span>
+    </article>
+    {% endfor %}
+</section>
+{% endif %}
+
+<section class="stock-adjust-layout">
+
+    <article class="panel-card stock-product-card">
+        <header class="panel-header">
+            <section>
+                <h2>Producto seleccionado</h2>
+                <p>Información actual del producto</p>
+            </section>
+
+            {% if producto.stock <= 0 %}
+                <span class="stock-status stock-empty">Sin stock</span>
+            {% elif producto.stock <= stock_minimo_alerta %}
+                <span class="stock-status stock-low">Stock bajo</span>
+            {% else %}
+                <span class="stock-status stock-ok">Disponible</span>
+            {% endif %}
+        </header>
+
+        <section class="stock-product-main">
+            <span class="stock-product-image">
+                {% if producto.imagen_final_url %}
+                    <img
+                        src="{{ producto.imagen_final_url }}"
+                        alt="{{ producto.nombre }}"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                    >
+                    <i class='fas fa-box product-fallback-icon' style="display: none;"></i>
+                {% else %}
+                    <i class='fas fa-box'></i>
+                {% endif %}
+            </span>
+
+            <section class="stock-product-info">
+                <h3>{{ producto.nombre }}</h3>
+
+                <ul class="stock-product-details">
+                    <li>
+                        <span>Categoría</span>
+                        <strong>
+                            {% if producto.categoria %}
+                                {{ producto.categoria.nombre }}
+                            {% else %}
+                                Sin categoría
+                            {% endif %}
+                        </strong>
+                    </li>
+
+                    <li>
+                        <span>Talla</span>
+                        <strong>{{ producto.talla }}</strong>
+                    </li>
+
+                    <li>
+                        <span>Color</span>
+                        <strong>{{ producto.color }}</strong>
+                    </li>
+
+                    <li>
+                        <span>Precio</span>
+                        <strong>{{ producto.precio|formato_pesos }}</strong>
+                    </li>
+                </ul>
+            </section>
+        </section>
+
+        <section class="stock-current-box">
+            <span>Stock actual</span>
+            <strong id="stockActual" data-stock="{{ producto.stock }}">{{ producto.stock|formato_numero }}</strong>
+            <p>Este valor cambiará cuando guardes el ajuste.</p>
+        </section>
+    </article>
+
+    <article class="panel-card stock-form-card">
+        <header class="panel-header">
+            <section>
+                <h2>Movimiento de inventario</h2>
+                <p>Registra el cambio y su motivo para el historial</p>
+            </section>
+
+            <span class="badge-custom">Historial</span>
+        </header>
+
+        <form method="POST" class="stock-adjust-form confirm-form" id="stockForm"
+            data-confirm-title="¿Guardar ajuste de stock?"
+            data-confirm-text="El movimiento se registrará en el historial del inventario."
+            data-confirm-icon="question"
+            data-confirm-button="Sí, guardar"
+            data-loading-text="Guardando...">
+        {% csrf_token %}
+
+            <section class="stock-form-group">
+                <label>Tipo de movimiento</label>
+
+                <section class="movement-options">
+                    {% for valor, texto in tipoElecciones %}
+                    <label class="movement-option">
+                        <input type="radio" name="tipo" value="{{ valor }}" {% if forloop.first %}checked{% endif %}>
+
+                        <span>
+                            {% if valor == 'entrada' %}
+                                <i class='fas fa-plus-circle'></i>
+                            {% elif valor == 'salida' %}
+                                <i class='fas fa-minus-circle'></i>
+                            {% else %}
+                                <i class='fas fa-pen'></i>
+                            {% endif %}
+
+                            {{ texto }}
+                        </span>
+                    </label>
+                    {% endfor %}
+                </section>
+            </section>
+
+            <section class="stock-form-row">
+                <section class="stock-form-group">
+                    <label for="cantidad">Cantidad</label>
+                    <input
+                        type="number"
+                        name="cantidad"
+                        id="cantidad"
+                        min="0"
+                        required
+                        placeholder="Ej: 5"
+                    >
+                </section>
+
+                <section class="stock-form-group">
+                    <label for="motivo">Motivo</label>
+                    <select name="motivo" id="motivo">
+                        <option value="">Sin motivo</option>
+                    </select>
+                </section>
+            </section>
+
+            <section class="stock-form-group">
+                <label for="observacion">Observación</label>
+                <textarea
+                    name="observacion"
+                    id="observacion"
+                    rows="4"
+                    placeholder="Ej: Llegó pedido nuevo, producto dañado, conteo físico, etc."
+                ></textarea>
+            </section>
+
+            <section class="stock-result-box">
+                <article>
+                    <span>Stock anterior</span>
+                    <strong>{{ producto.stock|formato_numero }}</strong>
+                </article>
+
+                <article>
+                    <span>Nuevo stock estimado</span>
+                    <strong id="stockNuevo">{{ producto.stock|formato_numero }}</strong>
+                </article>
+            </section>
+
+            <p class="stock-error-message" id="stockErrorMessage">
+                No puedes retirar más unidades de las disponibles.
+            </p>
+
+            <section class="stock-help-box">
+                <i class='fas fa-info-circle'></i>
+
+                <p>
+                    Entrada aumenta el stock, salida lo disminuye y corrección reemplaza el stock actual por la cantidad escrita.
+                </p>
+            </section>
+
+            <section class="stock-form-actions">
+                <a href="{% url 'inventario' %}" class="btn-clear">
+                    Cancelar
+                </a>
+
+                <button type="submit" class="btn-filter" id="guardarAjuste">
+                    <i class='fas fa-save'></i>
+                    Guardar ajuste
+                </button>
+            </section>
+        </form>
+    </article>
+
+</section>
+
+<section class="panel-card stock-history-card">
+    <header class="panel-header">
+        <section>
+            <h2>Historial de este producto</h2>
+            <p>Últimos movimientos registrados para {{ producto.nombre }}</p>
+        </section>
+
+        <span class="badge-custom">Últimos 10</span>
+    </header>
+
+    {% include 'base/per_page_control.html' with per_page=per_page per_page_options=per_page_options page_param='page' per_page_param='per_page' %}
+
+    <section class="table-responsive stock-history-wrapper">
+        <table class="products-table stock-history-table">
+            <thead>
+                <tr>
+                    <th>Tipo</th>
+                    <th>Cantidad</th>
+                    <th>Stock anterior</th>
+                    <th>Stock nuevo</th>
+                    <th>Motivo</th>
+                    <th>Fecha</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for movimiento in movimientos_producto %}
+                <tr>
+                    <td>
+                        {% if movimiento.tipo == 'entrada' %}
+                            <span class="movement-badge movement-entry">
+                                <i class='fas fa-plus-circle'></i>
+                                Entrada
+                            </span>
+                        {% elif movimiento.tipo == 'salida' %}
+                            <span class="movement-badge movement-exit">
+                                <i class='fas fa-minus-circle'></i>
+                                Salida
+                            </span>
+                        {% else %}
+                            <span class="movement-badge movement-fix">
+                                <i class='fas fa-pen'></i>
+                                Corrección
+                            </span>
+                        {% endif %}
+                    </td>
+
+                    <td>{{ movimiento.cantidad|formato_numero }}</td>
+                    <td>{{ movimiento.stock_anterior|formato_numero }}</td>
+                    <td>{{ movimiento.stock_nuevo|formato_numero }}</td>
+
+                    <td>
+                        {% if movimiento.motivo %}
+                            {{ movimiento.get_motivo_display }}
+                        {% else %}
+                            Sin motivo
+                        {% endif %}
+
+                        {% if movimiento.observacion %}
+                            <small class="movement-note">{{ movimiento.observacion }}</small>
+                        {% endif %}
+                    </td>
+
+                    <td>{{ movimiento.fecha|date:"d/m/Y h:i A" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="empty-row">
+                        Este producto todavía no tiene movimientos registrados.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    {% if movimientos_producto.paginator.num_pages > 1 %}
+    <nav class="table-pagination">
+        {% if movimientos_producto.has_previous %}
+            <a href="?{% if query_params %}{{ query_params }}&{% endif %}page={{ movimientos_producto.previous_page_number }}">
+                <i class='fas fa-chevron-left'></i>
+                Anterior
+            </a>
+        {% else %}
+            <span>
+                <i class='fas fa-chevron-left'></i>
+                Anterior
+            </span>
+        {% endif %}
+
+        <strong>Página {{ movimientos_producto.number }} de {{ movimientos_producto.paginator.num_pages }}</strong>
+
+        {% if movimientos_producto.has_next %}
+            <a href="?{% if query_params %}{{ query_params }}&{% endif %}page={{ movimientos_producto.next_page_number }}">
+                Siguiente
+                <i class='fas fa-chevron-right'></i>
+            </a>
+        {% else %}
+            <span>
+                Siguiente
+                <i class='fas fa-chevron-right'></i>
+            </span>
+        {% endif %}
+    </nav>
+    {% endif %}
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/dashboard/dashboard.js' %}"></script>
+<script src="{% static 'js/productos/actualizar_stock.js' %}"></script>
+{% endblock %}

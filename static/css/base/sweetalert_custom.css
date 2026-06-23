@@ -1,0 +1,126 @@
+.django-messages-container {
+    display: none;
+}
+
+.swal2-popup {
+    background: #ffffff !important;
+    border-radius: 22px !important;
+    padding: 34px 32px !important;
+    font-family: inherit !important;
+}
+
+.swal2-title {
+    color: #444 !important;
+    font-size: 30px !important;
+    font-weight: 800 !important;
+    line-height: 1.2 !important;
+}
+
+.swal2-html-container {
+    color: #666 !important;
+    font-size: 18px !important;
+    font-weight: 500 !important;
+    line-height: 1.4 !important;
+}
+
+.swal2-icon {
+    margin-top: 10px !important;
+    margin-bottom: 18px !important;
+}
+
+.swal2-icon.swal2-question {
+    border-color: #8ab0bd !important;
+    color: #8ab0bd !important;
+}
+
+.swal2-icon.swal2-success {
+    border-color: #cfecc5 !important;
+    color: #8ccf7a !important;
+}
+
+.swal2-icon.swal2-warning {
+    border-color: #f7c56b !important;
+    color: #f59e0b !important;
+}
+
+.swal2-icon.swal2-error {
+    border-color: #ffc4c4 !important;
+    color: #dc2626 !important;
+}
+
+.swal2-icon.swal2-success .swal2-success-circular-line-left,
+.swal2-icon.swal2-success .swal2-success-circular-line-right,
+.swal2-icon.swal2-success .swal2-success-fix {
+    background-color: #ffffff !important;
+}
+
+.swal2-actions {
+    gap: 12px !important;
+    margin-top: 28px !important;
+}
+
+.swal2-confirm,
+.swal2-cancel {
+    border-radius: 7px !important;
+    padding: 13px 24px !important;
+    font-size: 17px !important;
+    font-weight: 800 !important;
+    box-shadow: none !important;
+}
+
+.swal2-confirm {
+    background: #d41472 !important;
+}
+
+.swal2-confirm:hover {
+    background: #bd115f !important;
+}
+
+.swal2-cancel {
+    background: #6c757d !important;
+}
+
+.swal2-cancel:hover {
+    background: #5c666d !important;
+}
+
+.swal2-loader {
+    border-color: #d41472 transparent #d41472 transparent !important;
+}
+
+body.swal2-shown {
+    padding-right: 0 !important;
+}
+
+.btn-loading {
+    pointer-events: none;
+    opacity: 0.85;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-loading .btn-spinner {
+    width: 17px;
+    height: 17px;
+    min-width: 17px;
+    border: 2px solid rgba(255, 255, 255, 0.45);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: buttonSpin 0.7s linear infinite;
+}
+
+.btn-loading:disabled {
+    cursor: not-allowed;
+}
+
+@keyframes buttonSpin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}

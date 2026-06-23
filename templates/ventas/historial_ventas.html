@@ -1,0 +1,267 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load formatos %}
+
+{% block titulo %}Historial | {{ configuracion_tienda.nombre_tienda|default:'Tonjeo' }}{% endblock %}
+
+{% block estilos %}
+<link rel="stylesheet" href="{% static 'css/usuarios/usuarios.css' %}">
+<link rel="stylesheet" href="{% static 'css/productos/productos.css' %}">
+<link rel="stylesheet" href="{% static 'css/ventas/ventas.css' %}">
+{% endblock %}
+
+{% block topbar_info %}
+<section class="topbar-icon">
+    <i class='fas fa-clock'></i>
+</section>
+
+<section>
+    <strong>Historial</strong>
+    <span>Consulta ventas y movimientos de inventario</span>
+</section>
+{% endblock %}
+
+{% block contenido %}
+
+<section class="page-header">
+    <header>
+        <p>Historial</p>
+        <h1>{% if es_admin %}Historial general{% else %}Mis ventas registradas{% endif %}</h1>
+    </header>
+
+    <nav class="header-actions history-actions">
+        <a href="{% url 'nueva_venta' %}" class="btn-outline">
+            <i class='fas fa-cart-plus'></i>
+            Nueva venta
+        </a>
+
+        <a href="{% url 'exportar_ventas' %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" class="btn-primary">
+            <i class='fas fa-file'></i>
+            Exportar Excel
+        </a>
+    </nav>
+</section>
+
+<section class="history-tabs">
+    <a href="{% url 'historial_ventas' %}" class="history-tab active">
+        <i class='fas fa-receipt'></i>
+        Ventas
+    </a>
+
+    <a href="{% url 'historial_inventario' %}" class="history-tab">
+        <i class='fas fa-exchange-alt'></i>
+        Inventario
+    </a>
+</section>
+
+<section class="stats-grid history-summary-grid">
+    <article class="stat-card">
+        <section class="stat-icon">
+            <i class='fas fa-receipt'></i>
+        </section>
+
+        <section>
+            <span>Ventas encontradas</span>
+            <h3>{{ cantidad_ventas|formato_numero }}</h3>
+            <p>Según filtros</p>
+        </section>
+    </article>
+
+    <article class="stat-card">
+        <section class="stat-icon">
+            <i class='fas fa-coins'></i>
+        </section>
+
+        <section>
+            <span>Total filtrado</span>
+            <h3>{{ total_filtrado|formato_pesos }}</h3>
+            <p>Valor vendido</p>
+        </section>
+    </article>
+
+    <article class="stat-card">
+        <section class="stat-icon warning">
+            <i class='fas fa-shopping-bag'></i>
+        </section>
+
+        <section>
+            <span>Unidades filtradas</span>
+            <h3>{{ unidades_filtradas|formato_numero }}</h3>
+            <p class="warning-text">Productos vendidos</p>
+        </section>
+    </article>
+</section>
+
+<section class="panel-card products-filter-panel sales-filter-panel">
+    <form method="GET" action="{% url 'historial_ventas' %}" class="products-filters sales-filters">
+
+        <section class="products-search-box">
+            <i class='fas fa-search'></i>
+            <input
+                type="text"
+                name="q"
+                value="{{ query }}"
+                placeholder="Buscar por producto, categoría, talla, color o vendedor..."
+            >
+        </section>
+
+        <section class="filter-group">
+            <input type="date" name="fecha" value="{{ fecha }}" class="sales-date-input">
+        </section>
+
+        {% if es_admin %}
+        <section class="filter-group">
+            <select name="vendedor">
+                <option value="">Todos los vendedores</option>
+
+                {% for vendedor in vendedores %}
+                    {% with vendedor_id_text=vendedor.id|stringformat:"s" %}
+                    <option value="{{ vendedor.id }}" {% if vendedor_id == vendedor_id_text %}selected{% endif %}>
+                        {% if vendedor.get_full_name %}
+                            {{ vendedor.get_full_name }} · {{ vendedor.username }}
+                        {% else %}
+                            {{ vendedor.username }}
+                        {% endif %}
+                    </option>
+                    {% endwith %}
+                {% endfor %}
+            </select>
+        </section>
+        {% endif %}
+
+        <section class="filter-actions">
+            <button type="submit" class="btn-filter">
+                <i class='fas fa-filter'></i>
+                Filtrar
+            </button>
+
+            <a href="{% url 'historial_ventas' %}" class="btn-clear">
+                <i class='fas fa-sync'></i>
+                Limpiar
+            </a>
+        </section>
+
+    </form>
+</section>
+
+<section class="content-grid products-content-grid">
+    <article class="panel-card products-panel-full sales-table-panel">
+        <header class="panel-header">
+            <section>
+                <h2>Detalle de ventas</h2>
+                <p>Consulta producto, categoría, cantidad, total, vendedor y fecha.</p>
+            </section>
+
+            <span class="badge-custom">Ventas</span>
+        </header>
+
+        {% include 'base/per_page_control.html' with per_page=per_page per_page_options=per_page_options page_param='page' per_page_param='per_page' %}
+
+        <section class="table-responsive products-table-wrapper">
+            <table class="products-table sales-table table-stagger">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Categoría</th>
+                        <th>Cantidad</th>
+                        <th>Total</th>
+                        {% if es_admin %}
+                        <th>Vendedor</th>
+                        {% endif %}
+                        <th>Fecha</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for venta in ventas %}
+                    <tr>
+                        <td>
+                            <section class="product-info">
+                                <span class="product-image-box">
+                                    {% if venta.producto.imagen_final_url %}
+                                    <img
+                                        src="{{ venta.producto.imagen_final_url }}"
+                                        alt="{{ venta.producto.nombre }}"
+                                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                                    >
+                                    <i class='fas fa-box product-fallback-icon' style="display: none;"></i>
+                                    {% else %}
+                                    <i class='fas fa-box'></i>
+                                    {% endif %}
+                                </span>
+
+                                <section class="product-text">
+                                    <strong>{{ venta.producto.nombre }}</strong>
+                                    <small>{{ venta.producto.color }} · Talla {{ venta.producto.talla }}</small>
+                                </section>
+                            </section>
+                        </td>
+
+                        <td>
+                            {% if venta.producto.categoria %}
+                                {{ venta.producto.categoria.nombre }}
+                            {% else %}
+                                Sin categoría
+                            {% endif %}
+                        </td>
+
+                        <td class="stock-column">
+                            <span class="sold-badge">{{ venta.cantidad|formato_numero }}</span>
+                        </td>
+
+                        <td class="price-cell">{{ venta.total|formato_pesos }}</td>
+
+                        {% if es_admin %}
+                        <td>{{ venta.vendedor.username }}</td>
+                        {% endif %}
+
+                        <td>{{ venta.fecha|date:"d/m/Y h:i A" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="{% if es_admin %}6{% else %}5{% endif %}" class="empty-row">
+                            No hay ventas registradas con estos filtros.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        {% if ventas.paginator.num_pages > 1 %}
+        <nav class="table-pagination">
+            {% if ventas.has_previous %}
+                <a href="?{% if query_params %}{{ query_params }}&{% endif %}page={{ ventas.previous_page_number }}">
+                    <i class='fas fa-chevron-left'></i>
+                    Anterior
+                </a>
+            {% else %}
+                <span>
+                    <i class='fas fa-chevron-left'></i>
+                    Anterior
+                </span>
+            {% endif %}
+
+            <strong>Página {{ ventas.number }} de {{ ventas.paginator.num_pages }}</strong>
+
+            {% if ventas.has_next %}
+                <a href="?{% if query_params %}{{ query_params }}&{% endif %}page={{ ventas.next_page_number }}">
+                    Siguiente
+                    <i class='fas fa-chevron-right'></i>
+                </a>
+            {% else %}
+                <span>
+                    Siguiente
+                    <i class='fas fa-chevron-right'></i>
+                </span>
+            {% endif %}
+        </nav>
+        {% endif %}
+    </article>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/dashboard/dashboard.js' %}"></script>
+{% endblock %}

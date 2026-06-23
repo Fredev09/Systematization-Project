@@ -1,0 +1,432 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tonjeo | Tienda de ropa</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/public/estilos.css' %}">
+    <link rel="icon" href="#">
+</head>
+
+<body>
+
+    <nav class="navbar navbar-expand-lg fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="#inicio">
+                <img src="#" alt="Logo Tonjeo" class="logoimg">
+                <span>Tonjeo</span>
+            </a>
+
+            <button 
+                class="navbar-toggler" 
+                type="button" 
+                data-bs-toggle="collapse" 
+                data-bs-target="#menuPrincipal" 
+                aria-controls="menuPrincipal" 
+                aria-expanded="false" 
+                aria-label="Abrir menú">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="menuPrincipal">
+                <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-4">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#inicio">Inicio</a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link" href="#nosotros">Nosotros</a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link" href="#colecciones">Colecciones</a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link" href="#prendas">Prendas</a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link" href="#contacto">Contacto</a>
+                    </li>
+
+                    <li class="nav-item d-flex align-items-center justify-content-center">
+                        <button class="theme-action" id="themeToggle" type="button" aria-label="Cambiar tema">
+                            <i class="bi bi-moon-stars"></i>
+                        </button>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="btn btn-sistema" href="{% url 'dashboard' %}">
+                            <i class="bi bi-box-arrow-up-right me-1"></i>
+                            Sistema de inventario
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <header id="inicio" class="hero">
+        <div class="hero-bg-shape shape-one"></div>
+        <div class="hero-bg-shape shape-two"></div>
+
+        <div class="container hero-content">
+            <div class="hero-center">        
+                <span class="etiqueta">Moda para todos los días</span>
+
+                <h1>Prendas con estilo para cada momento</h1>
+
+                <p class="hero-text">
+                    En Tonjeo reunimos ropa moderna, cómoda y versátil para mujeres que buscan vestir bien todos los días.
+                </p>
+
+                <div class="d-flex gap-3 flex-wrap justify-content-center">
+                    <a href="{% url 'catalogo_publico' %}" target="_blank" class="btn btn-principal">
+                        Ver catálogo público
+                    </a>
+
+                    <a href="{% url 'dashboard' %}" class="btn btn-claro">
+                        Ir al software de gestión
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <section id="nosotros" class="py-5">
+        <div class="container py-4">
+            <div class="row align-items-center g-5">
+                <div class="col-lg-6">
+                    <span class="subtitulo">Sobre nosotros</span>
+
+                    <h2 class="titulo-seccion">Una boutique pensada para vestir con confianza</h2>
+
+                    <p class="texto-seccion">
+                        Tonjeo nace con el propósito de ofrecer prendas modernas, cómodas y accesibles para diferentes estilos. 
+                        Nos enfocamos en productos de buena calidad, atención cercana y una experiencia de compra sencilla.
+                    </p>
+
+                    <div class="row g-3 mt-3">
+                        <div class="col-md-6">
+                            <div class="mini-card">
+                                <i class="bi bi-bag-heart"></i>
+                                <span>Prendas seleccionadas</span>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="mini-card">
+                                <i class="bi bi-stars"></i>
+                                <span>Estilo moderno</span>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="mini-card">
+                                <i class="bi bi-cash-coin"></i>
+                                <span>Precios accesibles</span>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="mini-card">
+                                <i class="bi bi-people"></i>
+                                <span>Atención personalizada</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-6">
+                    <div class="valores">
+                        <div class="valor-item">
+                            <i class="bi bi-check-circle-fill"></i>
+                            <div>
+                                <h5>Misión</h5>
+                                <p>Brindar prendas cómodas, actuales y de calidad para que cada cliente exprese su estilo.</p>
+                            </div>
+                        </div>
+
+                        <div class="valor-item">
+                            <i class="bi bi-eye-fill"></i>
+                            <div>
+                                <h5>Visión</h5>
+                                <p>Ser una boutique reconocida por su variedad, atención y compromiso con sus clientes.</p>
+                            </div>
+                        </div>
+
+                        <div class="valor-item">
+                            <i class="bi bi-heart-fill"></i>
+                            <div>
+                                <h5>Valores</h5>
+                                <p>Responsabilidad, confianza, buen servicio y pasión por la moda.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-4 mt-4">
+                <div class="col-md-4">
+                    <div class="stats-box text-center">
+                        <h3>+50</h3>
+                        <p>Prendas disponibles</p>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="stats-box text-center">
+                        <h3>24/7</h3>
+                        <p>Catálogo visible</p>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="stats-box text-center">
+                        <h3>100%</h3>
+                        <p>Gestión organizada</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="colecciones" class="py-5 seccion-suave">
+        <div class="container py-4">
+            <div class="text-center mb-5">
+                <span class="subtitulo">Colecciones</span>
+
+                <h2 class="titulo-seccion">Moda femenina para cada ocasión</h2>
+
+                <p class="texto-centro">
+                    En Tonjeo encuentras prendas femeninas modernas, cómodas y versátiles para lucir bien todos los días.
+                </p>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="coleccion-card">
+                        <i class="bi bi-person-standing-dress"></i>
+                        <h5>Blusas y tops</h5>
+                        <p>Prendas frescas, coloridas y modernas para combinar con jeans, faldas o shorts.</p>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="coleccion-card">
+                        <i class="bi bi-stars"></i>
+                        <h5>Vestidos</h5>
+                        <p>Opciones casuales y femeninas para salidas, reuniones o momentos especiales.</p>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="coleccion-card">
+                        <i class="bi bi-bag-heart"></i>
+                        <h5>Conjuntos y sets</h5>
+                        <p>Looks completos y detalles que complementan tu estilo con un toque único.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="prendas" class="py-5">
+        <div class="container py-4">
+            <div class="text-center mb-5">
+                <span class="subtitulo">Prendas destacadas</span>
+
+                <h2 class="titulo-seccion">Algunos productos de nuestra tienda</h2>
+
+                <p class="texto-centro">
+                    Una muestra de las prendas que puedes encontrar en Tonjeo.
+                </p>
+            </div>
+
+            <div class="row productos-grid g-4">
+                <div class="col-12 col-sm-6 col-lg-4">
+                    <article class="producto-card">
+                        <div class="producto-img-box">
+                            <img src="{% static 'img/blusamariposa.png' %}" alt="Blusa mariposa" loading="lazy">
+                        </div>
+
+                        <div class="producto-info">
+                            <strong class="producto-precio">$160.000</strong>
+                            <h5>Blusa Mariposa</h5>
+                            <p>Casual</p>
+                        </div>
+                    </article>
+                </div>
+
+                <div class="col-12 col-sm-6 col-lg-4">
+                    <article class="producto-card">
+                        <div class="producto-img-box">
+                            <img src="{% static 'img/camisablanca.png' %}" alt="Camisa Blanca" loading="lazy">
+                        </div>
+
+                        <div class="producto-info">
+                            <strong class="producto-precio">$90.000</strong>
+                            <h5>Camisa Blanca</h5>
+                            <p>Moda femenina</p>
+                        </div>
+                    </article>
+                </div>
+
+                <div class="col-12 col-sm-6 col-lg-4">
+                    <article class="producto-card">
+                        <div class="producto-img-box">
+                            <img src="{% static 'img/vestidoblanco.png' %}" alt="Vestido Blanco" loading="lazy">
+                        </div>
+
+                        <div class="producto-info">
+                            <strong class="producto-precio">$160.000</strong>
+                            <h5>Vestido Blanco</h5>
+                            <p>Vestidos</p>
+                        </div>
+                    </article>
+                </div>
+
+                <div class="col-12 col-sm-6 col-lg-4">
+                    <article class="producto-card">
+                        <div class="producto-img-box">
+                            <img src="{% static 'img/sethueso.png' %}" alt="Set hueso" loading="lazy">
+                        </div>
+
+                        <div class="producto-info">
+                            <strong class="producto-precio">$120.000</strong>
+                            <h5>Set hueso</h5>
+                            <p>Sets</p>
+                        </div>
+                    </article>
+                </div>
+
+                <div class="col-12 col-sm-6 col-lg-4">
+                    <article class="producto-card">
+                        <div class="producto-img-box">
+                            <img src="{% static 'img/vestidorosado.png' %}" alt="Vestido rosado" loading="lazy">
+                        </div>
+
+                        <div class="producto-info">
+                            <strong class="producto-precio">$160.000</strong>
+                            <h5>Vestido rosado</h5>
+                            <p>Vestidos</p>
+                        </div>
+                    </article>
+                </div>
+
+                <div class="col-12 col-sm-6 col-lg-4">
+                    <article class="producto-card">
+                        <div class="producto-img-box">
+                            <img src="{% static 'img/jeanoscuro.png' %}" alt="Jean Oscuro" loading="lazy">
+                        </div>
+
+                        <div class="producto-info">
+                            <strong class="producto-precio">$110.000</strong>
+                            <h5>Jean Oscuro</h5>
+                            <p>Jeans</p>
+                        </div>
+                    </article>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="cta-sistema py-5">
+        <div class="container py-4">
+            <div class="row align-items-center g-4">
+                <div class="col-lg-8">
+                    <span class="subtitulo claro">Software de gestión</span>
+
+                    <h2 class="fw-bold mb-3">Conectamos la tienda con el sistema de inventario</h2>
+
+                    <p>
+                        Desde esta página pública puedes ingresar al software donde se administran productos, ventas, usuarios, inventario y reportes.
+                    </p>
+                </div>
+
+                <div class="col-lg-4 text-lg-end">
+                    <a href="{% url 'dashboard' %}" class="btn btn-cta">
+                        Entrar al sistema
+                        <i class="bi bi-arrow-right ms-1"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="contacto" class="py-5">
+        <div class="container py-4">
+            <div class="row g-5 align-items-center">
+                <div class="col-lg-6">
+                    <span class="subtitulo">Contacto</span>
+
+                    <h2 class="titulo-seccion">Comunícate con Tonjeo</h2>
+
+                    <p class="texto-seccion">
+                        Escríbenos para conocer disponibilidad, tallas, colores y nuevas prendas.
+                    </p>
+
+                    <div class="contacto-item">
+                        <i class="bi bi-whatsapp"></i>
+                        <span>+57 3104585739</span>
+                    </div>
+
+                    <div class="contacto-item">
+                        <i class="bi bi-envelope"></i>
+                        <span>tonjeoboutiquelorica@gmail.com</span>
+                    </div>
+
+                    <div class="contacto-item">
+                        <i class="bi bi-geo-alt"></i>
+                        <span>Cra 17 #02-46 local 02 Centro Loríca, Córdoba</span>
+                    </div>
+                </div>
+
+                <div class="col-lg-6">
+                    <div class="contacto-card">
+                        <h5>¿Quieres consultar una prenda?</h5>
+                        <p>Déjanos tus datos y el equipo de la tienda te contactará.</p>
+
+                        <a href="{% url 'formulario' %}" class="btn btn-principal w-100">
+                            Abrir formulario
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+            <div class="d-flex align-items-center gap-2">
+                <img src="#" alt="Logo Tonjeo" class="footer-logo">
+
+                <div>
+                    <strong>Tonjeo</strong>
+                    <small>Moda, estilo y gestión organizada.</small>
+                </div>
+            </div>
+
+            <div class="redes">
+                <a href="https://www.instagram.com/tonjeoboutiquelorica" target="_blank" aria-label="Instagram">
+                    <i class="bi bi-instagram"></i>
+                </a>
+
+                <a href="#" aria-label="WhatsApp">
+                    <i class="bi bi-whatsapp"></i>
+                </a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{% static 'js/public/index.js' %}"></script>
+
+</body>
+</html>

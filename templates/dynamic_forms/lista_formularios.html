@@ -1,0 +1,95 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block titulo %}Formularios dinámicos - {{ block.super }}{% endblock %}
+
+{% block estilos %}
+<link rel="stylesheet" href="{% static 'css/dynamic_forms/dynamic_forms.css' %}">
+{% endblock %}
+
+{% block topbar_info %}
+<section class="topbar-icon">
+    <i class='fas fa-pen'></i>
+</section>
+<section>
+    <strong>Formularios dinámicos</strong>
+    <span>Gestión de formularios personalizados</span>
+</section>
+{% endblock %}
+
+{% block contenido %}
+
+<section class="page-header">
+    <header>
+        <p>Formularios</p>
+        <h1>Formularios dinámicos</h1>
+    </header>
+
+    <nav class="header-actions">
+        <a href="{% url 'dynamic_forms:crear_formulario' %}" class="btn-primary">
+            <i class='fas fa-plus'></i>
+            Nuevo formulario
+        </a>
+    </nav>
+</section>
+
+{% if formularios %}
+<section class="forms-grid card-grid-stagger">
+    {% for formulario in formularios %}
+    <article class="form-card {% if not formulario.activo %}form-card-inactive{% endif %}">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <h5 class="card-title mb-0">{{ formulario.nombre }}</h5>
+                {% if not formulario.activo %}
+                <span class="badge badge-secondary">Inactivo</span>
+                {% endif %}
+            </div>
+
+            {% if formulario.descripcion %}
+            <p class="card-text">{{ formulario.descripcion|truncatechars:100 }}</p>
+            {% endif %}
+
+            <div class="form-card-stats">
+                <span class="stat-item">
+                    <i class='fas fa-list'></i> {{ formulario.total_campos }} campos
+                </span>
+                <span class="stat-item">
+                    <i class='fas fa-database'></i> {{ formulario.total_registros }} registros
+                </span>
+                <span class="stat-item">
+                    <i class='fas fa-calendar'></i> {{ formulario.fecha_creacion|date:"d/m/Y" }}
+                </span>
+            </div>
+
+            <div class="form-actions-bar">
+                <a href="{% url 'dynamic_forms:llenar_formulario' formulario.id %}" class="btn btn-accent btn-sm" target="_blank">
+                    <i class='fas fa-play'></i> Llenar
+                </a>
+                <a href="{% url 'dynamic_forms:ver_registros' formulario.id %}" class="btn btn-info btn-sm">
+                    <i class='fas fa-table'></i> Registros
+                </a>
+                <a href="{% url 'dynamic_forms:editar_formulario' formulario.id %}" class="btn btn-warning btn-sm">
+                    <i class='fas fa-edit'></i> Editar
+                </a>
+                <a href="{% url 'dynamic_forms:eliminar_formulario' formulario.id %}" class="btn btn-danger btn-sm">
+                    <i class='fas fa-trash'></i>
+                </a>
+            </div>
+        </div>
+    </article>
+    {% endfor %}
+</section>
+{% else %}
+<section class="panel-card">
+    <div class="df-empty-state">
+        <i class='fas fa-pen'></i>
+        <h4>No hay formularios aún</h4>
+        <p>Crea tu primer formulario dinámico para empezar a registrar información.</p>
+        <a href="{% url 'dynamic_forms:crear_formulario' %}" class="btn-primary">
+            <i class='fas fa-plus'></i> Crear formulario
+        </a>
+    </div>
+</section>
+{% endif %}
+
+{% endblock %}
