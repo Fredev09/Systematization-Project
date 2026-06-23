@@ -438,6 +438,21 @@ html.dark-mode .stock-btn i {
     color: #2dd4bf;
 }
 
+html.dark-mode .btn-clear {
+    background: #334155;
+    color: #cbd5e1;
+    border-color: #475569;
+}
+
+html.dark-mode .btn-clear:hover {
+    background: #475569;
+    color: #f1f5f9;
+}
+
+html.dark-mode .btn-clear i {
+    color: #cbd5e1;
+}
+
 @media (max-width: 1200px) {
     .products-filters {
         grid-template-columns: 1fr 1fr;

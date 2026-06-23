@@ -73,6 +73,12 @@
     --muted: var(--text-muted);
     --card: var(--card-bg);
     --shadow: var(--shadow-md);
+    --bg-main: var(--bg);
+    --bg-card: var(--card-bg);
+    --bg-secondary: var(--bg-light);
+    --bg-hover: var(--hover-bg);
+    --border-color: var(--border);
+    --shadow-dark: var(--shadow-lg);
 
     /* Page-specific utility tokens */
     --soft-accent: rgba(30, 64, 175, 0.08);
@@ -129,6 +135,14 @@ html.dark-mode {
     --alert-info-color: #60a5fa;
     --badge-success-color: #4ade80;
     --badge-warning-color: #fbbf24;
+
+    /* Aliases for backwards compatibility */
+    --bg-main: var(--bg);
+    --bg-card: var(--card-bg);
+    --bg-secondary: var(--bg-light);
+    --bg-hover: var(--hover-bg);
+    --border-color: var(--border);
+    --shadow-dark: var(--shadow-lg);
 }
 
 /* ============================================================
@@ -1657,6 +1671,139 @@ textarea.form-control {
 }
 
 /* ============================================================
+   Tables — dark mode overrides
+   ============================================================ */
+html.dark-mode table,
+html.dark-mode .table {
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+}
+
+html.dark-mode table thead,
+html.dark-mode .table thead {
+    background-color: transparent;
+}
+
+html.dark-mode table thead th,
+html.dark-mode .table thead th {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    border-bottom-color: var(--border-color);
+}
+
+html.dark-mode table tbody td,
+html.dark-mode .table tbody td {
+    color: var(--text-secondary);
+    border-bottom-color: var(--border-color);
+}
+
+html.dark-mode table tbody tr:hover,
+html.dark-mode .table tbody tr:hover {
+    background-color: var(--bg-hover);
+}
+
+/* ============================================================
+   Cards — dark mode overrides
+   ============================================================ */
+html.dark-mode .card {
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+    box-shadow: var(--shadow-dark);
+}
+
+html.dark-mode .card-title {
+    color: var(--text-primary);
+}
+
+html.dark-mode .card-text {
+    color: var(--text-secondary);
+}
+
+html.dark-mode .card-header {
+    border-bottom-color: var(--border-color);
+}
+
+html.dark-mode .panel-card {
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+    box-shadow: var(--shadow-dark);
+}
+
+html.dark-mode .panel-header {
+    border-bottom-color: var(--border-color);
+}
+
+html.dark-mode .panel-header h2 {
+    color: var(--text-primary);
+}
+
+html.dark-mode .panel-header p {
+    color: var(--text-secondary);
+}
+
+html.dark-mode .stat-card {
+    background-color: var(--bg-card);
+    border-color: var(--border-color);
+    box-shadow: var(--shadow-dark);
+}
+
+html.dark-mode .stat-card span {
+    color: var(--text-muted);
+}
+
+html.dark-mode .stat-card h3 {
+    color: var(--text-primary);
+}
+
+html.dark-mode .stat-card p {
+    color: var(--text-secondary);
+}
+
+/* ============================================================
+   Main Content — dark mode overrides
+   ============================================================ */
+html.dark-mode .main-content,
+html.dark-mode .content-area {
+    background-color: var(--bg-main);
+}
+
+/* ============================================================
+   Table Pagination — dark mode overrides
+   ============================================================ */
+html.dark-mode .table-pagination {
+    border-top-color: var(--border);
+}
+
+html.dark-mode .table-pagination a,
+html.dark-mode .table-pagination span {
+    background: var(--input-bg);
+    border-color: var(--border);
+    color: var(--text-primary);
+}
+
+html.dark-mode .table-pagination a:hover {
+    background: var(--soft-accent);
+    color: var(--accent);
+}
+
+html.dark-mode .table-pagination strong {
+    color: var(--text-muted);
+}
+
+html.dark-mode .table-page-size-form select {
+    background: var(--card-bg);
+    border-color: var(--border);
+    color: var(--text-primary);
+}
+
+html.dark-mode .table-page-size-form label,
+html.dark-mode .table-page-size-form span {
+    color: var(--text-muted);
+}
+
+/* ============================================================
    Alerts & Badges — dark mode overrides
    ============================================================ */
 html.dark-mode .alert-success {
@@ -1686,6 +1833,74 @@ html.dark-mode .badge-success {
 
 html.dark-mode .badge-warning {
     color: #fbbf24;
+}
+
+html.dark-mode .badge-primary {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+}
+
+html.dark-mode .badge-danger {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+}
+
+html.dark-mode .badge-secondary {
+    background: rgba(148, 163, 184, 0.15);
+    color: #cbd5e1;
+}
+
+/* Page header dark mode */
+html.dark-mode .page-header h1 {
+    color: var(--text-primary);
+}
+
+html.dark-mode .page-header p {
+    color: var(--text-muted);
+}
+
+/* Empty state dark mode */
+html.dark-mode .empty-text {
+    color: var(--text-muted);
+}
+
+/* Top products table (dashboard) dark mode */
+html.dark-mode .top-products-table th {
+    color: var(--text-muted);
+    border-bottom-color: var(--border);
+}
+
+html.dark-mode .top-products-table td {
+    color: var(--text-primary);
+    border-bottom-color: var(--border);
+}
+
+html.dark-mode .top-number {
+    background: var(--bg-hover);
+    color: var(--primary);
+}
+
+html.dark-mode .price-text {
+    color: var(--primary);
+}
+
+html.dark-mode .sold-badge {
+    background: var(--bg-hover);
+    color: var(--primary);
+}
+
+/* History tab dark mode */
+html.dark-mode .history-tab {
+    color: var(--text-muted);
+}
+
+html.dark-mode .history-tab:hover {
+    color: var(--accent);
+}
+
+html.dark-mode .history-tab.active {
+    background: var(--accent);
+    color: #ffffff;
 }
 
 /* ============================================================
