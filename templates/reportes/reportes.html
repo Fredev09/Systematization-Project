@@ -1,0 +1,454 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load formatos %}
+
+{% block titulo %}Reportes | {{ configuracion_tienda.nombre_tienda|default:'Tonjeo' }}{% endblock %}
+
+{% block estilos %}
+<link rel="stylesheet" href="{% static 'css/usuarios/usuarios.css' %}">
+<link rel="stylesheet" href="{% static 'css/productos/productos.css' %}">
+<link rel="stylesheet" href="{% static 'css/ventas/ventas.css' %}">
+<link rel="stylesheet" href="{% static 'css/reportes/reportes.css' %}">
+{% endblock %}
+
+{% block topbar_info %}
+<section class="topbar-icon">
+    <i class='fas fa-chart-line'></i>
+</section>
+
+<section>
+    <strong>Reportes</strong>
+    <span>Estadísticas, análisis y exportación</span>
+</section>
+{% endblock %}
+
+{% block contenido %}
+
+<section class="page-header reportes-page-header">
+    <header>
+        <p>Bienvenido, {{ request.user.username }}</p>
+        <h1>Reportes</h1>
+        <span>Estadísticas, análisis y exportación</span>
+    </header>
+
+    <nav class="header-actions reportes-actions">
+        <a href="{% url 'reporte_excel' %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" class="btn-primary">
+            <i class='fas fa-file'></i>
+            Exportar Excel
+        </a>
+
+        <a href="{% url 'reporte_pdf_completo' %}?{{ request.GET.urlencode }}" class="btn-primary">
+            <i class='fas fa-file-pdf'></i>
+            Exportar PDF
+        </a>
+    </nav>
+</section>
+
+<section class="panel-card reportes-filter-panel">
+    <form method="GET" action="{% url 'reportes' %}" class="reportes-filter-form">
+        <section class="report-filter-field">
+            <label>Fecha inicial</label>
+            <section class="report-input-icon">
+                <i class='fas fa-calendar'></i>
+                <input type="date" name="fecha_inicio" value="{{ fecha_inicio }}">
+            </section>
+        </section>
+
+        <section class="report-filter-field">
+            <label>Fecha final</label>
+            <section class="report-input-icon">
+                <i class='fas fa-calendar'></i>
+                <input type="date" name="fecha_fin" value="{{ fecha_fin }}">
+            </section>
+        </section>
+
+        <section class="report-filter-field">
+            <label>Vendedor</label>
+            <section class="report-input-icon">
+                <i class='fas fa-user'></i>
+                <select name="vendedor">
+                    <option value="">Todos los vendedores</option>
+                    {% for vendedor in vendedores %}
+                        {% with vendedor_id_text=vendedor.id|stringformat:"s" %}
+                        <option value="{{ vendedor.id }}" {% if vendedor_id == vendedor_id_text %}selected{% endif %}>
+                            {% if vendedor.get_full_name %}
+                                {{ vendedor.get_full_name }} · {{ vendedor.username }}
+                            {% else %}
+                                {{ vendedor.username }}
+                            {% endif %}
+                        </option>
+                        {% endwith %}
+                    {% endfor %}
+                </select>
+            </section>
+        </section>
+
+        <section class="report-filter-field">
+            <label>Categoría</label>
+            <section class="report-input-icon">
+                <i class='fas fa-tag'></i>
+                <select name="categoria">
+                    <option value="">Todas las categorías</option>
+                    {% for categoria in categorias %}
+                        {% with categoria_id_text=categoria.id|stringformat:"s" %}
+                        <option value="{{ categoria.id }}" {% if categoria_id == categoria_id_text %}selected{% endif %}>
+                            {{ categoria.nombre }}
+                        </option>
+                        {% endwith %}
+                    {% endfor %}
+                </select>
+            </section>
+        </section>
+
+        <section class="report-filter-field">
+            <label>Producto</label>
+            <section class="report-input-icon">
+                <i class='fas fa-box'></i>
+                <select name="producto">
+                    <option value="">Todos los productos</option>
+                    {% for producto in productos %}
+                        {% with producto_id_text=producto.id|stringformat:"s" %}
+                        <option value="{{ producto.id }}" {% if producto_id == producto_id_text %}selected{% endif %}>
+                            {{ producto.nombre }}{% if producto.color %} · {{ producto.color }}{% endif %}{% if producto.talla %} · Talla {{ producto.talla }}{% endif %}
+                        </option>
+                        {% endwith %}
+                    {% endfor %}
+                </select>
+            </section>
+        </section>
+
+        <section class="report-filter-field">
+            <label>Tipo de reporte</label>
+            <section class="report-input-icon">
+                <i class='fas fa-file-search'></i>
+                <select name="tipo_reporte">
+                    <option value="general" {% if tipo_reporte == 'general' %}selected{% endif %}>Resumen general</option>
+                    <option value="ventas" {% if tipo_reporte == 'ventas' %}selected{% endif %}>Ventas</option>
+                    <option value="inventario" {% if tipo_reporte == 'inventario' %}selected{% endif %}>Inventario</option>
+                    <option value="clientes" {% if tipo_reporte == 'clientes' %}selected{% endif %}>Clientes</option>
+                </select>
+            </section>
+        </section>
+
+        <section class="report-filter-actions">
+            <button type="submit" class="btn-filter">
+                <i class='fas fa-filter'></i>
+                Filtrar
+            </button>
+
+            <a href="{% url 'reportes' %}" class="btn-clear">
+                <i class='fas fa-sync'></i>
+                Limpiar
+            </a>
+        </section>
+    </form>
+</section>
+
+<section class="stats-grid reportes-kpi-grid">
+    <article class="stat-card report-kpi-card">
+        <section class="stat-icon">
+            <i class='fas fa-dollar-sign'></i>
+        </section>
+
+        <section>
+            <span>Ventas totales</span>
+            <h3>{{ ventas_totales|default:"0"|formato_pesos }}</h3>
+            <p>Total en el período seleccionado</p>
+            <small class="report-positive">
+                <i class='fas fa-arrow-up'></i>
+                {{ porcentaje_ventas|default:"0" }}% vs. período anterior
+            </small>
+        </section>
+    </article>
+
+    <article class="stat-card report-kpi-card">
+        <section class="stat-icon">
+            <i class='fas fa-wallet'></i>
+        </section>
+
+        <section>
+            <span>Ingresos del mes</span>
+            <h3>{{ ingresos_mes|default:"0"|formato_pesos }}</h3>
+            <p>Ingresos del mes actual</p>
+            <small class="report-positive">
+                <i class='fas fa-arrow-up'></i>
+                {{ porcentaje_mes|default:"0" }}% vs. mes anterior
+            </small>
+        </section>
+    </article>
+
+    <article class="stat-card report-kpi-card">
+        <section class="stat-icon">
+            <i class='fas fa-shopping-bag'></i>
+        </section>
+
+        <section>
+            <span>Productos vendidos</span>
+            <h3>{{ productos_vendidos|default:"0"|formato_numero }}</h3>
+            <p>Unidades vendidas</p>
+            <small class="report-positive">
+                <i class='fas fa-arrow-up'></i>
+                {{ porcentaje_productos|default:"0" }}% vs. período anterior
+            </small>
+        </section>
+    </article>
+
+    <article class="stat-card report-kpi-card">
+        <section class="stat-icon">
+            <i class='fas fa-user-plus'></i>
+        </section>
+
+        <section>
+            <span>Clientes nuevos</span>
+            <h3>{{ clientes_nuevos|default:"0"|formato_numero }}</h3>
+            <p>Nuevos clientes en el período</p>
+            <small class="report-positive">
+                <i class='fas fa-arrow-up'></i>
+                {{ porcentaje_clientes|default:"0" }}% vs. período anterior
+            </small>
+        </section>
+    </article>
+</section>
+
+<section class="reportes-analytics-grid">
+    <article class="panel-card report-chart-card report-line-card">
+        <header class="panel-header">
+            <section>
+                <h2>Ventas por mes</h2>
+                <p>Evolución de ingresos en los últimos meses</p>
+            </section>
+
+            <span class="badge-custom">Últimos 6 meses</span>
+        </header>
+
+        <section class="report-line-chart">
+            <section class="report-chart-y">
+                {% for valor in escala_y %}
+                <span>{{ valor }}</span>
+                {% empty %}
+                <span>$100K</span>
+                <span>$83K</span>
+                <span>$67K</span>
+                <span>$50K</span>
+                <span>$33K</span>
+                <span>$17K</span>
+                <span>$0</span>
+                {% endfor %}
+            </section>
+
+            <section class="report-line-area">
+                <section class="report-line-grid"></section>
+
+                <section class="report-line-svg">
+                    <svg viewBox="0 0 600 230" preserveAspectRatio="none">
+                        <defs>
+                            <linearGradient id="reportLineGradient" x1="0" x2="0" y1="0" y2="1">
+                                <stop offset="0%" stop-color="#E07A5F" stop-opacity="0.28"></stop>
+                                <stop offset="100%" stop-color="#E07A5F" stop-opacity="0"></stop>
+                            </linearGradient>
+                        </defs>
+
+                        <path d="{{ ventas_meses_area_path }}" fill="url(#reportLineGradient)"></path>
+                        <path d="{{ ventas_meses_line_path }}" fill="none" stroke="#E07A5F" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"></path>
+                    </svg>
+                </section>
+
+                <section class="report-chart-x">
+                    {% for mes in ventas_meses %}
+                    <span>{{ mes.nombre }}</span>
+                    {% empty %}
+                    <span>Sin datos</span>
+                    <span>Sin datos</span>
+                    <span>Sin datos</span>
+                    <span>Sin datos</span>
+                    <span>Sin datos</span>
+                    <span>Sin datos</span>
+                    {% endfor %}
+                </section>
+            </section>
+        </section>
+    </article>
+
+    <article class="panel-card report-chart-card">
+        <header class="panel-header">
+            <section>
+                <h2>Ventas por categoría</h2>
+                <p>Distribución de ingresos por categoría</p>
+            </section>
+
+            <span class="badge-custom">Distribución</span>
+        </header>
+
+        <section class="report-donut-layout">
+            {% if ventas_categorias %}
+            <section class="report-donut" style="background: conic-gradient({{ donut_gradient }});">
+                <section>
+                    <strong>{{ ventas_totales|default:"0"|formato_pesos }}</strong>
+                    <span>Total</span>
+                </section>
+            </section>
+
+            <section class="report-category-list">
+                {% for categoria in ventas_categorias %}
+                <article>
+                    <span style="background: {{ categoria.color|default:'#E07A5F' }};"></span>
+                    <p>{{ categoria.nombre }}</p>
+                    <strong>{{ categoria.total|default:"0"|formato_pesos }} ({{ categoria.porcentaje|default:"0" }}%)</strong>
+                </article>
+                {% endfor %}
+            </section>
+            {% else %}
+            <section class="report-empty-chart">
+                <i class='fas fa-chart-pie'></i>
+                <strong>Sin datos por categoría</strong>
+                <span>Cuando registres ventas, aquí aparecerá la distribución por categoría.</span>
+            </section>
+            {% endif %}
+        </section>
+    </article>
+</section>
+
+<section class="reportes-secondary-grid">
+    <article class="panel-card report-chart-card">
+        <header class="panel-header">
+            <section>
+                <h2>Top productos vendidos</h2>
+                <p>Productos con mayor salida</p>
+            </section>
+
+            <span class="badge-custom">Top 5</span>
+        </header>
+
+        <section class="report-bars">
+            {% for producto in top_productos %}
+            <article>
+                <section class="report-bar-wrapper">
+                    <span style="height: {{ producto.porcentaje|default:'20' }}%;"></span>
+                </section>
+
+                <strong>{{ producto.cantidad|default:"0"|formato_numero }}</strong>
+                <p>{{ producto.nombre }}</p>
+                <small>{{ producto.total|default:"0"|formato_pesos }}</small>
+            </article>
+            {% empty %}
+            <section class="report-empty-wide">
+                <i class='fas fa-chart-bar'></i>
+                <strong>Sin productos vendidos</strong>
+                <span>Cuando registres ventas, aquí aparecerá el ranking de productos.</span>
+            </section>
+            {% endfor %}
+        </section>
+    </article>
+
+    <article class="panel-card report-business-card">
+        <header class="panel-header">
+            <section>
+                <h2>Resumen del negocio</h2>
+                <p>Indicadores clave del período</p>
+            </section>
+
+            <span class="badge-custom">Información clave</span>
+        </header>
+
+        <section class="business-summary-grid">
+            <article>
+                <i class='fas fa-chart-pie'></i>
+                <section>
+                    <span>Categoría más vendida</span>
+                    <strong>{{ categoria_top|default:"Sin datos" }}</strong>
+                </section>
+            </article>
+
+            <article>
+                <i class='fas fa-dollar-sign'></i>
+                <section>
+                    <span>Ticket promedio</span>
+                    <strong>{{ ticket_promedio|default:"0"|formato_pesos }}</strong>
+                </section>
+            </article>
+
+            <article>
+                <i class='fas fa-user'></i>
+                <section>
+                    <span>Vendedor top</span>
+                    <strong>{{ vendedor_top|default:"Sin datos" }}</strong>
+                </section>
+            </article>
+
+            <article>
+                <i class='fas fa-exclamation-triangle'></i>
+                <section>
+                    <span>Stock crítico</span>
+                    <strong>{{ productos_stock_critico|default:"0"|formato_numero }} productos</strong>
+                </section>
+            </article>
+        </section>
+    </article>
+</section>
+
+<section class="panel-card reportes-available-panel">
+    <header class="panel-header">
+        <section>
+            <h2>Reportes disponibles</h2>
+            <p>Genera reportes detallados según tus necesidades</p>
+        </section>
+
+        <span class="badge-custom">Generadores</span>
+    </header>
+
+    <section class="reportes-available-grid">
+        <article>
+            <section class="report-option-icon">
+                <i class='fas fa-file'></i>
+            </section>
+
+            <section>
+                <h3>Reporte completo</h3>
+                <p>Resumen general de ventas, productos, inventario y clientes.</p>
+            </section>
+
+            <a href="{% url 'reporte_pdf_completo' %}?{{ request.GET.urlencode }}" class="report-option-button">
+                <i class='fas fa-file'></i>
+                Generar
+            </a>
+        </article>
+
+        <article>
+            <section class="report-option-icon">
+                <i class='fas fa-shopping-cart'></i>
+            </section>
+
+            <section>
+                <h3>Reporte de ventas</h3>
+                <p>Detalle de ventas por fecha, vendedor, producto y cliente.</p>
+            </section>
+
+            <a href="{% url 'reporte_pdf_ventas' %}?{{ request.GET.urlencode }}" class="report-option-button">
+                <i class='fas fa-file'></i>
+                Generar
+            </a>
+        </article>
+
+        <article>
+            <section class="report-option-icon">
+                <i class='fas fa-box'></i>
+            </section>
+
+            <section>
+                <h3>Reporte de inventario</h3>
+                <p>Estado actual del inventario, stock, valor y movimientos.</p>
+            </section>
+
+            <a href="{% url 'reporte_pdf_inventario' %}?{{ request.GET.urlencode }}" class="report-option-button">
+                <i class='fas fa-file'></i>
+                Generar
+            </a>
+        </article>
+    </section>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/dashboard/dashboard.js' %}"></script>
+{% endblock %}

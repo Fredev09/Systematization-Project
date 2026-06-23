@@ -1,0 +1,403 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load l10n %}
+{% load formatos %}
+
+{% block titulo %}Ventas | {{ configuracion_tienda.nombre_tienda|default:'Tonjeo' }}{% endblock %}
+
+{% block estilos %}
+<link rel="stylesheet" href="{% static 'css/usuarios/usuarios.css' %}">
+<link rel="stylesheet" href="{% static 'css/productos/productos.css' %}">
+<link rel="stylesheet" href="{% static 'css/ventas/ventas.css' %}?v=clientes-layout-2">
+{% endblock %}
+
+{% block topbar_info %}
+<section class="topbar-icon">
+    <i class='fas fa-shopping-cart'></i>
+</section>
+
+<section>
+    <strong>Gestión de ventas</strong>
+    <span>Registra ventas, clientes y controla stock</span>
+</section>
+{% endblock %}
+
+{% block contenido %}
+
+<section class="page-header">
+    <header>
+        <p>Ventas</p>
+        <h1>{% if es_admin %}Panel de ventas{% else %}Mis ventas{% endif %}</h1>
+    </header>
+
+    <nav class="header-actions">
+        <a href="{% url 'historial_ventas' %}" class="btn-outline">
+            <i class='fas fa-clock'></i>
+            Ver historial
+        </a>
+    </nav>
+</section>
+
+<section class="stats-grid sales-stats-grid">
+    <article class="stat-card">
+        <section class="stat-icon">
+            <i class='fas fa-coins'></i>
+        </section>
+
+        <section>
+            <span>Total ventas</span>
+            <h3>{{ total_ventas|formato_pesos }}</h3>
+            <p>Acumulado</p>
+        </section>
+    </article>
+
+    <article class="stat-card">
+        <section class="stat-icon">
+            <i class='fas fa-calendar-check'></i>
+        </section>
+
+        <section>
+            <span>Ventas de hoy</span>
+            <h3>{{ total_hoy|formato_pesos }}</h3>
+            <p>Registrado hoy</p>
+        </section>
+    </article>
+
+    <article class="stat-card">
+        <section class="stat-icon">
+            <i class='fas fa-chart-line'></i>
+        </section>
+
+        <section>
+            <span>Este mes</span>
+            <h3>{{ total_mes|formato_pesos }}</h3>
+            <p>Ventas mensuales</p>
+        </section>
+    </article>
+
+    <article class="stat-card">
+        <section class="stat-icon warning">
+            <i class='fas fa-shopping-bag'></i>
+        </section>
+
+        <section>
+            <span>Unidades</span>
+            <h3>{{ unidades_vendidas|formato_numero }}</h3>
+            <p class="warning-text">Productos vendidos</p>
+        </section>
+    </article>
+</section>
+
+<section class="sales-layout-grid sales-layout-single">
+    <article class="panel-card sale-form-panel sale-form-panel-full">
+        <header class="panel-header">
+            <section>
+                <h2>Nueva venta</h2>
+                <p>Selecciona cliente, vendedor y agrega uno o varios productos.</p>
+            </section>
+
+            <span class="badge-custom">Registro</span>
+        </header>
+
+        {% if error %}
+        <div class="alert alert-danger sales-alert" role="alert">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <form method="POST" class="vp-form" id="ventaForm">
+            {% csrf_token %}
+
+            {% if es_admin %}
+            <section class="vp-field">
+                <label for="vendedor">Vendedor que realizó la venta</label>
+
+                <section class="vp-control">
+                    <i class='fas fa-user'></i>
+
+                    <select name="vendedor" id="vendedor" required>
+                        <option value="">Selecciona el vendedor</option>
+
+                        {% for vendedor in vendedores_registrados %}
+                            {% with vendedor_id_text=vendedor.id|stringformat:"s" %}
+                            <option value="{{ vendedor.id }}" {% if vendedor_id_seleccionado == vendedor_id_text %}selected{% endif %}>
+                                {% if vendedor.get_full_name %}
+                                    {{ vendedor.get_full_name }} · {{ vendedor.username }}
+                                {% else %}
+                                    {{ vendedor.username }}
+                                {% endif %}
+                            </option>
+                            {% endwith %}
+                        {% empty %}
+                            <option value="" disabled>No hay vendedores registrados</option>
+                        {% endfor %}
+                    </select>
+                </section>
+            </section>
+            {% endif %}
+
+            <section class="vp-client-card">
+                <header class="vp-client-header">
+                    <section>
+                        <h3>Cliente de la venta</h3>
+                        <p>Elige si la venta será sin cliente, con cliente existente o con un cliente nuevo.</p>
+                    </section>
+
+                    <span class="badge-custom">Cliente</span>
+                </header>
+
+                <section class="vp-client-options">
+                    <label class="vp-client-option">
+                        <input type="radio" name="cliente_modo" value="rapida" {% if cliente_modo_seleccionado == 'rapida' %}checked{% endif %}>
+                        <span>
+                            <i class='fas fa-user-times'></i>
+                            Sin cliente
+                        </span>
+                    </label>
+
+                    <label class="vp-client-option">
+                        <input type="radio" name="cliente_modo" value="existente" {% if cliente_modo_seleccionado == 'existente' %}checked{% endif %}>
+                        <span>
+                            <i class='fas fa-user-check'></i>
+                            Cliente existente
+                        </span>
+                    </label>
+
+                    <label class="vp-client-option">
+                        <input type="radio" name="cliente_modo" value="nuevo" {% if cliente_modo_seleccionado == 'nuevo' %}checked{% endif %}>
+                        <span>
+                            <i class='fas fa-user-plus'></i>
+                            Nuevo cliente
+                        </span>
+                    </label>
+                </section>
+
+                <section class="vp-client-existing" id="clienteExistenteBox">
+                    <section class="vp-client-search-grid">
+                        <section class="vp-field">
+                            <label for="clienteSearch">Buscar cliente</label>
+
+                            <section class="vp-control">
+                                <i class='fas fa-search'></i>
+                                <input type="text" id="clienteSearch" placeholder="Buscar por nombre o documento">
+                            </section>
+                        </section>
+
+                        <section class="vp-field">
+                            <label for="cliente_id">Seleccionar cliente</label>
+
+                            <section class="vp-control">
+                                <i class='fas fa-id-card'></i>
+
+                                <select name="cliente_id" id="cliente_id">
+                                    <option value="">Selecciona un cliente</option>
+
+                                    {% for cliente in clientes_registrados %}
+                                        {% with cliente_id_text=cliente.id|stringformat:"s" %}
+                                        <option
+                                            value="{{ cliente.id }}"
+                                            data-search="{{ cliente.nombre_completo }} {{ cliente.documento }} {{ cliente.correo|default:'' }}"
+                                            {% if cliente_id_seleccionado == cliente_id_text %}selected{% endif %}
+                                        >
+                                            {{ cliente.nombre_completo }} · {{ cliente.documento }}
+                                        </option>
+                                        {% endwith %}
+                                    {% empty %}
+                                        <option value="" disabled>No hay clientes registrados</option>
+                                    {% endfor %}
+                                </select>
+                            </section>
+                        </section>
+                    </section>
+                </section>
+
+                <section class="vp-client-new" id="clienteNuevoBox">
+                    <section class="vp-client-grid">
+                        <section class="vp-field">
+                            <label for="documento_cliente">Documento</label>
+
+                            <section class="vp-control">
+                                <i class='fas fa-id-card'></i>
+                                <input type="text" name="documento_cliente" id="documento_cliente" value="{{ documento_cliente }}" placeholder="Ej: 1002456789">
+                            </section>
+                        </section>
+
+                        <section class="vp-field">
+                            <label for="nombre_cliente">Nombre</label>
+
+                            <section class="vp-control">
+                                <i class='fas fa-user'></i>
+                                <input type="text" name="nombre_cliente" id="nombre_cliente" value="{{ nombre_cliente }}" placeholder="Nombre del cliente">
+                            </section>
+                        </section>
+
+                        <section class="vp-field">
+                            <label for="apellido_cliente">Apellido</label>
+
+                            <section class="vp-control">
+                                <i class='fas fa-user'></i>
+                                <input type="text" name="apellido_cliente" id="apellido_cliente" value="{{ apellido_cliente }}" placeholder="Apellido del cliente">
+                            </section>
+                        </section>
+
+                        <section class="vp-field">
+                            <label for="correo_cliente">Correo</label>
+
+                            <section class="vp-control">
+                                <i class='fas fa-envelope'></i>
+                                <input type="email" name="correo_cliente" id="correo_cliente" value="{{ correo_cliente }}" placeholder="cliente@email.com">
+                            </section>
+                        </section>
+
+                        <section class="vp-field">
+                            <label for="telefono_cliente">Teléfono</label>
+
+                            <section class="vp-control">
+                                <i class='fas fa-phone'></i>
+                                <input type="text" name="telefono_cliente" id="telefono_cliente" value="{{ telefono_cliente }}" placeholder="Opcional">
+                            </section>
+                        </section>
+                    </section>
+                </section>
+            </section>
+
+            <section class="vp-products-card">
+                <header class="vp-products-header">
+                    <section>
+                        <h3>Productos de la venta</h3>
+                        <p>Agrega todos los productos que compró el cliente.</p>
+                    </section>
+
+                    <button type="button" class="vp-add-btn" id="vpAddProduct">
+                        <i class='fas fa-plus'></i>
+                        Agregar producto
+                    </button>
+                </header>
+
+                <section class="vp-products-list" id="vpProductsList">
+                    <article class="vp-product-row">
+                        <section class="vp-product-field vp-product-main">
+                            <label>Producto</label>
+
+                            <section class="vp-control">
+                                <i class='fas fa-box'></i>
+
+                                <select name="producto" class="vp-product-select" required>
+                                    <option value="">Selecciona un producto</option>
+
+                                    {% for producto in productos %}
+                                    <option
+                                        value="{{ producto.id }}"
+                                        data-precio="{{ producto.precio|unlocalize }}"
+                                        data-stock="{{ producto.stock }}"
+                                        {% if producto.stock == 0 %}disabled{% endif %}
+                                    >
+                                        {{ producto.nombre }} · Talla {{ producto.talla }} · {{ producto.color }} · Stock: {{ producto.stock|formato_numero }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </section>
+                        </section>
+
+                        <section class="vp-product-field vp-product-qty">
+                            <label>Cantidad</label>
+
+                            <section class="vp-control">
+                                <i class='fas fa-hashtag'></i>
+                                <input type="number" name="cantidad" class="vp-quantity-input" min="1" value="1" required>
+                            </section>
+                        </section>
+
+                        <button type="button" class="vp-remove-btn" title="Quitar producto" disabled>
+                            <i class='fas fa-trash'></i>
+                        </button>
+                    </article>
+                </section>
+            </section>
+
+            <section class="vp-total-card">
+                <span>Total estimado</span>
+                <strong id="vpTotalPreview">$0</strong>
+                <small id="vpStockPreview">Selecciona productos</small>
+            </section>
+
+            <button type="submit" class="btn-primary vp-submit" {% if not productos_disponibles %}disabled{% endif %}>
+                <i class='fas fa-cart-plus'></i>
+                Registrar venta
+            </button>
+
+            {% if not productos_disponibles %}
+            <p class="sale-empty-note">No hay productos con stock disponible para vender.</p>
+            {% endif %}
+        </form>
+    </article>
+</section>
+
+<section class="sales-bottom-grid">
+    <article class="panel-card recent-sales-panel">
+        <header class="panel-header">
+            <section>
+                <h2>Ventas recientes</h2>
+                <p>Últimos movimientos registrados</p>
+            </section>
+
+            <span class="badge-custom">Recientes</span>
+        </header>
+
+        <section class="recent-sales-list">
+            {% for venta in ventas_recientes %}
+            <article class="recent-sale-item">
+                <section class="recent-sale-icon">
+                    <i class='fas fa-receipt'></i>
+                </section>
+
+                <section class="recent-sale-text">
+                    <strong>{{ venta.producto.nombre }}</strong>
+                    <span>{{ venta.cantidad|formato_numero }} unidad(es) · {{ venta.fecha|date:"d/m/Y h:i A" }}</span>
+
+                    {% if venta.cliente %}
+                    <small>Cliente: {{ venta.cliente.nombre_completo }}</small>
+                    {% else %}
+                    <small>Cliente: sin cliente</small>
+                    {% endif %}
+
+                    {% if es_admin %}
+                    <small>Vendedor: {{ venta.vendedor.username }}</small>
+                    {% endif %}
+                </section>
+
+                <p>{{ venta.total|formato_pesos }}</p>
+            </article>
+            {% empty %}
+            <article class="sales-empty-state compact">
+                <i class='fas fa-receipt'></i>
+                <strong>Sin ventas recientes</strong>
+                <span>Cuando registres ventas aparecerán aquí.</span>
+            </article>
+            {% endfor %}
+        </section>
+    </article>
+
+    <article class="panel-card history-cta-panel">
+        <section class="history-cta-icon">
+            <i class='fas fa-clock'></i>
+        </section>
+
+        <section class="history-cta-text">
+            <h2>¿Quieres revisar el historial completo?</h2>
+            <p>Consulta todas las ventas registradas, filtra por fecha, producto, cliente o vendedor y exporta el reporte.</p>
+        </section>
+
+        <a href="{% url 'historial_ventas' %}" class="btn-primary history-cta-button">
+            <i class='fas fa-arrow-right'></i>
+            Ir al historial de ventas
+        </a>
+    </article>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/dashboard/dashboard.js' %}"></script>
+<script src="{% static 'js/ventas/ventas.js' %}?v=clientes-layout-2"></script>
+{% endblock %}

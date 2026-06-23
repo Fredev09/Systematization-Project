@@ -1,0 +1,122 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar sesión | Tonjeo</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'css/tonjeo.css' %}">
+    <link rel="stylesheet" href="{% static 'css/public/login.css' %}">
+</head>
+
+<body class="login-body">
+    <div class="login-container">
+        <div class="login-bg-shapes">
+            <div class="login-shape login-shape-1"></div>
+            <div class="login-shape login-shape-2"></div>
+            <div class="login-shape login-shape-3"></div>
+        </div>
+
+        <button class="login-theme-btn" id="themeToggle" type="button" aria-label="Cambiar tema">
+            <i class="fas fa-moon"></i>
+        </button>
+
+        <main class="login-wrapper">
+            <section class="login-card-modern" aria-labelledby="login-title">
+                <header class="login-brand-modern">
+                    <div class="login-logo">
+                        <i class="fas fa-cubes"></i>
+                    </div>
+                    <h1 id="login-title">Tonjeo</h1>
+                    <p class="login-subtitle">Plataforma empresarial</p>
+                </header>
+
+                {% if messages %}
+                <div class="messages">
+                    {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">
+                        <i class="fas fa-circle-info"></i>
+                        <span>{{ message }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if error %}
+                <div class="messages">
+                    <div class="alert alert-error">
+                        <i class="fas fa-circle-exclamation"></i>
+                        <span>{{ error }}</span>
+                    </div>
+                </div>
+                {% endif %}
+
+                <form method="POST" class="login-form-modern">
+                    {% csrf_token %}
+
+                    <div class="form-group">
+                        <label for="username" class="form-label">
+                            <i class="fas fa-user"></i>
+                            Usuario
+                        </label>
+                        <input
+                            type="text"
+                            id="username"
+                            name="username"
+                            class="form-control"
+                            placeholder="Ingresa tu usuario"
+                            autocomplete="username"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password" class="form-label">
+                            <i class="fas fa-lock"></i>
+                            Contraseña
+                        </label>
+                        <div class="password-wrapper">
+                            <input
+                                type="password"
+                                id="password"
+                                name="password"
+                                class="form-control"
+                                placeholder="Ingresa tu contraseña"
+                                autocomplete="current-password"
+                                required
+                            >
+                            <button type="button" class="toggle-password" id="togglePassword" aria-label="Mostrar contraseña">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="login-options-modern">
+                        <label class="remember-me">
+                            <input type="checkbox" name="remember">
+                            <span>Recordarme</span>
+                        </label>
+                        <a href="{% url 'recuperar_contrasena' %}" class="forgot-link">¿Olvidaste tu contraseña?</a>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-arrow-right-to-bracket"></i>
+                        <span>Iniciar sesión</span>
+                    </button>
+
+                    <p class="login-access-text">
+                        Acceso exclusivo para usuarios autorizados.
+                    </p>
+                </form>
+            </section>
+        </main>
+    </div>
+
+    <script src="{% static 'js/public/login.js' %}"></script>
+</body>
+</html>

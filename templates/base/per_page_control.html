@@ -1,0 +1,17 @@
+<form method="get" class="table-page-size-form">
+    {% for key, value in request.GET.items %}
+        {% if key != page_param and key != per_page_param %}
+            <input type="hidden" name="{{ key }}" value="{{ value }}">
+        {% endif %}
+    {% endfor %}
+
+    <label for="{{ per_page_param }}">Mostrar</label>
+
+    <select name="{{ per_page_param }}" id="{{ per_page_param }}" onchange="this.form.submit()">
+        {% for option in per_page_options %}
+            <option value="{{ option }}" {% if option == per_page %}selected{% endif %}>{{ option }}</option>
+        {% endfor %}
+    </select>
+
+    <span>registros por tabla</span>
+</form>

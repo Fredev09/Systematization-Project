@@ -1,0 +1,81 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block titulo %}Editar cliente | {{ configuracion_tienda.nombre_tienda|default:'Tonjeo' }}{% endblock %}
+
+{% block estilos %}
+<link rel="stylesheet" href="{% static 'css/usuarios/usuarios.css' %}">
+<link rel="stylesheet" href="{% static 'css/productos/productos.css' %}">
+<link rel="stylesheet" href="{% static 'css/clientes/clientes.css' %}">
+{% endblock %}
+
+{% block topbar_info %}
+<section class="topbar-icon">
+    <i class='fas fa-edit'></i>
+</section>
+
+<section>
+    <strong>Editar cliente</strong>
+    <span>Actualiza los datos del cliente</span>
+</section>
+{% endblock %}
+
+{% block contenido %}
+
+<section class="page-header">
+    <header>
+        <p>Clientes</p>
+        <h1>Editar cliente</h1>
+    </header>
+
+    <nav class="header-actions">
+        <a href="{% url 'clientes' %}" class="btn-clear">
+            <i class='fas fa-arrow-left'></i>
+            Volver
+        </a>
+    </nav>
+</section>
+
+<section class="panel-card cliente-form-panel">
+    <form method="POST" class="cliente-edit-form">
+        {% csrf_token %}
+
+        <section class="form-grid">
+            <section class="form-group">
+                <label>Documento</label>
+                <input type="text" name="documento" value="{{ cliente.documento }}" required>
+            </section>
+
+            <section class="form-group">
+                <label>Nombre</label>
+                <input type="text" name="nombre" value="{{ cliente.nombre }}" required>
+            </section>
+
+            <section class="form-group">
+                <label>Apellido</label>
+                <input type="text" name="apellido" value="{{ cliente.apellido }}" required>
+            </section>
+
+            <section class="form-group">
+                <label>Correo</label>
+                <input type="email" name="correo" value="{{ cliente.correo|default:'' }}">
+            </section>
+
+            <section class="form-group">
+                <label>Teléfono</label>
+                <input type="text" name="telefono" value="{{ cliente.telefono|default:'' }}">
+            </section>
+        </section>
+
+        <section class="form-actions">
+            <a href="{% url 'clientes' %}" class="btn-clear">Cancelar</a>
+
+            <button type="submit" class="btn-primary">
+                <i class='fas fa-save'></i>
+                Guardar cambios
+            </button>
+        </section>
+    </form>
+</section>
+
+{% endblock %}

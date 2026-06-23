@@ -1,0 +1,259 @@
+.config-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+    margin: 26px 0;
+}
+
+.config-summary-card {
+    min-height: 118px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    border-radius: 24px;
+    box-shadow: var(--shadow);
+    padding: 22px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.config-summary-card i {
+    width: 54px;
+    height: 54px;
+    border-radius: 16px;
+    background: var(--soft-accent);
+    color: var(--accent);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    flex-shrink: 0;
+}
+
+.config-summary-card span {
+    display: block;
+    color: var(--muted);
+    font-weight: 800;
+    font-size: 13px;
+    margin-bottom: 6px;
+}
+
+.config-summary-card strong {
+    color: var(--primary);
+    font-size: 19px;
+    font-weight: 900;
+}
+
+.config-panel {
+    padding: 28px;
+}
+
+.config-form {
+    margin-top: 24px;
+}
+
+.config-section {
+    border: 1px solid var(--border);
+    background: var(--input-bg);
+    border-radius: 22px;
+    padding: 24px;
+    margin-bottom: 20px;
+}
+
+.config-section > header {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
+.config-section > header i {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    background: var(--soft-accent);
+    color: var(--accent);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.config-section h3 {
+    color: var(--primary);
+    font-weight: 900;
+    font-size: 22px;
+    margin: 0 0 4px;
+}
+
+.config-section p {
+    color: var(--muted);
+    font-weight: 600;
+    margin: 0;
+}
+
+.config-form .form-label {
+    color: var(--secondary);
+    font-weight: 900;
+    margin-bottom: 8px;
+}
+
+.config-form .form-control,
+.config-form .form-select {
+    min-height: 52px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    font-weight: 700;
+}
+
+.config-form .form-control:focus,
+.config-form .form-select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px rgba(30, 64, 175, 0.1);
+}
+
+.field-help {
+    display: block;
+    color: var(--muted);
+    font-weight: 600;
+    margin-top: 8px;
+}
+
+.config-check {
+    min-height: 98px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 18px;
+    background: var(--card);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+}
+
+.config-check .form-check-input {
+    width: 24px;
+    height: 24px;
+    margin: 0;
+    border-color: var(--border);
+    flex-shrink: 0;
+}
+
+.config-check .form-check-input:checked {
+    background-color: var(--accent);
+    border-color: var(--accent);
+}
+
+.config-check strong {
+    display: block;
+    color: var(--primary);
+    font-weight: 900;
+    line-height: 1.25;
+}
+
+.config-check small {
+    display: block;
+    color: var(--muted);
+    font-weight: 600;
+    margin-top: 5px;
+}
+
+.config-actions {
+    justify-content: flex-end;
+    margin-top: 26px;
+}
+
+.errorlist {
+    color: var(--danger);
+    font-weight: 800;
+    margin: 8px 0 0;
+    padding-left: 18px;
+}
+
+body.dark-mode .config-section {
+    background: rgba(31, 41, 55, 0.58);
+}
+
+body.dark-mode .config-form .form-control,
+body.dark-mode .config-form .form-select,
+body.dark-mode .config-check {
+    background: var(--card);
+    color: var(--text);
+}
+
+@media (max-width: 992px) {
+    .config-summary-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 576px) {
+    .config-panel {
+        padding: 20px;
+    }
+
+    .config-section {
+        padding: 18px;
+    }
+
+    .config-actions {
+        flex-direction: column;
+    }
+
+    .config-actions .btn-cancel,
+    .config-actions .btn-save {
+        width: 100%;
+    }
+}
+
+.form-actions {
+    display: flex;
+    gap: 14px;
+}
+
+.btn-cancel,
+.btn-save {
+    min-height: 54px;
+    padding: 0 24px;
+    border-radius: 16px;
+    font-weight: 900;
+    font-size: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    text-decoration: none;
+    border: none;
+    transition: 0.25s ease;
+}
+
+.btn-cancel {
+    background: var(--hover-bg);
+    color: var(--primary);
+}
+
+.btn-cancel:hover {
+    background: var(--border);
+    color: var(--primary);
+    text-decoration: none;
+}
+
+.btn-save {
+    background: var(--accent);
+    color: #ffffff;
+}
+
+.btn-save i {
+    color: #ffffff;
+    font-size: 21px;
+}
+
+.btn-save:hover {
+    background: var(--accent-dark);
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}

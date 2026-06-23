@@ -1,0 +1,269 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load formatos %}
+
+{% block titulo %}{{ cliente.nombre_completo }} | {{ configuracion_tienda.nombre_tienda|default:'Tonjeo' }}{% endblock %}
+
+{% block estilos %}
+<link rel="stylesheet" href="{% static 'css/usuarios/usuarios.css' %}">
+<link rel="stylesheet" href="{% static 'css/productos/productos.css' %}">
+<link rel="stylesheet" href="{% static 'css/ventas/ventas.css' %}">
+<link rel="stylesheet" href="{% static 'css/clientes/clientes.css' %}">
+{% endblock %}
+
+{% block topbar_info %}
+<section class="topbar-icon">
+    <i class='fas fa-user'></i>
+</section>
+
+<section>
+    <strong>Detalle de cliente</strong>
+    <span>Historial de compras y datos del cliente</span>
+</section>
+{% endblock %}
+
+{% block contenido %}
+
+<section class="page-header">
+    <header>
+        <p>Clientes</p>
+        <h1>{{ cliente.nombre_completo }}</h1>
+    </header>
+
+    <nav class="header-actions">
+        <a href="{% url 'clientes' %}" class="btn-outline">
+            <i class='fas fa-arrow-left'></i>
+            Volver a clientes
+        </a>
+
+        <a href="{% url 'editar_cliente' cliente.id %}" class="btn-clear">
+            <i class='fas fa-edit'></i>
+            Editar cliente
+        </a>
+
+        <a href="{% url 'nueva_venta' %}" class="btn-primary">
+            <i class='fas fa-cart-plus'></i>
+            Nueva venta
+        </a>
+    </nav>
+</section>
+
+<section class="cliente-detail-grid">
+    <article class="panel-card cliente-profile-card">
+        <section class="cliente-profile-main">
+            <section class="cliente-profile-avatar">
+                {{ cliente.nombre_completo|slice:":1"|upper }}
+            </section>
+
+            <section class="cliente-profile-heading">
+                <h2>{{ cliente.nombre_completo }}</h2>
+                <p>Documento: {{ cliente.documento }}</p>
+
+                {% if cliente.activo %}
+                    <span class="status-pill active">Activo</span>
+                {% else %}
+                    <span class="status-pill inactive">Inactivo</span>
+                {% endif %}
+            </section>
+        </section>
+
+        <section class="cliente-extra-info">
+            <article>
+                <span>Correo</span>
+                <strong>{{ cliente.correo|default:"Sin correo registrado" }}</strong>
+            </article>
+
+            <article>
+                <span>Telefono</span>
+                <strong>{{ cliente.telefono|default:"Sin telefono registrado" }}</strong>
+            </article>
+
+            <article>
+                <span>Fecha de registro</span>
+                <strong>{{ cliente.fecha_registro|date:"d/m/Y h:i A" }}</strong>
+            </article>
+
+            <article>
+                <span>Ultima compra</span>
+                {% if ventas.object_list %}
+                    {% with primera_venta=ventas.object_list.0 %}
+                        <strong>{{ primera_venta.fecha|date:"d/m/Y h:i A" }}</strong>
+                    {% endwith %}
+                {% else %}
+                    <strong>Sin compras</strong>
+                {% endif %}
+            </article>
+        </section>
+
+        <section class="cliente-detail-actions">
+            <a href="{% url 'editar_cliente' cliente.id %}" class="btn-primary">
+                <i class='fas fa-edit'></i>
+                Editar datos
+            </a>
+
+            <form method="POST" action="{% url 'cambiar_estado_cliente' cliente.id %}">
+                {% csrf_token %}
+                <button type="submit" class="btn-clear">
+                    {% if cliente.activo %}
+                        <i class='fas fa-user-times'></i>
+                        Desactivar cliente
+                    {% else %}
+                        <i class='fas fa-user-check'></i>
+                        Activar cliente
+                    {% endif %}
+                </button>
+            </form>
+        </section>
+    </article>
+
+    <article class="panel-card cliente-summary-card">
+        <header class="panel-header">
+            <section>
+                <h2>Resumen comercial</h2>
+                <p>Compras realizadas por este cliente</p>
+            </section>
+
+            <span class="badge-custom">Cliente</span>
+        </header>
+
+        <section class="cliente-summary-list">
+            <article>
+                <strong>{{ cantidad_ventas|default:"0"|formato_numero }}</strong>
+                <span>Compras</span>
+            </article>
+
+            <article>
+                <strong>{{ unidades_compradas|default:"0"|formato_numero }}</strong>
+                <span>Unidades compradas</span>
+            </article>
+
+            <article>
+                <strong>{{ productos_diferentes|default:"0"|formato_numero }}</strong>
+                <span>Productos distintos</span>
+            </article>
+
+            <article>
+                <strong>{{ total_comprado|default:"0"|formato_pesos }}</strong>
+                <span>Total comprado</span>
+            </article>
+        </section>
+    </article>
+</section>
+
+<section class="content-grid products-content-grid">
+    <article class="panel-card products-panel-full cliente-sales-panel">
+        <header class="panel-header">
+            <section>
+                <h2>Historial de compras</h2>
+                <p>Ventas asociadas a {{ cliente.nombre_completo }}.</p>
+            </section>
+
+            <span class="badge-custom">Compras</span>
+        </header>
+
+        {% include 'base/per_page_control.html' with per_page=per_page per_page_options=per_page_options page_param='page' per_page_param='per_page' %}
+
+        <section class="table-responsive clientes-table-wrapper">
+            <table class="products-table sales-table cliente-sales-table">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Categoria</th>
+                        <th>Cantidad</th>
+                        <th>Total</th>
+                        <th>Vendedor</th>
+                        <th>Fecha</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for venta in ventas %}
+                    <tr>
+                        <td>
+                            <section class="product-info">
+                                <span class="product-image-box">
+                                    {% if venta.producto.imagen_final_url %}
+                                    <img
+                                        src="{{ venta.producto.imagen_final_url }}"
+                                        alt="{{ venta.producto.nombre }}"
+                                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                                    >
+                                    <i class='fas fa-box product-fallback-icon' style="display: none;"></i>
+                                    {% else %}
+                                    <i class='fas fa-box'></i>
+                                    {% endif %}
+                                </span>
+
+                                <section class="product-text">
+                                    <strong>{{ venta.producto.nombre }}</strong>
+                                    <small>{{ venta.producto.color }} - Talla {{ venta.producto.talla }}</small>
+                                </section>
+                            </section>
+                        </td>
+
+                        <td>
+                            {% if venta.producto.categoria %}
+                                {{ venta.producto.categoria.nombre }}
+                            {% else %}
+                                Sin categoria
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            <span class="cliente-pill">{{ venta.cantidad|formato_numero }}</span>
+                        </td>
+
+                        <td class="price-cell">{{ venta.total|formato_pesos }}</td>
+
+                        <td>{{ venta.vendedor.username }}</td>
+
+                        <td>{{ venta.fecha|date:"d/m/Y h:i A" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="empty-row">
+                            Este cliente todavia no tiene compras registradas.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        {% if ventas.paginator.num_pages > 1 %}
+        <nav class="clientes-pagination table-pagination">
+            {% if ventas.has_previous %}
+                <a href="?{% if query_params %}{{ query_params }}&{% endif %}page={{ ventas.previous_page_number }}">
+                    <i class='fas fa-chevron-left'></i>
+                    Anterior
+                </a>
+            {% else %}
+                <span>
+                    <i class='fas fa-chevron-left'></i>
+                    Anterior
+                </span>
+            {% endif %}
+
+            <strong>Pagina {{ ventas.number }} de {{ ventas.paginator.num_pages }}</strong>
+
+            {% if ventas.has_next %}
+                <a href="?{% if query_params %}{{ query_params }}&{% endif %}page={{ ventas.next_page_number }}">
+                    Siguiente
+                    <i class='fas fa-chevron-right'></i>
+                </a>
+            {% else %}
+                <span>
+                    Siguiente
+                    <i class='fas fa-chevron-right'></i>
+                </span>
+            {% endif %}
+        </nav>
+        {% endif %}
+    </article>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/dashboard/dashboard.js' %}"></script>
+{% endblock %}

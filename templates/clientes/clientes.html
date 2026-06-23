@@ -1,0 +1,247 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load formatos %}
+
+{% block titulo %}Clientes | {{ configuracion_tienda.nombre_tienda|default:'Tonjeo' }}{% endblock %}
+
+{% block estilos %}
+<link rel="stylesheet" href="{% static 'css/usuarios/usuarios.css' %}">
+<link rel="stylesheet" href="{% static 'css/productos/productos.css' %}">
+<link rel="stylesheet" href="{% static 'css/clientes/clientes.css' %}">
+{% endblock %}
+
+{% block topbar_info %}
+<section class="topbar-icon">
+    <i class='fas fa-users'></i>
+</section>
+
+<section>
+    <strong>Clientes</strong>
+    <span>Consulta clientes y su historial de compras</span>
+</section>
+{% endblock %}
+
+{% block contenido %}
+
+<section class="page-header">
+    <header>
+        <p>Clientes</p>
+        <h1>Gestión de clientes</h1>
+    </header>
+
+    <nav class="header-actions">
+        <a href="{% url 'nueva_venta' %}" class="btn-primary">
+            <i class='fas fa-cart-plus'></i>
+            Nueva venta
+        </a>
+    </nav>
+</section>
+
+<section class="stats-grid clientes-stats-grid">
+    <article class="stat-card">
+        <section class="stat-icon">
+            <i class='fas fa-users'></i>
+        </section>
+
+        <section>
+            <span>Total clientes</span>
+            <h3>{{ total_clientes|default:"0"|formato_numero }}</h3>
+            <p>Registrados</p>
+        </section>
+    </article>
+
+    <article class="stat-card">
+        <section class="stat-icon">
+            <i class='fas fa-user-check'></i>
+        </section>
+
+        <section>
+            <span>Con compras</span>
+            <h3>{{ clientes_con_compras|default:"0"|formato_numero }}</h3>
+            <p>Clientes con compras</p>
+        </section>
+    </article>
+
+    <article class="stat-card">
+        <section class="stat-icon">
+            <i class='fas fa-coins'></i>
+        </section>
+
+        <section>
+            <span>Total vendido</span>
+            <h3>{{ total_compras|default:"0"|formato_pesos }}</h3>
+            <p>Clientes filtrados</p>
+        </section>
+    </article>
+</section>
+
+<section class="panel-card clientes-filter-panel">
+    <header class="clientes-filter-header">
+        <section>
+            <h2>Buscar clientes</h2>
+            <p>Filtra por documento, nombre, correo o teléfono.</p>
+        </section>
+
+        <span class="badge-custom">Base de clientes</span>
+    </header>
+
+    <form method="GET" action="{% url 'clientes' %}" class="clientes-filter-form">
+        <section class="products-search-box">
+            <i class='fas fa-search'></i>
+            <input
+                type="text"
+                name="q"
+                value="{{ query }}"
+                placeholder="Buscar por documento, nombre, correo o teléfono..."
+            >
+        </section>
+
+        <section class="filter-actions">
+            <button type="submit" class="btn-filter">
+                <i class='fas fa-filter'></i>
+                Filtrar
+            </button>
+
+            <a href="{% url 'clientes' %}" class="btn-clear">
+                <i class='fas fa-sync'></i>
+                Limpiar
+            </a>
+        </section>
+    </form>
+</section>
+
+<section class="content-grid products-content-grid">
+    <article class="panel-card products-panel-full clientes-panel">
+        <header class="panel-header">
+            <section>
+                <h2>Listado de clientes</h2>
+                <p>Consulta información básica. Los detalles completos están dentro de cada cliente.</p>
+            </section>
+
+            <span class="badge-custom">Clientes</span>
+        </header>
+
+        {% include 'base/per_page_control.html' with per_page=per_page per_page_options=per_page_options page_param='page' per_page_param='per_page' %}
+
+        <section class="clientes-table-wrapper">
+            <table class="products-table clientes-table table-stagger">
+                <thead>
+                    <tr>
+                        <th>Cliente</th>
+                        <th>Compras</th>
+                        <th>Total</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for cliente in clientes %}
+                    <tr class="{% if not cliente.activo %}cliente-inactivo{% endif %}">
+                        <td data-label="Cliente">
+                            <section class="cliente-info">
+                                <span class="cliente-avatar">
+                                    {{ cliente.nombre_completo|slice:":1"|upper }}
+                                </span>
+
+                                <section class="cliente-text">
+                                    <strong>{{ cliente.nombre_completo }}</strong>
+                                    <small>C.C. {{ cliente.documento }}</small>
+                                    <small>{{ cliente.telefono|default:"Sin teléfono" }}</small>
+                                </section>
+                            </section>
+                        </td>
+
+                        <td data-label="Compras">
+                            <span class="cliente-pill">
+                                {{ cliente.cantidad_ventas|default:"0"|formato_numero }}
+                            </span>
+                        </td>
+
+                        <td data-label="Total" class="price-cell">
+                            {{ cliente.total_comprado|default:"0"|formato_pesos }}
+                        </td>
+
+                        <td data-label="Estado">
+                            {% if cliente.activo %}
+                                <span class="status-pill active">Activo</span>
+                            {% else %}
+                                <span class="status-pill inactive">Inactivo</span>
+                            {% endif %}
+                        </td>
+
+                        <td data-label="Acciones">
+                            <section class="table-actions">
+                                <a href="{% url 'detalle_cliente' cliente.id %}" class="action-btn view-btn" title="Ver detalle">
+                                    <i class='fas fa-eye'></i>
+                                </a>
+
+                                <a href="{% url 'editar_cliente' cliente.id %}" class="action-btn edit-btn" title="Editar cliente">
+                                    <i class='fas fa-edit'></i>
+                                </a>
+
+                                <form method="POST" action="{% url 'cambiar_estado_cliente' cliente.id %}">
+                                    {% csrf_token %}
+                                    <button
+                                        type="submit"
+                                        class="action-btn status-btn {% if cliente.activo %}deactivate-btn{% else %}activate-btn{% endif %}"
+                                        title="{% if cliente.activo %}Desactivar{% else %}Activar{% endif %}"
+                                    >
+                                        {% if cliente.activo %}
+                                            <i class='fas fa-user-times'></i>
+                                        {% else %}
+                                            <i class='fas fa-user-check'></i>
+                                        {% endif %}
+                                    </button>
+                                </form>
+                            </section>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="empty-row">
+                            No hay clientes registrados con estos filtros.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        {% if clientes.paginator.num_pages > 1 %}
+        <nav class="clientes-pagination table-pagination">
+            {% if clientes.has_previous %}
+                <a href="?{% if query_params %}{{ query_params }}&{% endif %}page={{ clientes.previous_page_number }}">
+                    <i class='fas fa-chevron-left'></i>
+                    Anterior
+                </a>
+            {% else %}
+                <span>
+                    <i class='fas fa-chevron-left'></i>
+                    Anterior
+                </span>
+            {% endif %}
+
+            <strong>Página {{ clientes.number }} de {{ clientes.paginator.num_pages }}</strong>
+
+            {% if clientes.has_next %}
+                <a href="?{% if query_params %}{{ query_params }}&{% endif %}page={{ clientes.next_page_number }}">
+                    Siguiente
+                    <i class='fas fa-chevron-right'></i>
+                </a>
+            {% else %}
+                <span>
+                    Siguiente
+                    <i class='fas fa-chevron-right'></i>
+                </span>
+            {% endif %}
+        </nav>
+        {% endif %}
+    </article>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/dashboard/dashboard.js' %}"></script>
+{% endblock %}

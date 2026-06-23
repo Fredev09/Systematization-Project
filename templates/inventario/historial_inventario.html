@@ -1,0 +1,324 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load formatos %}
+
+{% block titulo %}Historial de inventario | {{ configuracion_tienda.nombre_tienda|default:'Tonjeo' }}{% endblock %}
+
+{% block estilos %}
+<link rel="stylesheet" href="{% static 'css/usuarios/usuarios.css' %}">
+<link rel="stylesheet" href="{% static 'css/productos/productos.css' %}">
+<link rel="stylesheet" href="{% static 'css/ventas/ventas.css' %}">
+<link rel="stylesheet" href="{% static 'css/inventario/inventario.css' %}">
+{% endblock %}
+
+{% block topbar_info %}
+<section class="topbar-icon">
+    <i class='fas fa-exchange-alt'></i>
+</section>
+
+<section>
+    <strong>Historial</strong>
+    <span>Consulta ventas y movimientos de inventario</span>
+</section>
+{% endblock %}
+
+{% block contenido %}
+
+<section class="page-header">
+    <header>
+        <p>Historial</p>
+        <h1>Historial de inventario</h1>
+    </header>
+
+    <nav class="header-actions history-actions">
+        <a href="{% url 'inventario' %}" class="btn-outline">
+            <i class='fas fa-chart-bar'></i>
+            Ir a inventario
+        </a>
+
+        <a href="{% url 'exportar_historial_inventario_excel' %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}" class="btn-primary">
+            <i class='fas fa-file'></i>
+            Exportar Excel
+        </a>
+    </nav>
+</section>
+
+<section class="history-tabs">
+    <a href="{% url 'historial_ventas' %}" class="history-tab">
+        <i class='fas fa-receipt'></i>
+        Ventas
+    </a>
+
+    <a href="{% url 'historial_inventario' %}" class="history-tab active">
+        <i class='fas fa-exchange-alt'></i>
+        Inventario
+    </a>
+</section>
+
+<section class="stats-grid history-summary-grid">
+    <article class="stat-card">
+        <section class="stat-icon">
+            <i class='fas fa-exchange-alt'></i>
+        </section>
+
+        <section>
+            <span>Movimientos</span>
+            <h3>{{ total_filtrado|default:"0"|formato_numero }}</h3>
+            <p>Según filtros</p>
+        </section>
+    </article>
+
+    <article class="stat-card">
+        <section class="stat-icon">
+            <i class='fas fa-plus-circle'></i>
+        </section>
+
+        <section>
+            <span>Entradas</span>
+            <h3>{{ entradas_filtradas|default:"0"|formato_numero }}</h3>
+            <p>Stock agregado</p>
+        </section>
+    </article>
+
+    <article class="stat-card">
+        <section class="stat-icon warning">
+            <i class='fas fa-minus-circle'></i>
+        </section>
+
+        <section>
+            <span>Salidas</span>
+            <h3>{{ salidas_filtradas|default:"0"|formato_numero }}</h3>
+            <p class="warning-text">Stock retirado</p>
+        </section>
+    </article>
+
+    <article class="stat-card">
+        <section class="stat-icon">
+            <i class='fas fa-pen'></i>
+        </section>
+
+        <section>
+            <span>Correcciones</span>
+            <h3>{{ correcciones_filtradas|default:"0"|formato_numero }}</h3>
+            <p>Ajustes manuales</p>
+        </section>
+    </article>
+</section>
+
+<section class="panel-card history-filter-card">
+    <header class="history-filter-header">
+        <section>
+            <h2>Filtros de inventario</h2>
+            <p>Busca movimientos por producto, tipo, motivo o rango de fechas.</p>
+        </section>
+
+        <span class="badge-custom">Control de inventario</span>
+    </header>
+
+    <form method="GET" action="{% url 'historial_inventario' %}" class="history-filter-grid">
+
+        <section class="history-filter-field history-filter-search">
+            <label>Buscar</label>
+            <section class="products-search-box">
+                <i class='fas fa-search'></i>
+                <input
+                    type="text"
+                    name="q"
+                    value="{{ query }}"
+                    placeholder="Producto, categoría, color, talla u observación"
+                >
+            </section>
+        </section>
+
+        <section class="history-filter-field">
+            <label>Tipo</label>
+            <section class="filter-group">
+                <select name="tipo">
+                    <option value="">Todos los tipos</option>
+                    {% for valor, texto in tipoElecciones %}
+                        <option value="{{ valor }}" {% if tipo == valor %}selected{% endif %}>{{ texto }}</option>
+                    {% endfor %}
+                </select>
+            </section>
+        </section>
+
+        <section class="history-filter-field">
+            <label>Motivo</label>
+            <section class="filter-group">
+                <select name="motivo">
+                    <option value="">Todos los motivos</option>
+                    {% for valor, texto in motivoElecciones %}
+                        <option value="{{ valor }}" {% if motivo == valor %}selected{% endif %}>{{ texto }}</option>
+                    {% endfor %}
+                </select>
+            </section>
+        </section>
+
+        <section class="history-filter-field">
+            <label>Desde</label>
+            <input type="date" name="fecha_inicio" value="{{ fecha_inicio }}" class="sales-date-input">
+        </section>
+
+        <section class="history-filter-field">
+            <label>Hasta</label>
+            <input type="date" name="fecha_fin" value="{{ fecha_fin }}" class="sales-date-input">
+        </section>
+
+        <section class="history-filter-actions">
+            <button type="submit" class="btn-filter">
+                <i class='fas fa-filter'></i>
+                Filtrar
+            </button>
+
+            <a href="{% url 'historial_inventario' %}" class="btn-clear">
+                <i class='fas fa-sync'></i>
+                Limpiar
+            </a>
+        </section>
+
+    </form>
+</section>
+
+<section class="content-grid products-content-grid">
+    <article class="panel-card products-panel-full sales-table-panel inventory-history-panel">
+        <header class="panel-header">
+            <section>
+                <h2>Detalle de movimientos</h2>
+                <p>Consulta producto, tipo, cantidad, stock, motivo y fecha.</p>
+            </section>
+
+            <span class="badge-custom">Inventario</span>
+        </header>
+
+        {% include 'base/per_page_control.html' with per_page=per_page per_page_options=per_page_options page_param='page' per_page_param='per_page' %}
+
+        <section class="table-responsive products-table-wrapper inventory-history-wrapper">
+            <table class="products-table sales-table inventory-history-table">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Tipo</th>
+                        <th>Cantidad</th>
+                        <th>Stock anterior</th>
+                        <th>Stock nuevo</th>
+                        <th>Motivo</th>
+                        <th>Fecha</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for movimiento in movimientos %}
+                    <tr>
+                        <td>
+                            <section class="product-info">
+                                <span class="product-image-box">
+                                    {% if movimiento.producto.imagen_final_url %}
+                                    <img
+                                        src="{{ movimiento.producto.imagen_final_url }}"
+                                        alt="{{ movimiento.producto.nombre }}"
+                                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                                    >
+                                    <i class='fas fa-box product-fallback-icon' style="display: none;"></i>
+                                    {% else %}
+                                    <i class='fas fa-box'></i>
+                                    {% endif %}
+                                </span>
+
+                                <section class="product-text">
+                                    <strong>{{ movimiento.producto.nombre }}</strong>
+                                    <small>
+                                        {% if movimiento.producto.categoria %}
+                                            {{ movimiento.producto.categoria.nombre }}
+                                        {% else %}
+                                            Sin categoría
+                                        {% endif %}
+                                    </small>
+                                </section>
+                            </section>
+                        </td>
+
+                        <td>
+                            {% if movimiento.tipo == 'entrada' %}
+                                <span class="movement-badge movement-entry">
+                                    <i class='fas fa-plus-circle'></i>
+                                    Entrada
+                                </span>
+                            {% elif movimiento.tipo == 'salida' %}
+                                <span class="movement-badge movement-exit">
+                                    <i class='fas fa-minus-circle'></i>
+                                    Salida
+                                </span>
+                            {% else %}
+                                <span class="movement-badge movement-fix">
+                                    <i class='fas fa-pen'></i>
+                                    Corrección
+                                </span>
+                            {% endif %}
+                        </td>
+
+                        <td class="stock-column">{{ movimiento.cantidad|formato_numero }}</td>
+                        <td class="stock-column">{{ movimiento.stock_anterior|formato_numero }}</td>
+                        <td class="stock-column">{{ movimiento.stock_nuevo|formato_numero }}</td>
+
+                        <td>
+                            {% if movimiento.motivo %}
+                                {{ movimiento.get_motivo_display }}
+                            {% else %}
+                                Sin motivo
+                            {% endif %}
+
+                            {% if movimiento.observacion %}
+                                <small class="movement-note">{{ movimiento.observacion }}</small>
+                            {% endif %}
+                        </td>
+
+                        <td>{{ movimiento.fecha|date:"d/m/Y h:i A" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="empty-row">
+                            No hay movimientos registrados con estos filtros.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        {% if movimientos.paginator.num_pages > 1 %}
+        <nav class="inventory-pagination table-pagination">
+            {% if movimientos.has_previous %}
+                <a href="?{% if query_params %}{{ query_params }}&{% endif %}page={{ movimientos.previous_page_number }}">
+                    <i class='fas fa-chevron-left'></i>
+                    Anterior
+                </a>
+            {% else %}
+                <span>
+                    <i class='fas fa-chevron-left'></i>
+                    Anterior
+                </span>
+            {% endif %}
+
+            <strong>Página {{ movimientos.number }} de {{ movimientos.paginator.num_pages }}</strong>
+
+            {% if movimientos.has_next %}
+                <a href="?{% if query_params %}{{ query_params }}&{% endif %}page={{ movimientos.next_page_number }}">
+                    Siguiente
+                    <i class='fas fa-chevron-right'></i>
+                </a>
+            {% else %}
+                <span>
+                    Siguiente
+                    <i class='fas fa-chevron-right'></i>
+                </span>
+            {% endif %}
+        </nav>
+        {% endif %}
+    </article>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/dashboard/dashboard.js' %}"></script>
+{% endblock %}

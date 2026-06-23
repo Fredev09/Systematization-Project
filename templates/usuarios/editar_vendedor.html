@@ -1,0 +1,144 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar vendedor | {{ configuracion_tienda.nombre_tienda|default:'Tonjeo' }}</title>
+
+    <link rel="stylesheet" href="{% static 'css/usuarios/crear_vendedor.css' %}">
+    <link rel="stylesheet" href="{% static 'css/base/sweetalert_custom.css' %}">
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+</head>
+
+<body>
+
+    <main class="seller-page">
+
+        <section class="seller-card">
+
+            <header class="seller-header">
+                <a href="{% url 'usuarios' %}" class="back-link">
+                    <i class='fas fa-arrow-left'></i>
+                    Volver a vendedores
+                </a>
+
+                <section class="header-content">
+                    <section>
+                        <p>Administración</p>
+                        <h1>Editar vendedor</h1>
+                        <span>Actualiza la información de {{ vendedor.username }}.</span>
+                    </section>
+
+                    <section class="header-icon">
+                        <i class='fas fa-pen'></i>
+                    </section>
+                </section>
+            </header>
+
+            <form method="POST" class="confirm-form" data-confirm-title="¿Guardar cambios?"
+                data-confirm-text="Se actualizará la información del vendedor." data-confirm-icon="question"
+                data-confirm-button="Sí, guardar" data-loading-text="Guardando...">
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                <section class="form-alert">
+                    <i class='fas fa-exclamation-circle'></i>
+                    <section>
+                        {{ form.non_field_errors }}
+                    </section>
+                </section>
+                {% endif %}
+
+                <section class="form-grid">
+
+                    <section class="form-group">
+                        <label for="{{ form.first_name.id_for_label }}">Nombre</label>
+                        <section class="input-box">
+                            <i class='fas fa-user'></i>
+                            {{ form.first_name }}
+                        </section>
+                        {{ form.first_name.errors }}
+                    </section>
+
+                    <section class="form-group">
+                        <label for="{{ form.last_name.id_for_label }}">Apellido</label>
+                        <section class="input-box">
+                            <i class='fas fa-user'></i>
+                            {{ form.last_name }}
+                        </section>
+                        {{ form.last_name.errors }}
+                    </section>
+
+                    <section class="form-group">
+                        <label for="{{ form.username.id_for_label }}">Vendedor</label>
+                        <section class="input-box">
+                            <i class='fas fa-id-card'></i>
+                            {{ form.username }}
+                        </section>
+                        {{ form.username.errors }}
+                    </section>
+
+                    <section class="form-group">
+                        <label for="{{ form.email.id_for_label }}">Correo</label>
+                        <section class="input-box">
+                            <i class='fas fa-envelope'></i>
+                            {{ form.email }}
+                        </section>
+                        {{ form.email.errors }}
+                    </section>
+
+                </section>
+
+                <section class="password-tips">
+                    <i class='fas fa-lock'></i>
+                    <p>Para cambiar la contraseña, escribe una nueva y confírmala. Si dejas estos campos vacíos, se conservará la contraseña actual.</p>
+                </section>
+
+                <section class="form-grid">
+
+                    <section class="form-group">
+                        <label for="{{ form.nueva_contrasena.id_for_label }}">Nueva contraseña</label>
+                        <section class="input-box">
+                            <i class='fas fa-lock'></i>
+                            {{ form.nueva_contrasena }}
+                        </section>
+                        {{ form.nueva_contrasena.errors }}
+                    </section>
+
+                    <section class="form-group">
+                        <label for="{{ form.confirmar_contrasena.id_for_label }}">Confirmar contraseña</label>
+                        <section class="input-box">
+                            <i class='fas fa-shield-check'></i>
+                            {{ form.confirmar_contrasena }}
+                        </section>
+                        {{ form.confirmar_contrasena.errors }}
+                    </section>
+
+                </section>
+
+                <footer class="form-actions">
+                    <a href="{% url 'usuarios' %}" class="btn-secondary">
+                        Cancelar
+                    </a>
+
+                    <button type="submit" class="btn-primary">
+                        <i class='fas fa-save'></i>
+                        Guardar cambios
+                    </button>
+                </footer>
+            </form>
+
+        </section>
+
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="{% static 'js/base/sweetalert_global.js' %}"></script>
+    <script src="{% static 'js/base/confirmaciones.js' %}"></script>
+
+</body>
+
+</html>

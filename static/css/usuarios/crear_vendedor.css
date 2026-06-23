@@ -1,0 +1,353 @@
+:root {
+    --primary: #111827;
+    --secondary: #374151;
+    --muted: #6b7280;
+    --accent: #1e40af;
+    --accent-dark: #1e3a8a;
+    --soft-accent: #eef2ff;
+    --border: #e5e7eb;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --input-bg: #f9fafb;
+    --danger: #dc2626;
+    --danger-soft: #fee2e2;
+    --shadow: 0 24px 60px rgba(17, 24, 39, 0.12);
+}
+
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    background:
+        radial-gradient(circle at top left, rgba(30, 64, 175, 0.04), transparent 32%),
+        radial-gradient(circle at bottom right, rgba(30, 64, 175, 0.03), transparent 30%),
+        var(--bg);
+    color: var(--primary);
+    min-height: 100vh;
+}
+
+.seller-page {
+    width: 100%;
+    min-height: 100vh;
+    padding: 40px 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.seller-card {
+    width: 100%;
+    max-width: 1050px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 30px;
+    box-shadow: var(--shadow);
+    padding: 34px;
+}
+
+.seller-header {
+    margin-bottom: 32px;
+}
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 800;
+    margin-bottom: 28px;
+    transition: 0.25s ease;
+}
+
+.back-link i {
+    font-size: 22px;
+}
+
+.back-link:hover {
+    color: var(--accent-dark);
+    transform: translateX(-3px);
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 22px;
+}
+
+.header-content p {
+    color: var(--accent);
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 13px;
+    margin-bottom: 8px;
+}
+
+.header-content h1 {
+    font-size: 42px;
+    font-weight: 900;
+    color: var(--primary);
+    margin-bottom: 8px;
+}
+
+.header-content span {
+    color: var(--muted);
+    font-size: 17px;
+}
+
+.header-icon {
+    width: 86px;
+    height: 86px;
+    border-radius: 26px;
+    background: var(--soft-accent);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 44px;
+    flex-shrink: 0;
+}
+
+.seller-form {
+    width: 100%;
+}
+
+.form-alert {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    background: var(--danger-soft);
+    color: var(--danger);
+    padding: 16px 18px;
+    border-radius: 18px;
+    font-weight: 700;
+    margin-bottom: 22px;
+}
+
+.form-alert i {
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+
+.form-group label {
+    color: var(--secondary);
+    font-size: 15px;
+    font-weight: 900;
+}
+
+.input-box {
+    position: relative;
+    min-height: 58px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: var(--input-bg);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+    transition: 0.25s ease;
+}
+
+.input-box:focus-within {
+    background: #ffffff;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+}
+
+.input-box > i {
+    color: var(--accent);
+    font-size: 23px;
+    flex-shrink: 0;
+}
+
+.input-box input {
+    width: 100%;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--primary);
+    font-size: 16px;
+    font-weight: 700;
+    min-height: 56px;
+}
+
+.input-box input::placeholder {
+    color: #9ca3af;
+    font-weight: 600;
+}
+
+.toggle-password {
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 23px;
+    cursor: pointer;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: 0.25s ease;
+}
+
+.toggle-password:hover {
+    color: var(--accent);
+}
+
+.errorlist {
+    list-style: none;
+    color: var(--danger);
+    font-weight: 700;
+    font-size: 13px;
+    margin-top: 2px;
+}
+
+.password-tips {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--soft-accent);
+    color: var(--accent-dark);
+    padding: 16px 18px;
+    border-radius: 18px;
+    margin: 26px 0 0;
+    font-weight: 700;
+}
+
+.password-tips i {
+    font-size: 24px;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 14px;
+    margin-top: 30px;
+}
+
+.btn-primary,
+.btn-secondary {
+    min-height: 54px;
+    border-radius: 16px;
+    padding: 0 24px;
+    font-weight: 900;
+    font-size: 15px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    cursor: pointer;
+    transition: 0.25s ease;
+}
+
+.btn-primary {
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: #ffffff;
+}
+
+.btn-primary i {
+    font-size: 21px;
+}
+
+.btn-primary:hover {
+    background: var(--accent-dark);
+    transform: translateY(-2px);
+}
+
+.btn-secondary {
+    border: 1px solid var(--border);
+    background: var(--input-bg);
+    color: var(--secondary);
+}
+
+.btn-secondary:hover {
+    background: var(--soft-accent);
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+@media (max-width: 850px) {
+    .seller-page {
+        padding: 24px 14px;
+        align-items: flex-start;
+    }
+
+    .seller-card {
+        padding: 24px;
+        border-radius: 24px;
+    }
+
+    .header-content {
+        align-items: flex-start;
+    }
+
+    .header-content h1 {
+        font-size: 34px;
+    }
+
+    .header-icon {
+        width: 70px;
+        height: 70px;
+        font-size: 36px;
+        border-radius: 22px;
+    }
+
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .form-actions {
+        flex-direction: column-reverse;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+        width: 100%;
+    }
+}
+
+@media (max-width: 520px) {
+    .seller-card {
+        padding: 20px;
+    }
+
+    .header-content {
+        flex-direction: column;
+    }
+
+    .header-content h1 {
+        font-size: 30px;
+    }
+
+    .header-content span {
+        font-size: 15px;
+    }
+
+    .header-icon {
+        display: none;
+    }
+
+    .input-box {
+        min-height: 54px;
+    }
+
+    .input-box input {
+        min-height: 52px;
+        font-size: 15px;
+    }
+}

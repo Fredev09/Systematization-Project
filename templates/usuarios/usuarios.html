@@ -1,0 +1,249 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block titulo %}Vendedores | {{ configuracion_tienda.nombre_tienda|default:'Tonjeo' }}{% endblock %}
+
+{% block estilos %}
+<link rel="stylesheet" href="{% static 'css/usuarios/usuarios.css' %}">
+{% endblock %}
+
+{% block contenido %}
+
+<section class="page-header">
+    <header>
+        <p>Bienvenido, {{ request.user.username }}</p>
+        <h1>Vendedores</h1>
+    </header>
+
+    <nav class="header-actions">
+        <a href="{% url 'exportar_vendedores_excel' %}" class="btn-primary">
+            <i class='fas fa-file'></i>
+            Exportar Excel
+        </a>
+
+        <a href="{% url 'crear_vendedor' %}" class="btn-primary">
+            <i class='fas fa-plus'></i>
+            Nuevo vendedor
+        </a>
+    </nav>
+</section>
+
+<section class="stats-grid">
+    <article class="stat-card">
+        <section class="stat-icon">
+            <i class='fas fa-user'></i>
+        </section>
+
+        <section>
+            <span>Vendedores totales</span>
+            <h3>{{ total_usuarios }}</h3>
+            <p>Registrados</p>
+        </section>
+    </article>
+
+    <article class="stat-card">
+        <section class="stat-icon">
+            <i class='fas fa-user-check'></i>
+        </section>
+
+        <section>
+            <span>Vendedores activos</span>
+            <h3>{{ usuarios_activos }}</h3>
+            <p>Con acceso</p>
+        </section>
+    </article>
+
+    <article class="stat-card">
+        <section class="stat-icon warning">
+            <i class='fas fa-user-times'></i>
+        </section>
+
+        <section>
+            <span>Inactivos</span>
+            <h3>{{ usuarios_inactivos }}</h3>
+            <p class="warning-text">Revisar vendedores</p>
+        </section>
+    </article>
+</section>
+
+<section class="content-grid">
+
+    <article class="panel-card users-panel">
+        <header class="panel-header">
+            <section>
+                <h2>Listado de Vendedores</h2>
+                <p>Gestiona los vendedores registrados en el sistema</p>
+            </section>
+
+            <span class="badge-custom">Vendedores</span>
+        </header>
+
+        {% include 'base/per_page_control.html' with per_page=per_page per_page_options=per_page_options page_param='page' per_page_param='per_page' %}
+
+        <section class="table-responsive">
+            <table class="users-table" id="tablaUsuarios">
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Usuario</th>
+                        <th>Correo</th>
+                        <th>Estado</th>
+                        <th>Fecha</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for usuario in usuarios %}
+                    <tr>
+                        <td>
+                            <section class="user-info">
+                                <span class="user-avatar">
+                                    {{ usuario.username|slice:":1"|upper }}
+                                </span>
+
+                                <strong>
+                                    {% if usuario.get_full_name %}
+                                    {{ usuario.get_full_name }}
+                                    {% else %}
+                                    Sin nombre
+                                    {% endif %}
+                                </strong>
+                            </section>
+                        </td>
+
+                        <td>{{ usuario.username }}</td>
+
+                        <td class="email-cell">
+                            {% if usuario.email %}
+                            {{ usuario.email }}
+                            {% else %}
+                            Sin correo
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {% if usuario.is_active %}
+                            <span class="status active">Activo</span>
+                            {% else %}
+                            <span class="status inactive">Inactivo</span>
+                            {% endif %}
+                        </td>
+
+                        <td>{{ usuario.date_joined|date:"d/m/Y" }}</td>
+
+                        <td>
+                            <section class="table-actions">
+                                <a href="{% url 'editar_vendedor' usuario.id %}" class="action-btn edit-btn"
+                                    title="Editar vendedor">
+                                    <i class='fas fa-pen'></i>
+                                </a>
+
+                                {% if usuario != request.user %}
+                                <form method="POST" action="{% url 'cambiar_estado_usuario' usuario.id %}"
+                                    class="form-cambiar-estado" data-usuario="{{ usuario.username }}"
+                                    data-accion="{% if usuario.is_active %}desactivar{% else %}activar{% endif %}">
+                                    {% csrf_token %}
+
+                                    {% if usuario.is_active %}
+                                    <button type="submit" class="action-btn danger-btn" title="Desactivar vendedor">
+                                        <i class='fas fa-user-times'></i>
+                                    </button>
+                                    {% else %}
+                                    <button type="submit" class="action-btn edit-btn" title="Activar vendedor">
+                                        <i class='fas fa-user-check'></i>
+                                    </button>
+                                    {% endif %}
+                                </form>
+                                {% else %}
+                                <button type="button" class="action-btn danger-btn"
+                                    title="No puedes desactivar tu propio usuario" disabled>
+                                    <i class='fas fa-lock'></i>
+                                </button>
+                                {% endif %}
+                            </section>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="empty-row">
+                            No hay vendedores registrados.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        {% if usuarios.paginator.num_pages > 1 %}
+        <nav class="table-pagination">
+            {% if usuarios.has_previous %}
+                <a href="?{% if query_params %}{{ query_params }}&{% endif %}page={{ usuarios.previous_page_number }}">
+                    <i class='fas fa-chevron-left'></i>
+                    Anterior
+                </a>
+            {% else %}
+                <span>
+                    <i class='fas fa-chevron-left'></i>
+                    Anterior
+                </span>
+            {% endif %}
+
+            <strong>Página {{ usuarios.number }} de {{ usuarios.paginator.num_pages }}</strong>
+
+            {% if usuarios.has_next %}
+                <a href="?{% if query_params %}{{ query_params }}&{% endif %}page={{ usuarios.next_page_number }}">
+                    Siguiente
+                    <i class='fas fa-chevron-right'></i>
+                </a>
+            {% else %}
+                <span>
+                    Siguiente
+                    <i class='fas fa-chevron-right'></i>
+                </span>
+            {% endif %}
+        </nav>
+        {% endif %}
+    </article>
+
+    <aside class="panel-card activity-panel">
+        <header class="panel-header">
+            <section>
+                <h2>Actividad reciente</h2>
+                <p>Últimos registros</p>
+            </section>
+
+            <i class='fas fa-list-check panel-icon'></i>
+        </header>
+
+        <section class="activity-list" id="listaActividad">
+            {% for usuario in usuarios %}
+            <article class="activity-item {% if forloop.counter > 4 %}hidden-activity{% endif %}">
+                <span class="activity-icon">
+                    <i class='fas fa-user'></i>
+                </span>
+
+                <section>
+                    <strong>{{ usuario.username }} registrado</strong>
+                    <p>{{ usuario.date_joined|date:"d/m/Y h:i A" }}</p>
+                </section>
+            </article>
+            {% empty %}
+            <p class="empty-text">No hay actividad reciente.</p>
+            {% endfor %}
+        </section>
+
+        {% if usuarios|length > 4 %}
+        <button type="button" class="history-btn" id="btnActividad">
+            Ver toda la actividad
+        </button>
+        {% endif %}
+    </aside>
+
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/usuarios/usuarios.js' %}"></script>
+{% endblock %}

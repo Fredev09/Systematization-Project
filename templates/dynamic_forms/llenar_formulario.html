@@ -1,0 +1,151 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block titulo %}{{ formulario.nombre }} - {{ block.super }}{% endblock %}
+
+{% block estilos %}
+<link rel="stylesheet" href="{% static 'css/dynamic_forms/dynamic_forms.css' %}">
+{% endblock %}
+
+{% block topbar_info %}
+<section class="topbar-icon">
+    <i class='fas fa-pencil-alt'></i>
+</section>
+<section>
+    <strong>{{ formulario.nombre }}</strong>
+    <span>Llenar formulario</span>
+</section>
+{% endblock %}
+
+{% block contenido %}
+
+<section class="page-header">
+    <header>
+        <p>Formularios</p>
+        <h1>{{ formulario.nombre }}</h1>
+        {% if formulario.descripcion %}
+        <p class="df-description-text">{{ formulario.descripcion }}</p>
+        {% endif %}
+    </header>
+
+    <nav class="header-actions">
+        <a href="{% url 'dynamic_forms:listar_formularios' %}" class="btn-outline">
+            <i class='fas fa-arrow-left'></i>
+            Volver
+        </a>
+    </nav>
+</section>
+
+{% if formulario_inactivo %}
+<section class="df-inactive-banner">
+    <i class='fas fa-info-circle'></i>
+    <section>
+        <h4>Formulario no disponible</h4>
+        <p>El formulario "<strong>{{ formulario.nombre }}</strong>" ha sido desactivado por el administrador.</p>
+    </section>
+</section>
+
+<section class="panel-card">
+    <div class="df-empty-state">
+        <i class='fas fa-ban' style="color: #f59e0b;"></i>
+        <h4>Este formulario no está disponible actualmente</h4>
+        <p>El administrador ha desactivado este formulario.</p>
+        <a href="/" class="btn-primary">
+            <i class='fas fa-home'></i> Ir al inicio
+        </a>
+    </div>
+</section>
+{% else %}
+
+<section class="panel-card">
+    <header class="panel-header">
+        <section>
+            <h2>Completa el formulario</h2>
+            <p>Los campos marcados con <span class="text-danger">*</span> son obligatorios</p>
+        </section>
+        <span class="badge-custom">{{ campos|length }} campo(s)</span>
+    </header>
+
+    <div class="card-body">
+        {% if errores %}
+        <div class="alert alert-danger">
+            <i class='fas fa-exclamation-circle'></i>
+            <strong>Errores:</strong>
+            <ul class="mb-0 mt-1">
+                {% for error in errores %}
+                <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+
+            {% for campo in campos %}
+            <div class="mb-3 form-field">
+                <label class="form-label">
+                    {{ campo.nombre }}
+                    {% if campo.obligatorio %}
+                    <span class="text-danger">*</span>
+                    {% endif %}
+                    <small class="text-muted">({{ campo.get_tipo_display }})</small>
+                </label>
+
+                {% if campo.tipo == 'texto' %}
+                <input type="text"
+                       name="campo_{{ campo.id }}"
+                       class="form-control"
+                       placeholder="{{ campo.nombre }}"
+                       {% if campo.obligatorio %}required{% endif %}>
+
+                {% elif campo.tipo == 'numero' %}
+                <input type="number"
+                       name="campo_{{ campo.id }}"
+                       class="form-control"
+                       placeholder="0"
+                       step="any"
+                       {% if campo.obligatorio %}required{% endif %}>
+
+                {% elif campo.tipo == 'fecha' %}
+                <input type="date"
+                       name="campo_{{ campo.id }}"
+                       class="form-control"
+                       {% if campo.obligatorio %}required{% endif %}>
+
+                {% elif campo.tipo == 'booleano' %}
+                <div class="form-check mt-2">
+                    <input type="checkbox"
+                           name="campo_{{ campo.id }}"
+                           class="form-check-input"
+                           id="campo_{{ campo.id }}">
+                    <label class="form-check-label" for="campo_{{ campo.id }}">
+                        Sí
+                    </label>
+                </div>
+
+                {% elif campo.tipo == 'lista' %}
+                <select name="campo_{{ campo.id }}"
+                        class="form-select"
+                        {% if campo.obligatorio %}required{% endif %}>
+                    <option value="">-- Selecciona --</option>
+                    {% for opcion in campo.opciones %}
+                    <option value="{{ opcion }}">{{ opcion }}</option>
+                    {% endfor %}
+                </select>
+                {% endif %}
+            </div>
+            {% endfor %}
+
+            <div class="df-submit-area">
+                <a href="{% url 'dynamic_forms:listar_formularios' %}" class="btn btn-outline-secondary">Cancelar</a>
+                <button type="submit" class="btn-primary">
+                    <i class='fas fa-check'></i> Guardar registro
+                </button>
+            </div>
+        </form>
+    </div>
+</section>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,581 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load formatos %}
+
+{% block titulo %}Inventario | {{ configuracion_tienda.nombre_tienda|default:'Tonjeo' }}{% endblock %}
+
+{% block estilos %}
+<link rel="stylesheet" href="{% static 'css/usuarios/usuarios.css' %}">
+<link rel="stylesheet" href="{% static 'css/productos/productos.css' %}">
+<link rel="stylesheet" href="{% static 'css/inventario/inventario.css' %}">
+{% endblock %}
+
+{% block topbar_info %}
+<section class="topbar-icon">
+    <i class='fas fa-chart-bar'></i>
+</section>
+
+<section>
+    <strong>Control de inventario</strong>
+    <span>Stock, alertas y movimientos</span>
+</section>
+{% endblock %}
+
+{% block contenido %}
+
+<section class="page-header">
+    <header>
+        <p>Inventario</p>
+        <h1>Control de stock</h1>
+    </header>
+
+    <nav class="header-actions">
+        <a href="{% url 'productos' %}" class="btn-outline">
+            <i class='fas fa-box'></i>
+            Ver productos
+        </a>
+    </nav>
+</section>
+
+<section class="stats-grid">
+    <article class="stat-card">
+        <section class="stat-icon">
+            <i class='fas fa-box'></i>
+        </section>
+
+        <section>
+            <span>Total productos</span>
+            <h3>{{ total_productos|default:"0"|formato_numero }}</h3>
+            <p>Registrados</p>
+        </section>
+    </article>
+
+    <article class="stat-card">
+        <section class="stat-icon warning">
+            <i class='fas fa-exclamation-triangle'></i>
+        </section>
+
+        <section>
+            <span>Stock bajo</span>
+            <h3>{{ stock_bajo|default:"0"|formato_numero }}</h3>
+            <p class="warning-text">Revisar inventario</p>
+        </section>
+    </article>
+
+    <article class="stat-card">
+        <section class="stat-icon warning">
+            <i class='fas fa-times-circle'></i>
+        </section>
+
+        <section>
+            <span>Sin stock</span>
+            <h3>{{ sin_stock|default:"0"|formato_numero }}</h3>
+            <p class="warning-text">Productos agotados</p>
+        </section>
+    </article>
+</section>
+
+<section class="inventory-overview-grid">
+    <article class="panel-card inventory-value-card">
+        <section class="inventory-value-icon">
+            <i class='fas fa-dollar-sign'></i>
+        </section>
+
+        <section>
+            <span>Valor total del inventario</span>
+            <h2>{{ valor_total|default:"0"|formato_pesos }}</h2>
+            <p>Calculado con el precio de cada producto por su stock actual.</p>
+        </section>
+    </article>
+
+    <article class="panel-card inventory-health-card">
+        <header class="panel-header">
+            <section>
+                <h2>Resumen operativo</h2>
+                <p>Estado general de las existencias</p>
+            </section>
+
+            <span class="badge-custom">Stock</span>
+        </header>
+
+        <section class="inventory-health-list">
+            <article>
+                <strong>{{ disponibles|default:"0"|formato_numero }}</strong>
+                <span>Disponibles</span>
+            </article>
+
+            <article>
+                <strong>{{ stock_bajo|default:"0"|formato_numero }}</strong>
+                <span>Stock bajo</span>
+            </article>
+
+            <article>
+                <strong>{{ sin_stock|default:"0"|formato_numero }}</strong>
+                <span>Agotados</span>
+            </article>
+        </section>
+    </article>
+</section>
+
+<section class="content-grid inventory-content-grid">
+    <article class="panel-card inventory-priority-panel">
+        <header class="panel-header">
+            <section>
+                <h2>Prioridad de reposición</h2>
+                <p>Productos agotados o cercanos a agotarse</p>
+            </section>
+
+            <span class="badge-custom">Atención</span>
+        </header>
+
+        <section class="inventory-priority-list">
+            {% for producto in productos_criticos %}
+            <article class="inventory-priority-item">
+                <section class="product-info">
+                    <span class="product-image-box">
+                        {% if producto.imagen_final_url %}
+                            <img
+                                src="{{ producto.imagen_final_url }}"
+                                alt="{{ producto.nombre }}"
+                                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                            >
+                            <i class='fas fa-box product-fallback-icon' style="display: none;"></i>
+                        {% else %}
+                            <i class='fas fa-box'></i>
+                        {% endif %}
+                    </span>
+
+                    <section class="product-text">
+                        <strong>{{ producto.nombre }}</strong>
+                        <small>
+                            {% if producto.categoria %}
+                                {{ producto.categoria.nombre }}
+                            {% else %}
+                                Sin categoría
+                            {% endif %}
+                            · {{ producto.color }} · Talla {{ producto.talla }}
+                        </small>
+                    </section>
+                </section>
+
+                <section class="inventory-priority-meta">
+                    {% if producto.stock <= 0 %}
+                        <span class="stock-status stock-empty">Sin stock</span>
+                    {% elif producto.stock <= stock_minimo_alerta %}
+                        <span class="stock-status stock-low">{{ producto.stock|formato_numero }}</span>
+                    {% else %}
+                        <span class="stock-status stock-ok">{{ producto.stock|formato_numero }}</span>
+                    {% endif %}
+
+                    <a href="{% url 'actualizar_stock' producto.id %}" class="action-btn stock-btn" title="Ajustar stock">
+                        <i class='fas fa-exchange-alt'></i>
+                    </a>
+                </section>
+            </article>
+            {% empty %}
+            <article class="inventory-empty-state">
+                <i class='fas fa-shield-check'></i>
+                <strong>Inventario estable</strong>
+                <span>No hay productos agotados ni con stock bajo.</span>
+            </article>
+            {% endfor %}
+        </section>
+    </article>
+</section>
+
+<section class="content-grid inventory-movements-grid">
+    <article class="panel-card inventory-movement-summary">
+        <header class="panel-header">
+            <section>
+                <h2>Resumen de movimientos</h2>
+                <p>Entradas, salidas y correcciones registradas</p>
+            </section>
+
+            <span class="badge-custom">Movimientos</span>
+        </header>
+
+        <section class="movement-summary-list">
+            <article>
+                <i class='fas fa-exchange-alt'></i>
+                <section>
+                    <strong>{{ total_movimientos|default:"0"|formato_numero }}</strong>
+                    <span>Total movimientos</span>
+                </section>
+            </article>
+
+            <article>
+                <i class='fas fa-plus-circle'></i>
+                <section>
+                    <strong>{{ total_entradas|default:"0"|formato_numero }}</strong>
+                    <span>Entradas</span>
+                </section>
+            </article>
+
+            <article>
+                <i class='fas fa-minus-circle'></i>
+                <section>
+                    <strong>{{ total_salidas|default:"0"|formato_numero }}</strong>
+                    <span>Salidas</span>
+                </section>
+            </article>
+
+            <article>
+                <i class='fas fa-pen'></i>
+                <section>
+                    <strong>{{ total_correcciones|default:"0"|formato_numero }}</strong>
+                    <span>Correcciones</span>
+                </section>
+            </article>
+        </section>
+    </article>
+
+    <article class="panel-card inventory-movements-panel">
+        <header class="panel-header">
+            <section>
+                <h2>Movimientos recientes</h2>
+                <p>Historial de cambios hechos al inventario</p>
+            </section>
+
+            <section class="inventory-panel-actions">
+                <span class="badge-custom">Últimos 50</span>
+
+                <a href="{% url 'historial_inventario' %}" class="inventory-history-link">
+                    <i class='fas fa-history'></i>
+                    Ver historial completo
+                </a>
+            </section>
+        </header>
+
+        {% include 'base/per_page_control.html' with per_page=movimientos_per_page per_page_options=per_page_options page_param='movimientos_page' per_page_param='movimientos_per_page' %}
+
+        <section class="table-responsive inventory-movements-wrapper">
+            <table class="products-table inventory-movements-table table-stagger">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Tipo</th>
+                        <th>Cantidad</th>
+                        <th>Stock anterior</th>
+                        <th>Stock nuevo</th>
+                        <th>Motivo</th>
+                        <th>Fecha</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for movimiento in movimientos_recientes %}
+                    <tr>
+                        <td>
+                            <section class="product-info">
+                                <span class="product-image-box">
+                                    {% if movimiento.producto.imagen_final_url %}
+                                        <img
+                                            src="{{ movimiento.producto.imagen_final_url }}"
+                                            alt="{{ movimiento.producto.nombre }}"
+                                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                                        >
+                                        <i class='fas fa-box product-fallback-icon' style="display: none;"></i>
+                                    {% else %}
+                                        <i class='fas fa-box'></i>
+                                    {% endif %}
+                                </span>
+
+                                <section class="product-text">
+                                    <strong>{{ movimiento.producto.nombre }}</strong>
+                                    <small>
+                                        {% if movimiento.producto.categoria %}
+                                            {{ movimiento.producto.categoria.nombre }}
+                                        {% else %}
+                                            Sin categoría
+                                        {% endif %}
+                                    </small>
+                                </section>
+                            </section>
+                        </td>
+
+                        <td>
+                            {% if movimiento.tipo == 'entrada' %}
+                                <span class="movement-badge movement-entry">
+                                    <i class='fas fa-plus-circle'></i>
+                                    Entrada
+                                </span>
+                            {% elif movimiento.tipo == 'salida' %}
+                                <span class="movement-badge movement-exit">
+                                    <i class='fas fa-minus-circle'></i>
+                                    Salida
+                                </span>
+                            {% else %}
+                                <span class="movement-badge movement-fix">
+                                    <i class='fas fa-pen'></i>
+                                    Corrección
+                                </span>
+                            {% endif %}
+                        </td>
+
+                        <td>{{ movimiento.cantidad|formato_numero }}</td>
+                        <td>{{ movimiento.stock_anterior|formato_numero }}</td>
+                        <td>{{ movimiento.stock_nuevo|formato_numero }}</td>
+
+                        <td>
+                            {% if movimiento.motivo %}
+                                {{ movimiento.get_motivo_display }}
+                            {% else %}
+                                Sin motivo
+                            {% endif %}
+
+                            {% if movimiento.observacion %}
+                                <small class="movement-note">{{ movimiento.observacion }}</small>
+                            {% endif %}
+                        </td>
+
+                        <td>{{ movimiento.fecha|date:"d/m/Y h:i A" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="empty-row">
+                            Todavía no hay movimientos registrados.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        {% if movimientos_recientes.paginator.num_pages > 1 %}
+        <nav class="table-pagination">
+            {% if movimientos_recientes.has_previous %}
+                <a href="?{% if movimientos_query_params %}{{ movimientos_query_params }}&{% endif %}movimientos_page={{ movimientos_recientes.previous_page_number }}">
+                    <i class='fas fa-chevron-left'></i>
+                    Anterior
+                </a>
+            {% else %}
+                <span>
+                    <i class='fas fa-chevron-left'></i>
+                    Anterior
+                </span>
+            {% endif %}
+
+            <strong>Página {{ movimientos_recientes.number }} de {{ movimientos_recientes.paginator.num_pages }}</strong>
+
+            {% if movimientos_recientes.has_next %}
+                <a href="?{% if movimientos_query_params %}{{ movimientos_query_params }}&{% endif %}movimientos_page={{ movimientos_recientes.next_page_number }}">
+                    Siguiente
+                    <i class='fas fa-chevron-right'></i>
+                </a>
+            {% else %}
+                <span>
+                    Siguiente
+                    <i class='fas fa-chevron-right'></i>
+                </span>
+            {% endif %}
+        </nav>
+        {% endif %}
+    </article>
+</section>
+
+<section class="panel-card products-filter-panel">
+    <form method="GET" action="{% url 'inventario' %}" class="products-filters">
+
+        <section class="products-search-box">
+            <i class='fas fa-search'></i>
+            <input
+                type="text"
+                name="q"
+                value="{{ query }}"
+                placeholder="Buscar por nombre, talla o color..."
+            >
+        </section>
+
+        <section class="filter-group">
+            <select name="categoria">
+                <option value="">Todas las categorías</option>
+
+                {% for categoria in categorias %}
+                    {% with categoria_id_text=categoria.id|stringformat:"s" %}
+                        <option value="{{ categoria.id }}" {% if categoria_id == categoria_id_text %}selected{% endif %}>
+                            {{ categoria.nombre }}
+                        </option>
+                    {% endwith %}
+                {% endfor %}
+            </select>
+        </section>
+
+        <section class="filter-group">
+            <select name="stock">
+                <option value="">Todo el stock</option>
+                <option value="disponible" {% if stock == 'disponible' %}selected{% endif %}>Disponible</option>
+                <option value="bajo" {% if stock == 'bajo' %}selected{% endif %}>Stock bajo</option>
+                <option value="sin_stock" {% if stock == 'sin_stock' %}selected{% endif %}>Sin stock</option>
+            </select>
+        </section>
+
+        <section class="filter-actions">
+            <button type="submit" class="btn-filter">
+                <i class='fas fa-filter'></i>
+                Filtrar
+            </button>
+
+            <a href="{% url 'inventario' %}" class="btn-clear">
+                <i class='fas fa-sync'></i>
+                Limpiar
+            </a>
+        </section>
+
+    </form>
+</section>
+
+<section class="content-grid products-content-grid">
+    <article class="panel-card products-panel-full">
+        <header class="panel-header">
+            <section>
+                <h2>Matriz de inventario</h2>
+                <p>Controla existencias, valor en stock y ajustes rápidos</p>
+            </section>
+
+            <span class="badge-custom">Inventario</span>
+        </header>
+
+        {% include 'base/per_page_control.html' with per_page=productos_per_page per_page_options=per_page_options page_param='productos_page' per_page_param='productos_per_page' %}
+
+        <section class="table-responsive products-table-wrapper">
+            <table class="products-table inventory-products-table table-stagger">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Categoría</th>
+                        <th>Talla</th>
+                        <th>Color</th>
+                        <th>Valor stock</th>
+                        <th class="stock-column">Stock</th>
+                        <th class="actions-column">Acciones</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for producto in productos %}
+                    <tr>
+                        <td>
+                            <section class="product-info">
+                                <span class="product-image-box">
+                                    {% if producto.imagen_final_url %}
+                                        <img
+                                            src="{{ producto.imagen_final_url }}"
+                                            alt="{{ producto.nombre }}"
+                                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                                        >
+                                        <i class='fas fa-box product-fallback-icon' style="display: none;"></i>
+                                    {% else %}
+                                        <i class='fas fa-box'></i>
+                                    {% endif %}
+                                </span>
+
+                                <section class="product-text">
+                                    <strong>{{ producto.nombre }}</strong>
+
+                                    {% if producto.stock <= 0 %}
+                                        <small>Reponer de forma urgente</small>
+                                    {% elif producto.stock <= stock_minimo_alerta %}
+                                        <small>Stock bajo, revisar reposición</small>
+                                    {% else %}
+                                        <small>Stock disponible</small>
+                                    {% endif %}
+                                </section>
+                            </section>
+                        </td>
+
+                        <td>
+                            {% if producto.categoria %}
+                                {{ producto.categoria.nombre }}
+                            {% else %}
+                                Sin categoría
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            <span class="product-pill">
+                                {{ producto.talla }}
+                            </span>
+                        </td>
+
+                        <td>
+                            <span class="color-text">
+                                {{ producto.color }}
+                            </span>
+                        </td>
+
+                        <td class="price-cell">
+                            {{ producto.valor_stock|default:"0"|formato_pesos }}
+                        </td>
+
+                        <td class="stock-column">
+                            {% if producto.stock <= 0 %}
+                                <span class="stock-status stock-empty">
+                                    Sin stock
+                                </span>
+                            {% elif producto.stock <= stock_minimo_alerta %}
+                                <span class="stock-status stock-low">
+                                    {{ producto.stock|formato_numero }}
+                                </span>
+                            {% else %}
+                                <span class="stock-status stock-ok">
+                                    {{ producto.stock|formato_numero }}
+                                </span>
+                            {% endif %}
+                        </td>
+
+                        <td class="actions-column">
+                            <section class="table-actions">
+                                <a href="{% url 'actualizar_stock' producto.id %}" class="action-btn stock-btn" title="Ajustar stock">
+                                    <i class='fas fa-exchange-alt'></i>
+                                </a>
+                            </section>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="empty-row">
+                            No hay productos registrados en el inventario.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        {% if productos.paginator.num_pages > 1 %}
+        <nav class="table-pagination">
+            {% if productos.has_previous %}
+                <a href="?{% if productos_query_params %}{{ productos_query_params }}&{% endif %}productos_page={{ productos.previous_page_number }}">
+                    <i class='fas fa-chevron-left'></i>
+                    Anterior
+                </a>
+            {% else %}
+                <span>
+                    <i class='fas fa-chevron-left'></i>
+                    Anterior
+                </span>
+            {% endif %}
+
+            <strong>Página {{ productos.number }} de {{ productos.paginator.num_pages }}</strong>
+
+            {% if productos.has_next %}
+                <a href="?{% if productos_query_params %}{{ productos_query_params }}&{% endif %}productos_page={{ productos.next_page_number }}">
+                    Siguiente
+                    <i class='fas fa-chevron-right'></i>
+                </a>
+            {% else %}
+                <span>
+                    Siguiente
+                    <i class='fas fa-chevron-right'></i>
+                </span>
+            {% endif %}
+        </nav>
+        {% endif %}
+    </article>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/dashboard/dashboard.js' %}"></script>
+{% endblock %}

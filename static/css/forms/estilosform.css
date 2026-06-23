@@ -1,0 +1,217 @@
+/* ============================================================
+   estilosform.css - Formulario Público Tonjeo
+   Estilos específicos para la página de consulta/contacto.
+   Variables heredadas de tonjeo.css
+   ============================================================ */
+
+/* --- Fondo degradado cálido --- */
+body {
+    font-family: var(--font-body);
+    background:
+        radial-gradient(circle at 15% 80%, rgba(30, 64, 175, 0.08), transparent 30%),
+        radial-gradient(circle at 85% 25%, rgba(8, 145, 178, 0.06), transparent 28%),
+        linear-gradient(145deg, #f0f4ff 0%, #e8edf8 40%, #f8fafc 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    padding: 40px 0;
+}
+
+/* --- Card glass --- */
+.formulario-moda {
+    background: rgba(255, 255, 255, 0.88);
+    padding: 40px;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-xl);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-top: 6px solid var(--primary);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    animation: fadeInUp 0.6s ease;
+    transition: background var(--transition-base), box-shadow var(--transition-base);
+}
+
+.formulario-moda:hover {
+    box-shadow: 0 16px 56px rgba(30, 64, 175, 0.12);
+}
+
+/* --- Logo --- */
+.logo-form {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid rgba(30, 64, 175, 0.15);
+    padding: 4px;
+    background: #fff;
+    transition: transform var(--transition-slow);
+}
+
+.logo-form:hover {
+    transform: scale(1.04);
+}
+
+/* --- Títulos --- */
+.titulo-formulario {
+    font-family: var(--font-heading);
+    font-weight: 800;
+    font-size: 2rem;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+
+.subtitulo-formulario {
+    color: var(--text-muted);
+    font-size: 15px;
+    margin-bottom: 0;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* --- Labels --- */
+.form-label {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+
+/* --- Inputs / Selects / Textarea --- */
+.form-control,
+.form-select {
+    border-radius: var(--radius-md);
+    border: 2px solid var(--border);
+    padding: 12px 14px;
+    color: var(--text-primary);
+    background: var(--card-bg);
+    font-family: var(--font-body);
+    font-size: 14px;
+    transition: all var(--transition-fast);
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--primary);
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(30, 64, 175, 0.1);
+}
+
+.form-control::placeholder {
+    color: var(--text-muted);
+}
+
+textarea.form-control {
+    resize: none;
+}
+
+/* --- Checkbox --- */
+.form-check-label {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.form-check-input:checked {
+    background-color: var(--primary);
+    border-color: var(--primary);
+}
+
+/* --- Botones (override tonjeo for radius) --- */
+.btn-primary {
+    border-radius: var(--radius-full);
+    padding: 14px 24px;
+    font-weight: 700;
+    font-size: 15px;
+}
+
+.btn-outline-secondary {
+    border-radius: var(--radius-full);
+    padding: 12px 24px;
+    font-weight: 600;
+    background: rgba(255,255,255,0.6);
+}
+
+/* ============================================================
+   Dark Mode
+   ============================================================ */
+html.dark-mode body {
+    background:
+        radial-gradient(circle at 15% 80%, rgba(30, 64, 175, 0.15), transparent 30%),
+        radial-gradient(circle at 85% 25%, rgba(8, 145, 178, 0.08), transparent 28%),
+        linear-gradient(145deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+}
+
+html.dark-mode .formulario-moda {
+    background: rgba(30, 41, 59, 0.92);
+    border-color: rgba(255, 255, 255, 0.06);
+    border-top-color: var(--primary);
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4);
+}
+
+html.dark-mode .form-control,
+html.dark-mode .form-select {
+    background: rgba(15, 23, 42, 0.6);
+    border-color: rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+}
+
+html.dark-mode .form-control:focus,
+html.dark-mode .form-select:focus {
+    background: rgba(15, 23, 42, 0.8);
+    border-color: var(--primary);
+}
+
+html.dark-mode .btn-outline-secondary {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: var(--text-secondary);
+}
+
+html.dark-mode .btn-outline-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+html.dark-mode .logo-form {
+    border-color: rgba(30, 64, 175, 0.3);
+}
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width: 768px) {
+    body {
+        padding: 20px 12px;
+    }
+
+    .formulario-moda {
+        padding: 28px 20px;
+        border-radius: var(--radius-lg);
+    }
+
+    .titulo-formulario {
+        font-size: 1.6rem;
+    }
+
+    .logo-form {
+        width: 90px;
+        height: 90px;
+    }
+
+    .btn-primary {
+        padding: 12px 20px;
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .formulario-moda {
+        padding: 24px 16px;
+    }
+
+    .titulo-formulario {
+        font-size: 1.4rem;
+    }
+
+    .subtitulo-formulario {
+        font-size: 14px;
+    }
+}

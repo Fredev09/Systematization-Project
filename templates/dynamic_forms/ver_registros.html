@@ -1,0 +1,128 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load dynamic_forms_extras %}
+
+{% block titulo %}Registros: {{ formulario.nombre }} - {{ block.super }}{% endblock %}
+
+{% block estilos %}
+<link rel="stylesheet" href="{% static 'css/dynamic_forms/dynamic_forms.css' %}">
+{% endblock %}
+
+{% block topbar_info %}
+<section class="topbar-icon">
+    <i class='fas fa-table'></i>
+</section>
+<section>
+    <strong>Registros: {{ formulario.nombre }}</strong>
+    <span>{{ registros.paginator.count }} registro(s)</span>
+</section>
+{% endblock %}
+
+{% block contenido %}
+
+<section class="page-header">
+    <header>
+        <p>Formularios</p>
+        <h1>Registros de "{{ formulario.nombre }}"</h1>
+    </header>
+
+    <nav class="header-actions">
+        <a href="{% url 'dynamic_forms:llenar_formulario' formulario.id %}" class="btn-accent">
+            <i class='fas fa-plus'></i> Nuevo registro
+        </a>
+        <a href="{% url 'dynamic_forms:exportar_excel' formulario.id %}" class="btn-primary">
+            <i class='fas fa-file-excel'></i> Exportar Excel
+        </a>
+        <a href="{% url 'dynamic_forms:listar_formularios' %}" class="btn-outline">
+            <i class='fas fa-arrow-left'></i> Volver
+        </a>
+    </nav>
+</section>
+
+<section class="panel-card">
+    {% if registros %}
+    <div class="df-table-wrapper">
+        <table class="df-table table-stagger">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Fecha</th>
+                    {% for campo in campos %}
+                    <th>{{ campo.nombre }}</th>
+                    {% endfor %}
+                    <th>Usuario</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for registro in registros %}
+                <tr>
+                    <td><strong>{{ registro.id }}</strong></td>
+                    <td class="text-nowrap">{{ registro.fecha_creacion|date:"d/m/Y H:i" }}</td>
+                    {% for campo in campos %}
+                    <td>
+                        {% with valores_map|dict_key:registro.id as valores_reg %}
+                            {% if valores_reg %}
+                                {{ valores_reg|dict_key:campo.id|default:'' }}
+                            {% endif %}
+                        {% endwith %}
+                    </td>
+                    {% endfor %}
+                    <td>{{ registro.usuario.username|default:'' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if registros.paginator.num_pages > 1 %}
+    <div class="df-pagination-bar">
+        <div class="df-per-page">
+            <span>Registros por página:</span>
+            <select onchange="window.location.href='?per_page='+this.value">
+                {% for opcion in per_page_options %}
+                <option value="{{ opcion }}" {% if per_page == opcion %}selected{% endif %}>{{ opcion }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <nav>
+            <ul class="pagination pagination-sm mb-0">
+                {% if registros.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if query_params %}&{{ query_params }}{% endif %}" title="Primera página">&laquo;</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ registros.previous_page_number }}{% if query_params %}&{{ query_params }}{% endif %}" title="Anterior">&lsaquo;</a>
+                </li>
+                {% endif %}
+
+                <li class="page-item active">
+                    <span class="page-link">{{ registros.number }} de {{ registros.paginator.num_pages }}</span>
+                </li>
+
+                {% if registros.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ registros.next_page_number }}{% if query_params %}&{{ query_params }}{% endif %}" title="Siguiente">&rsaquo;</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ registros.paginator.num_pages }}{% if query_params %}&{{ query_params }}{% endif %}" title="Última página">&raquo;</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="df-empty-state">
+        <i class='fas fa-database'></i>
+        <h4>No hay registros aún</h4>
+        <p>Comienza a llenar el formulario para ver los registros aquí.</p>
+        <a href="{% url 'dynamic_forms:llenar_formulario' formulario.id %}" class="btn-primary">
+            <i class='fas fa-plus'></i> Nuevo registro
+        </a>
+    </div>
+    {% endif %}
+</section>
+
+{% endblock %}
