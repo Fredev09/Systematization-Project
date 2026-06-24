@@ -2,6 +2,24 @@
 
 /* Variables de modo oscuro y colores base ahora definidas en tonjeo.css */
 
+/* ============================================================
+   Content Grid — Panel de usuarios y actividad reciente
+   ============================================================ */
+.content-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    width: 100%;
+    max-width: 100%;
+}
+
+@media (max-width: 992px) {
+    .content-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+}
+
 .page-header {
     display: flex;
     justify-content: space-between;
