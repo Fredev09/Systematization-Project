@@ -97,18 +97,29 @@ document.addEventListener('DOMContentLoaded', () => {
             return false;
         }
 
+        // Permitir URLs de objetos (imágenes subidas con FileReader)
         if (valor.startsWith('blob:')) {
             return true;
         }
 
+        // Permitir rutas relativas (ej. /media/imagen.jpg)
         if (valor.startsWith('/')) {
             return true;
         }
 
+        // Validar URLs HTTP/HTTPS
         try {
             const parsed = new URL(valor, window.location.origin);
-            return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+
+            // Solo permitir HTTP o HTTPS (rechazar javascript:, data:, etc.)
+            if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+                return false;
+            }
+
+            // Verificar que sea del mismo origen (más seguro)
+            return parsed.origin === window.location.origin;
         } catch (e) {
+            // Si no es una URL válida, rechazarla
             return false;
         }
     }
