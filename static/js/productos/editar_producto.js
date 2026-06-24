@@ -27,11 +27,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return null;
         }
 
-        // Permitir URLs de objetos (imágenes subidas con FileReader)
-        if (valor.startsWith('blob:')) {
-            return valor;
-        }
-
         // Permitir rutas relativas (ej. /media/imagen.jpg) y devolverlas canonizadas
         if (valor.startsWith('/')) {
             return new URL(valor, window.location.origin).toString();
@@ -41,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const parsed = new URL(valor, window.location.origin);
 
-            // Solo permitir HTTP o HTTPS (rechazar javascript:, data:, etc.)
+            // Solo permitir HTTP o HTTPS (rechazar javascript:, data:, blob:, etc.)
             if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
                 return null;
             }
@@ -53,12 +48,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function pintarConImagen(src) {
+    function pintarConImagen(src, permitirBlob = false) {
         if (!imagePreview || !imagePreviewBox || !imagePreviewText || !imagePreviewIcon) {
             return;
         }
 
-        const srcSeguro = obtenerSrcImagenSeguro(src);
+        let srcSeguro = null;
+        if (permitirBlob && typeof src === 'string' && src.trim().startsWith('blob:')) {
+            srcSeguro = src.trim();
+        } else {
+            srcSeguro = obtenerSrcImagenSeguro(src);
+        }
+
         if (!srcSeguro) {
             pintarSinImagen();
             return;
@@ -95,7 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (archivo) {
             objectUrlActual = URL.createObjectURL(archivo);
-            pintarConImagen(objectUrlActual);
+            pintarConImagen(objectUrlActual, true);
             return;
         }
 
