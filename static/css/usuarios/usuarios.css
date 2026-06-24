@@ -6,16 +6,20 @@
    Content Grid — Panel de usuarios y actividad reciente
    ============================================================ */
 .content-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
     gap: 24px;
     width: 100%;
     max-width: 100%;
 }
 
+.content-grid > * {
+    flex: 1;
+    min-width: 0;
+}
+
 @media (max-width: 992px) {
     .content-grid {
-        grid-template-columns: 1fr;
+        flex-direction: column;
         gap: 20px;
     }
 }
