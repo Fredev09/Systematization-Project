@@ -86,8 +86,40 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function esSrcImagenSeguro(src) {
+        if (!src || typeof src !== 'string') {
+            return false;
+        }
+
+        const valor = src.trim();
+
+        if (!valor) {
+            return false;
+        }
+
+        if (valor.startsWith('blob:')) {
+            return true;
+        }
+
+        if (valor.startsWith('/')) {
+            return true;
+        }
+
+        try {
+            const parsed = new URL(valor, window.location.origin);
+            return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+        } catch (e) {
+            return false;
+        }
+    }
+
     function pintarConImagen(src) {
         if (!imagePreview || !imagePreviewBox || !imagePreviewText || !imagePreviewIcon) {
+            return;
+        }
+
+        if (!esSrcImagenSeguro(src)) {
+            pintarSinImagen();
             return;
         }
 
