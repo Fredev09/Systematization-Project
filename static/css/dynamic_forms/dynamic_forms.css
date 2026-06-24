@@ -3,6 +3,112 @@
    Alineado con el sistema de diseño de la plataforma
    ============================================================ */
 
+/* --- Header Section --- */
+.df-header {
+    margin-bottom: 24px;
+    padding: 20px;
+    background: var(--bg-card);
+    border-radius: 12px;
+}
+
+.df-header h2 {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 24px;
+    color: var(--text-primary);
+    margin: 0 0 4px;
+}
+
+.df-header p {
+    color: var(--text-muted);
+    font-size: 14px;
+    margin: 0;
+}
+
+/* --- Actions Bar --- */
+.df-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+}
+
+/* --- DF Primary / Secondary Buttons --- */
+.df-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 24px;
+    background: #E07A5F;
+    color: white;
+    border-radius: 8px;
+    border: none;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.df-btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(224, 122, 95, 0.3);
+    color: white;
+}
+
+.df-btn-primary:active {
+    transform: scale(0.97);
+}
+
+.df-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 24px;
+    background: var(--input-bg);
+    color: var(--text-primary);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.df-btn-secondary:hover {
+    background: var(--border);
+    transform: translateY(-2px);
+    color: var(--text-primary);
+}
+
+.df-btn-secondary:active {
+    transform: scale(0.97);
+}
+
+/* --- Consistent spacing for form sections --- */
+.df-section-spacing {
+    margin-bottom: 24px;
+}
+
+.df-section-spacing .panel-card {
+    margin-bottom: 24px;
+}
+
+/* --- Table/Panel alignment --- */
+.df-full-width {
+    width: 100%;
+    max-width: 100%;
+}
+
 /* --- Form Cards Grid --- */
 .forms-grid {
     display: grid;
