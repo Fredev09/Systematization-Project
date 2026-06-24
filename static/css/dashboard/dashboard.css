@@ -231,8 +231,8 @@ html.dark-mode .stock-ok {
 }
 
 html.dark-mode .stock-low {
-    background: rgba(249, 115, 22, 0.18);
-    color: #fb923c;
+    background: rgba(224, 122, 95, 0.18);
+    color: #E07A5F;
 }
 
 @media (max-width: 768px) {

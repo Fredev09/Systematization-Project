@@ -9,3 +9,20 @@ def dict_key(dictionary, key):
     if dictionary is None:
         return None
     return dictionary.get(key, '')
+
+
+@register.filter
+def sum_attr(queryset, attr):
+    """Suma un atributo numérico a través de todos los objetos de un queryset/lista.
+    Uso: {{ formularios|sum_attr:"total_registros" }}
+    """
+    total = 0
+    for obj in queryset:
+        try:
+            value = getattr(obj, attr, 0)
+            if value is None:
+                value = 0
+            total += int(value)
+        except (TypeError, ValueError):
+            pass
+    return total

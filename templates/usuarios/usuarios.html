@@ -66,9 +66,9 @@
     </article>
 </section>
 
-<section class="content-grid">
+<div style="display: flex; flex-direction: column; gap: 24px; max-width: 1200px; margin: 0 auto; padding: 20px;">
 
-    <article class="panel-card users-panel">
+    <div style="background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
         <header class="panel-header">
             <section>
                 <h2>Listado de Vendedores</h2>
@@ -204,9 +204,9 @@
             {% endif %}
         </nav>
         {% endif %}
-    </article>
+    </div>
 
-    <aside class="panel-card activity-panel">
+    <div style="background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
         <header class="panel-header">
             <section>
                 <h2>Actividad reciente</h2>
@@ -238,9 +238,9 @@
             Ver toda la actividad
         </button>
         {% endif %}
-    </aside>
+    </div>
 
-</section>
+</div>
 
 {% endblock %}
 

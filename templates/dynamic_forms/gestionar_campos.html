@@ -26,7 +26,7 @@
     </header>
 
     <nav class="header-actions">
-        <a href="{% url 'dynamic_forms:listar_formularios' %}" class="btn btn-outline-secondary">
+        <a href="{% url 'dynamic_forms:listar_formularios' %}" class="btn btn-secondary">
             <i class='fas fa-arrow-left'></i>
             Volver
         </a>
@@ -42,7 +42,7 @@
                 <h2>Campos del formulario</h2>
                 <p>Administra los campos que componen este formulario</p>
             </section>
-            <button type="button" class="btn btn-accent btn-sm" id="agregarCampo">
+            <button type="button" class="btn btn-primary" id="agregarCampo">
                 <i class='fas fa-plus'></i> Agregar campo
             </button>
         </header>
@@ -118,7 +118,7 @@
         </div>
 
         <div class="panel-footer df-submit-area">
-            <a href="{% url 'dynamic_forms:listar_formularios' %}" class="btn btn-outline-secondary">Cancelar</a>
+            <a href="{% url 'dynamic_forms:listar_formularios' %}" class="btn btn-secondary">Cancelar</a>
             <button type="submit" class="btn btn-primary">
                 <i class='fas fa-save'></i> Guardar campos
             </button>

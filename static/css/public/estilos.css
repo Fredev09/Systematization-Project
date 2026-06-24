@@ -606,7 +606,7 @@ section {
 html.dark-mode {
     --principal: #8b5cf6;
     --principal-oscuro: #5b21b6;
-    --secundario: #f97316;
+    --secundario: #E07A5F;
     --rosa-suave: #2a164d;
     --rosa-claro: #171321;
     --rosa-medio: #3b2366;
@@ -655,7 +655,7 @@ html.dark-mode .theme-action:hover {
 
 html.dark-mode .hero {
     background:
-        radial-gradient(circle at 20% 15%, rgba(249, 115, 22, 0.28), transparent 30%),
+        radial-gradient(circle at 20% 15%, rgba(224, 122, 95, 0.28), transparent 30%),
         radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.42), transparent 30%),
         linear-gradient(135deg, #171321 0%, #2a164d 52%, #111827 100%);
 }
@@ -695,14 +695,14 @@ html.dark-mode .subtitulo.claro {
 
 html.dark-mode .btn-principal,
 html.dark-mode .btn-sistema {
-    background: linear-gradient(135deg, #8b5cf6, #f97316);
+    background: linear-gradient(135deg, #8b5cf6, #E07A5F);
     color: #ffffff;
     box-shadow: 0 12px 26px rgba(139, 92, 246, 0.28);
 }
 
 html.dark-mode .btn-principal:hover,
 html.dark-mode .btn-sistema:hover {
-    background: linear-gradient(135deg, #7c3aed, #ea580c);
+    background: linear-gradient(135deg, #7c3aed, #c96b52);
     color: #ffffff;
     box-shadow: 0 16px 34px rgba(139, 92, 246, 0.36);
 }
@@ -745,7 +745,7 @@ html.dark-mode .valores {
 html.dark-mode .mini-card i,
 html.dark-mode .coleccion-card i,
 html.dark-mode .contacto-item i {
-    background: linear-gradient(135deg, #8b5cf6, #f97316);
+    background: linear-gradient(135deg, #8b5cf6, #E07A5F);
 }
 
 html.dark-mode .stats-box {
@@ -769,7 +769,7 @@ html.dark-mode .valor-item:not(:last-child) {
 }
 
 html.dark-mode .valor-item i {
-    color: #f97316;
+    color: #E07A5F;
 }
 
 html.dark-mode .producto-precio,

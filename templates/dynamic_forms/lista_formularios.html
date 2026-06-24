@@ -1,5 +1,6 @@
 {% extends 'base/base.html' %}
 {% load static %}
+{% load dynamic_forms_extras %}
 
 {% block titulo %}Formularios dinámicos - {{ block.super }}{% endblock %}
 
@@ -19,77 +20,190 @@
 
 {% block contenido %}
 
-<section class="page-header">
-    <header>
-        <p>Formularios</p>
-        <h1>Formularios dinámicos</h1>
-    </header>
-
-    <nav class="header-actions">
-        <a href="{% url 'dynamic_forms:crear_formulario' %}" class="btn-tonjeo-primary">
-            <i class='fas fa-plus'></i>
-            Nuevo formulario
-        </a>
-    </nav>
-</section>
-
-{% if formularios %}
-<section class="forms-grid card-grid-stagger">
-    {% for formulario in formularios %}
-    <article class="form-card {% if not formulario.activo %}form-card-inactive{% endif %}">
-        <div class="card-body">
-            <div class="d-flex justify-content-between align-items-start mb-2">
-                <h5 class="card-title mb-0">{{ formulario.nombre }}</h5>
-                {% if not formulario.activo %}
-                <span class="badge badge-secondary">Inactivo</span>
-                {% endif %}
+<div class="df-saas">
+    <!-- ============================================================
+         HERO HEADER
+         ============================================================ -->
+    <div class="df-hero">
+        <div class="df-hero-content">
+            <div class="df-hero-text">
+                <span class="df-hero-badge">Formularios</span>
+                <h1 class="df-hero-title">Formularios Dinámicos</h1>
+                <p class="df-hero-desc">Administra y personaliza todos los formularios de tu empresa.</p>
             </div>
+            <a href="{% url 'dynamic_forms:crear_formulario' %}" class="df-btn-primary">
+                <i class="fas fa-plus-circle"></i>
+                <span>Nuevo formulario</span>
+            </a>
+        </div>
+    </div>
 
-            {% if formulario.descripcion %}
-            <p class="card-text">{{ formulario.descripcion|truncatechars:100 }}</p>
-            {% endif %}
-
-            <div class="form-card-stats">
-                <span class="stat-item">
-                    <i class='fas fa-list'></i> {{ formulario.total_campos }} campos
-                </span>
-                <span class="stat-item">
-                    <i class='fas fa-database'></i> {{ formulario.total_registros }} registros
-                </span>
-                <span class="stat-item">
-                    <i class='fas fa-calendar'></i> {{ formulario.fecha_creacion|date:"d/m/Y" }}
-                </span>
+    {% if formularios %}
+    <!-- ============================================================
+         STATS ROW
+         ============================================================ -->
+    <div class="df-stats-row">
+        {% with first_form=formularios|first %}
+        <div class="df-stat-card">
+            <div class="df-stat-icon df-stat-icon--blue">
+                <i class="fas fa-layer-group"></i>
             </div>
-
-            <div class="form-actions-bar">
-                <a href="{% url 'dynamic_forms:llenar_formulario' formulario.id %}" class="btn btn-accent btn-sm" target="_blank">
-                    <i class='fas fa-play'></i> Llenar
-                </a>
-                <a href="{% url 'dynamic_forms:ver_registros' formulario.id %}" class="btn btn-info btn-sm">
-                    <i class='fas fa-table'></i> Registros
-                </a>
-                <a href="{% url 'dynamic_forms:editar_formulario' formulario.id %}" class="btn btn-warning btn-sm">
-                    <i class='fas fa-edit'></i> Editar
-                </a>
-                <a href="{% url 'dynamic_forms:eliminar_formulario' formulario.id %}" class="btn btn-danger btn-sm">
-                    <i class='fas fa-trash'></i>
-                </a>
+            <div class="df-stat-body">
+                <span class="df-stat-label">Total formularios</span>
+                <strong class="df-stat-value">{{ formularios|length }}</strong>
             </div>
         </div>
-    </article>
-    {% endfor %}
-</section>
-{% else %}
-<section class="panel-card">
-    <div class="df-empty-state">
-        <i class='fas fa-pen'></i>
-        <h4>No hay formularios aún</h4>
-        <p>Crea tu primer formulario dinámico para empezar a registrar información.</p>
-        <a href="{% url 'dynamic_forms:crear_formulario' %}" class="btn-tonjeo-primary">
-            <i class='fas fa-plus'></i> Crear formulario
+
+        <div class="df-stat-card">
+            <div class="df-stat-icon df-stat-icon--green">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="df-stat-body">
+                <span class="df-stat-label">Última actividad</span>
+                <strong class="df-stat-value">{{ first_form.fecha_creacion|date:"d M Y" }}</strong>
+            </div>
+        </div>
+
+        <div class="df-stat-card">
+            <div class="df-stat-icon df-stat-icon--purple">
+                <i class="fas fa-database"></i>
+            </div>
+            <div class="df-stat-body">
+                <span class="df-stat-label">Total registros</span>
+                <strong class="df-stat-value">{{ formularios|sum_attr:"total_registros" }}</strong>
+            </div>
+        </div>
+        {% endwith %}
+    </div>
+
+    <!-- ============================================================
+         SECTION HEADER
+         ============================================================ -->
+    <div class="df-section-header">
+        <div>
+            <h2 class="df-section-title">Todos los formularios</h2>
+            <p class="df-section-desc">{{ formularios|length }} formulario{{ formularios|pluralize:"s" }} registrado{{ formularios|pluralize:"s" }} en el sistema</p>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         FORMS GRID
+         ============================================================ -->
+    <div class="df-grid">
+        {% for formulario in formularios %}
+        <div class="df-grid-item">
+            <article class="df-card {% if not formulario.activo %}df-card--inactive{% endif %}">
+
+                <!-- Card Top Bar -->
+                <div class="df-card-top">
+                    <div class="df-card-icon-wrap">
+                        {% if not formulario.activo %}
+                        <i class="fas fa-pause-circle"></i>
+                        {% else %}
+                        <i class="fas fa-file-alt"></i>
+                        {% endif %}
+                    </div>
+                    <div class="df-card-actions">
+                        <button class="df-dots-btn" type="button"
+                                data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end df-dropdown">
+                            <li>
+                                <a class="dropdown-item" href="{% url 'dynamic_forms:llenar_formulario' formulario.id %}" target="_blank">
+                                    <i class="fas fa-play"></i> Llenar
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="{% url 'dynamic_forms:ver_registros' formulario.id %}">
+                                    <i class="fas fa-table"></i> Registros
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item" href="{% url 'dynamic_forms:editar_formulario' formulario.id %}">
+                                    <i class="fas fa-edit"></i> Editar
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item df-dropdown-danger" href="{% url 'dynamic_forms:eliminar_formulario' formulario.id %}">
+                                    <i class="fas fa-trash"></i> Eliminar
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Card Body -->
+                <div class="df-card-body">
+                    <div class="df-card-title-row">
+                        <h3 class="df-card-title">{{ formulario.nombre }}</h3>
+                        {% if not formulario.activo %}
+                        <span class="df-badge df-badge--inactive">Inactivo</span>
+                        {% endif %}
+                    </div>
+
+                    {% if formulario.descripcion %}
+                    <p class="df-card-desc">{{ formulario.descripcion|truncatechars:120 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Card Meta Pills -->
+                <div class="df-card-pills">
+                    <span class="df-pill df-pill--primary">
+                        <i class="fas fa-list"></i>
+                        {{ formulario.total_campos }} campo{{ formulario.total_campos|pluralize:"s" }}
+                    </span>
+                    <span class="df-pill df-pill--success">
+                        <i class="fas fa-database"></i>
+                        {{ formulario.total_registros }} registro{{ formulario.total_registros|pluralize:"s" }}
+                    </span>
+                    <span class="df-pill df-pill--neutral">
+                        <i class="fas fa-calendar"></i>
+                        {{ formulario.fecha_creacion|date:"d/m/Y" }}
+                    </span>
+                </div>
+
+                <!-- Card Actions -->
+                <div class="df-card-actions-row">
+                    <a href="{% url 'dynamic_forms:llenar_formulario' formulario.id %}" class="df-action-btn df-action-btn--primary" target="_blank">
+                        <i class="fas fa-play"></i>
+                        <span>Llenar</span>
+                    </a>
+                    <a href="{% url 'dynamic_forms:ver_registros' formulario.id %}" class="df-action-btn df-action-btn--primary">
+                        <i class="fas fa-table"></i>
+                        <span>Registros</span>
+                    </a>
+                    <a href="{% url 'dynamic_forms:editar_formulario' formulario.id %}" class="df-action-btn df-action-btn--warning">
+                        <i class="fas fa-edit"></i>
+                        <span>Editar</span>
+                    </a>
+                    <a href="{% url 'dynamic_forms:eliminar_formulario' formulario.id %}" class="df-action-btn df-action-btn--danger">
+                        <i class="fas fa-trash"></i>
+                    </a>
+                </div>
+
+            </article>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% else %}
+    <!-- ============================================================
+         EMPTY STATE
+         ============================================================ -->
+    <div class="df-empty">
+        <div class="df-empty-icon">
+            <i class="fas fa-file-alt"></i>
+        </div>
+        <h3 class="df-empty-title">No hay formularios aún</h3>
+        <p class="df-empty-desc">Crea tu primer formulario dinámico para empezar a registrar información.</p>
+        <a href="{% url 'dynamic_forms:crear_formulario' %}" class="df-btn-primary">
+            <i class="fas fa-plus-circle"></i>
+            <span>Crear formulario</span>
         </a>
     </div>
-</section>
-{% endif %}
+    {% endif %}
+</div>
 
 {% endblock %}
