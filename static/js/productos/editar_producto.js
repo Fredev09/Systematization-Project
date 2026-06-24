@@ -16,41 +16,40 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function esSrcImagenSeguro(src) {
+    function obtenerSrcImagenSeguro(src) {
         if (!src || typeof src !== 'string') {
-            return false;
+            return null;
         }
 
         const valor = src.trim();
 
         if (!valor) {
-            return false;
+            return null;
         }
 
         // Permitir URLs de objetos (imágenes subidas con FileReader)
         if (valor.startsWith('blob:')) {
-            return true;
+            return valor;
         }
 
-        // Permitir rutas relativas (ej. /media/imagen.jpg)
+        // Permitir rutas relativas (ej. /media/imagen.jpg) y devolverlas canonizadas
         if (valor.startsWith('/')) {
-            return true;
+            return new URL(valor, window.location.origin).toString();
         }
 
-        // Validar URLs HTTP/HTTPS
+        // Validar URLs HTTP/HTTPS y devolverlas canonizadas
         try {
             const parsed = new URL(valor, window.location.origin);
 
             // Solo permitir HTTP o HTTPS (rechazar javascript:, data:, etc.)
             if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-                return false;
+                return null;
             }
 
-            // Permitir cualquier URL HTTP/HTTPS (seguro)
-            return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+            return parsed.toString();
         } catch (e) {
             // Si no es una URL válida, rechazarla
-            return false;
+            return null;
         }
     }
 
@@ -59,12 +58,13 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (!esSrcImagenSeguro(src)) {
+        const srcSeguro = obtenerSrcImagenSeguro(src);
+        if (!srcSeguro) {
             pintarSinImagen();
             return;
         }
 
-        imagePreview.src = src;
+        imagePreview.src = srcSeguro;
         imagePreview.style.display = 'block';
         imagePreviewText.style.display = 'none';
         imagePreviewIcon.style.display = 'none';
