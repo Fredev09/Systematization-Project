@@ -78,7 +78,7 @@
     <div class="df-pagination-bar">
         <div class="df-per-page">
             <span>Registros por página:</span>
-            <select onchange="window.location.href='?per_page='+this.value">
+            <select onchange="(function(v){ if(!/^\d+$/.test(v)){ return; } window.location.href='?' + new URLSearchParams({ per_page: v }).toString(); })(this.value)">
                 {% for opcion in per_page_options %}
                 <option value="{{ opcion }}" {% if per_page == opcion %}selected{% endif %}>{{ opcion }}</option>
                 {% endfor %}
