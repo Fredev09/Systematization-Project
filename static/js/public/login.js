@@ -7,9 +7,10 @@ if (togglePassword && passwordInput) {
 
         passwordInput.type = isPassword ? "text" : "password";
 
-        togglePassword.innerHTML = isPassword
-            ? "<i class='bx bx-hide'></i>"
-            : "<i class='bx bx-show'></i>";
+        togglePassword.textContent = '';
+        const toggleIcon = document.createElement('i');
+        toggleIcon.className = isPassword ? 'bx bx-hide' : 'bx bx-show';
+        togglePassword.appendChild(toggleIcon);
 
         togglePassword.setAttribute(
             "aria-label",

@@ -40,10 +40,13 @@ document.addEventListener("DOMContentLoaded", function () {
                         boton.classList.add("btn-loading");
                         boton.disabled = true;
 
-                        boton.innerHTML = `
-                            <span class="btn-spinner"></span>
-                            <span>${textoCarga}</span>
-                        `;
+                        boton.textContent = '';
+                        const spinnerSpan = document.createElement('span');
+                        spinnerSpan.className = 'btn-spinner';
+                        const textSpan = document.createElement('span');
+                        textSpan.textContent = textoCarga;
+                        boton.appendChild(spinnerSpan);
+                        boton.appendChild(textSpan);
                     }
 
                     formulario.requestSubmit();

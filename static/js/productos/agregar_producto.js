@@ -12,7 +12,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (estaOculto) {
                 nuevaCategoriaBox.classList.remove('d-none');
                 nuevaCategoriaInput.focus();
-                btnCrearCategoria.innerHTML = "<i class='bx bx-check'></i> Guardar categoría";
+                btnCrearCategoria.textContent = '';
+                const iconCheck = document.createElement('i');
+                iconCheck.className = 'bx bx-check';
+                btnCrearCategoria.appendChild(iconCheck);
+                btnCrearCategoria.appendChild(document.createTextNode(' Guardar categoría'));
                 return;
             }
 
@@ -49,7 +53,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     nuevaCategoriaInput.value = '';
                     nuevaCategoriaBox.classList.add('d-none');
                     categoriaMensaje.textContent = '';
-                    btnCrearCategoria.innerHTML = "<i class='bx bx-plus'></i> Crear categoría";
+                    btnCrearCategoria.textContent = '';
+                    const iconPlus = document.createElement('i');
+                    iconPlus.className = 'bx bx-plus';
+                    btnCrearCategoria.appendChild(iconPlus);
+                    btnCrearCategoria.appendChild(document.createTextNode(' Crear categoría'));
                 } else {
                     categoriaMensaje.textContent = data.error || 'No se pudo crear la categoría.';
                     categoriaMensaje.className = 'category-message error';
