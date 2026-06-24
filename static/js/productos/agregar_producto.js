@@ -116,8 +116,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 return false;
             }
 
-            // Verificar que sea del mismo origen (más seguro)
-            return parsed.origin === window.location.origin;
+            // Permitir cualquier URL HTTP/HTTPS (seguro)
+            return parsed.protocol === 'http:' || parsed.protocol === 'https:';
         } catch (e) {
             // Si no es una URL válida, rechazarla
             return false;
