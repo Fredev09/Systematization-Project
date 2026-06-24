@@ -1911,6 +1911,80 @@ html.dark-mode .history-tab.active {
 .bg-danger-soft { background: rgba(239, 68, 68, 0.04) !important; }
 
 /* ============================================================
+   Tonjeo Buttons — Paleta correcta
+   ============================================================ */
+
+/* Botón primario: Terracota #E07A5F */
+.btn-tonjeo-primary {
+    background: #E07A5F;
+    color: white;
+    padding: 10px 24px;
+    border-radius: 8px;
+    border: none;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.btn-tonjeo-primary:hover {
+    background: #c96b52;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(224, 122, 95, 0.3);
+    color: white;
+}
+
+.btn-tonjeo-primary:active {
+    transform: scale(0.97);
+}
+
+/* Botón secundario: Gris claro */
+.btn-tonjeo-secondary {
+    background: #f1f5f9;
+    color: #1D3557;
+    padding: 10px 24px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.btn-tonjeo-secondary:hover {
+    background: #e2e8f0;
+    transform: translateY(-2px);
+    color: #1D3557;
+}
+
+.btn-tonjeo-secondary:active {
+    transform: scale(0.97);
+}
+
+html.dark-mode .btn-tonjeo-secondary {
+    background: #1e293b;
+    border-color: #334155;
+    color: #f1f5f9;
+}
+
+html.dark-mode .btn-tonjeo-secondary:hover {
+    background: #334155;
+    color: #f1f5f9;
+}
+
+/* ============================================================
    Reduced Motion
    ============================================================ */
 @media (prefers-reduced-motion: reduce) {
