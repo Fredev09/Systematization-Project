@@ -41,7 +41,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const tipoSeleccionado = obtenerTipoSeleccionado();
         const motivos = motivosPorTipo[tipoSeleccionado] || [];
 
-        motivoSelect.innerHTML = "";
+        motivoSelect.textContent = '';
 
         const opcionInicial = document.createElement("option");
         opcionInicial.value = "";
