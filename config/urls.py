@@ -15,6 +15,14 @@ from apps.legacy.productos.views_dynamic import (
     listar_productos,
 )
 from apps.legacy.productos import views as productos_views
+from apps.legacy.ventas.views_dynamic import (
+    clientes,
+    detalle_cliente,
+    editar_cliente,
+    historial_ventas,
+    nueva_venta,
+)
+from apps.legacy.ventas import views as ventas_views
 from . import views
 
 urlpatterns = [
@@ -35,30 +43,23 @@ urlpatterns = [
     path('productos/inventario/', inventario, name='inventario'),
     path('productos/historial-inventario/', historial_inventario, name='historial_inventario'),
     path('productos/historial-inventario/exportar-excel/', exportar_historial_inventario_excel, name='exportar_historial_inventario_excel'),
+    # Ventas — Dynamic Forms (migrados)
+    path('venta/nueva/', nueva_venta, name='nueva_venta'),
+    path('venta/historial/', historial_ventas, name='historial_ventas'),
+    path('venta/clientes/<int:cliente_id>/', detalle_cliente, name='detalle_cliente'),
+    # Ventas — vistas legacy (pendientes de migrar)
+    path('venta/exportar/', ventas_views.exportar_ventas, name='exportar_ventas'),
+    path('venta/clientes/', clientes, name='clientes'),
+    path('venta/clientes/<int:cliente_id>/editar/', editar_cliente, name='editar_cliente'),
+    path('venta/clientes/<int:cliente_id>/estado/', ventas_views.cambiar_estado_cliente, name='cambiar_estado_cliente'),
     # Otros módulos
     path('configuracion/', include('apps.shared.configuracion.urls')),
     path('', include('apps.shared.usuarios.urls')),
-    path('venta/', include('apps.legacy.ventas.urls')),
     path('catalogo/', catalogo_publico, name='catalogo_publico'),
     path('reportes/', include('apps.shared.reportes.urls')),
     path('forms/', include('apps.platform.dynamic_forms.urls')),
-    path('', views.index, name='index'),
-]
-
-# ---------------------------------------------------------------------------
-# Rutas paralelas para otros módulos dinámicos (Ventas, Dashboard)
-# ---------------------------------------------------------------------------
-from apps.legacy.ventas.views_dynamic import (
-    nueva_venta as nueva_venta_dinamico,
-    historial_ventas as historial_ventas_dinamico,
-    detalle_cliente as detalle_cliente_dinamico,
-)
-
-urlpatterns += [
-    path('venta-dinamico/nueva/', nueva_venta_dinamico, name='nueva_venta_dinamico'),
-    path('venta-dinamico/historial/', historial_ventas_dinamico, name='historial_ventas_dinamico'),
-    path('venta-dinamico/clientes/<int:cliente_id>/', detalle_cliente_dinamico, name='detalle_cliente_dinamico'),
     path('dashboard-dinamico/', views.dashboard_dinamico, name='dashboard_dinamico'),
+    path('', views.index, name='index'),
 ]
 
 if settings.DEBUG:

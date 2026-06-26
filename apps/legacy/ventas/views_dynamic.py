@@ -23,7 +23,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 
 from config.pagination import OPCIONES_POR_PAGINA, obtener_por_pagina, parametros_sin_pagina
-from config.permissions import GRUPO_ADMINISTRADOR, es_administrador, rol_usuario
+from config.permissions import GRUPO_ADMINISTRADOR, admin_required, es_administrador, rol_usuario
 from apps.platform.dynamic_forms.models import Campo, Formulario, Registro
 from apps.platform.dynamic_forms.services_dynamic import (
     DynamicService as DS,
@@ -257,7 +257,7 @@ def nueva_venta(request):
                         }, usuario=request.user)
 
                 messages.success(request, 'Venta registrada correctamente.')
-                return redirect('nueva_venta_dinamico')
+                return redirect('nueva_venta')
 
             except (ValidacionError, ValueError) as e:
                 error = str(e)
@@ -596,4 +596,194 @@ def detalle_cliente(request, cliente_id):
         'query_params': query_params,
         'per_page': per_page,
         'per_page_options': OPCIONES_POR_PAGINA,
+    })
+
+
+# ======================================================================
+# VISTA: LISTADO DE CLIENTES (DINÁMICO)
+# ======================================================================
+
+
+@login_required(login_url='login')
+@admin_required
+def clientes(request):
+    """
+    Listado de clientes con estadísticas usando DynamicService.
+
+    Reemplazo completo de la vista legacy apps.legacy.ventas.views.clientes.
+    Mantiene el mismo template, los mismos filtros, paginación y estadísticas.
+
+    Las estadísticas de ventas (cantidad_ventas, total_comprado) se obtienen
+    consultando los registros del formulario Ventas relacionados.
+    """
+    es_admin = es_administrador(request.user)
+    query = request.GET.get('q', '').strip()
+
+    try:
+        form = DS.obtener_formulario(FORM_CLIENTES)
+    except Exception:
+        return render(request, 'clientes/clientes.html', {
+            'clientes': [],
+            'query': query,
+            'total_clientes': 0,
+            'clientes_con_compras': 0,
+            'total_compras': Decimal('0'),
+            'es_admin': es_admin,
+            'rol_usuario': rol_usuario(request.user),
+            'query_params': '',
+            'per_page': '10',
+        'per_page_options': OPCIONES_POR_PAGINA,
+    })
+
+
+    registros = Registro.objects.filter(formulario=form)
+    valores_map = DS.cargar_valores_mapa(registros)
+
+    # Filtrar por texto de búsqueda
+    if query:
+        query_lower = query.lower()
+        registros = [
+            r for r in registros
+            if query_lower in ' '.join(
+                v.lower() for v in valores_map.get(r.id, {}).values() if v
+            )
+        ]
+
+    # Ordenar por nombre, apellido (mismo orden que legacy Cliente.Meta.ordering)
+    registros.sort(key=lambda r: (
+        valores_map.get(r.id, {}).get('nombre', '').lower(),
+        valores_map.get(r.id, {}).get('apellido', '').lower(),
+    ))
+
+    total_clientes = len(registros)
+    cliente_ids_filtrados = {str(r.id) for r in registros}
+
+    # Obtener estadísticas de ventas para los clientes filtrados
+    cliente_stats = {}
+    total_compras = Decimal('0')
+    try:
+        form_ventas = DS.obtener_formulario(FORM_VENTAS)
+        campo_cliente = Campo.objects.get(
+            formulario=form_ventas,
+            nombre='cliente',
+            activo=True
+        )
+        ventas_registros = Registro.objects.filter(
+            formulario=form_ventas,
+            valores__campo=campo_cliente,
+            valores__valor__in=cliente_ids_filtrados
+        ).order_by('-fecha_creacion')
+        ventas_valores = DS.cargar_valores_mapa(ventas_registros)
+
+        for vr in ventas_registros:
+            vvals = ventas_valores.get(vr.id, {})
+            cli_id = vvals.get('cliente', '').strip()
+            if not cli_id or cli_id not in cliente_ids_filtrados:
+                continue
+            total = _decimal(vvals.get('total', '0'))
+            if cli_id not in cliente_stats:
+                cliente_stats[cli_id] = {
+                    'cantidad_ventas': 0,
+                    'total_comprado': Decimal('0'),
+                    'ultima_compra': None,
+                }
+            cliente_stats[cli_id]['cantidad_ventas'] += 1
+            cliente_stats[cli_id]['total_comprado'] += total
+            total_compras += total
+            if cliente_stats[cli_id]['ultima_compra'] is None:
+                cliente_stats[cli_id]['ultima_compra'] = vr.fecha_creacion
+    except Exception:
+        pass
+
+    clientes_con_compras = len(cliente_stats)
+
+    # Envolver en wrappers con estadísticas
+    clientes_lista = []
+    for r in registros:
+        vals = valores_map.get(r.id, {})
+        wrapper = DynamicClienteWrapper(r, vals)
+        stats = cliente_stats.get(str(r.id), {})
+        wrapper.cantidad_ventas = stats.get('cantidad_ventas', 0)
+        wrapper.total_comprado = stats.get('total_comprado', Decimal('0'))
+        wrapper.ultima_compra = stats.get('ultima_compra', None)
+        clientes_lista.append(wrapper)
+
+    # Paginación
+    per_page, per_page_int = obtener_por_pagina(request)
+    paginator = Paginator(clientes_lista, per_page_int)
+    pagina = request.GET.get('page')
+    clientes_pagina = paginator.get_page(pagina)
+    query_params = parametros_sin_pagina(request, ['page'])
+
+    return render(request, 'clientes/clientes.html', {
+        'clientes': clientes_pagina,
+        'query': query,
+        'total_clientes': total_clientes,
+        'clientes_con_compras': clientes_con_compras,
+        'total_compras': total_compras,
+        'es_admin': es_admin,
+        'rol_usuario': rol_usuario(request.user),
+        'query_params': query_params,
+        'per_page': per_page,
+        'per_page_options': OPCIONES_POR_PAGINA,
+    })
+
+
+# ======================================================================
+# VISTA: EDITAR CLIENTE (DINÁMICO)
+# ======================================================================
+
+
+@login_required(login_url='login')
+@admin_required
+def editar_cliente(request, cliente_id):
+    """
+    Edición de cliente usando DynamicService.
+
+    Reemplazo completo de la vista legacy apps.legacy.ventas.views.editar_cliente.
+    - GET: carga el registro dinámico + valores y renderiza el template existente.
+    - POST: valida campos obligatorios y delega la actualización en DS.actualizar().
+    """
+    try:
+        form = DS.obtener_formulario(FORM_CLIENTES)
+        registro = get_object_or_404(
+            Registro.objects.filter(formulario=form),
+            id=cliente_id
+        )
+    except Exception:
+        return redirect('clientes')
+
+    valores_actuales = DS.obtener_valores(registro)
+    cliente = DynamicClienteWrapper(registro, valores_actuales)
+
+    if request.method == 'POST':
+        documento = request.POST.get('documento', '').strip()
+        nombre = request.POST.get('nombre', '').strip()
+        apellido = request.POST.get('apellido', '').strip()
+        correo = request.POST.get('correo', '').strip()
+        telefono = request.POST.get('telefono', '').strip()
+
+        if not documento or not nombre or not apellido:
+            messages.error(request, 'Documento, nombre y apellido son obligatorios.')
+            return redirect('editar_cliente', cliente_id=cliente_id)
+
+        try:
+            DS.actualizar(registro, {
+                'documento': documento,
+                'nombre': nombre,
+                'apellido': apellido,
+                'correo': correo,
+                'telefono': telefono,
+            }, usuario=request.user)
+            messages.success(request, 'Cliente actualizado correctamente.')
+            return redirect('clientes')
+        except Exception as e:
+            logger.exception(f'Error actualizando cliente #{cliente_id}: {e}')
+            messages.error(request, f'No se pudo actualizar el cliente: {e}')
+            return redirect('editar_cliente', cliente_id=cliente_id)
+
+    return render(request, 'clientes/editar_cliente.html', {
+        'cliente': cliente,
+        'es_admin': es_administrador(request.user),
+        'rol_usuario': rol_usuario(request.user),
     })
