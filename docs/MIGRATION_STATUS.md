@@ -16,6 +16,7 @@ These modules use Dynamic Forms for their primary data operations:
 | **Ventas (CRUD)** | `apps/legacy/ventas/views_dynamic.py` handles new sale, history, export via `DynamicService`. Sale URLs point to dynamic views. Stock decrement via hook (`post_crear_venta`). |
 | **Clientes** | Client CRUD uses the `Clientes` dynamic form. Views in `apps/legacy/ventas/views_dynamic.py`. |
 | **Inventory (dynamic)** | `apps/legacy/productos/views_dynamic.py` provides inventory view, stock history, Excel export using Dynamic Forms data. |
+| **Reports** | `apps/shared/reportes/views.py` — all 5 views (main, Excel, 3 PDFs) use Dynamic Forms via `obtener_datos_reportes_dinamico()` and `_envolver_ventas()`. Legacy code (`obtener_datos_reportes()`, `ventas_filtradas_reportes()`, `construir_grafica_meses()`) removed. |
 
 ## Partially Migrated Modules
 
@@ -23,7 +24,6 @@ These modules use Dynamic Forms for their primary data operations:
 |--------|---------|
 | **Products — Categories** | Category CRUD still uses legacy views (`apps.legacy.productos.views.agregar_categoria`, `apps.legacy.productos.views.crear_categoria`). No dynamic analog exists. Categories are a separate legacy model (`Categoria`), not a dynamic form. |
 | **Clients — State toggle** | `cambiar_estado_cliente` uses dynamic views but relies on the `activo` field convention (`'Sí'` / `'No'`) as a string. |
-| **Reports (Phase 5B)** | Main `reportes/` view, Excel export, and Ventas PDF connected to Dynamic Forms. Complete PDF export (`exportar_reporte_completo_pdf`) remains on legacy data. |
 
 ## Legacy Modules
 
@@ -48,13 +48,12 @@ These modules exist as Django models but are **not actively used** by the main U
 ### Categories
 - `Categoria` is a legacy model without a Dynamic Forms equivalent. Categories are stored as plain text in the `lista` type field `categoria` on the Productos form.
 - Legacy category CRUD views are still wired (`agregar_categoria`, `crear_categoria` in `config/urls.py`).
+- The Reports module no longer depends on legacy `Categoria` — uses dynamic form field options instead.
 
-### Charts (Reports)
-- Reports Phase 3A (main view data pipeline): `reportes/` view uses `obtener_datos_reportes_dinamico()`.
-- Reports Phase 5A (Excel export): `exportar_reporte_excel()` uses Dynamic Forms via `_envolver_ventas()`.
-- Reports Phase 5B (Ventas PDF): `exportar_reporte_ventas_pdf()` uses Dynamic Forms via `_envolver_ventas()`.
-- Charts, KPIs, and all template data now sourced from Dynamic Forms.
-- Only `exportar_reporte_completo_pdf` remains on legacy data pipeline. See `ROADMAP.md`.
+### Reports — Complete
+- All 5 views (`reportes/`, Excel, 3 PDFs) use Dynamic Forms via `obtener_datos_reportes_dinamico()` and `_envolver_ventas()`.
+- Legacy code removed: `obtener_datos_reportes()`, `ventas_filtradas_reportes()`, `construir_grafica_meses()`, legacy imports (`Venta`, `Producto`, `Cliente`, `Categoria`, `Sum`).
+- Migration status: **100%**.
 
 ### Legacy Models Cleanup
 - The legacy models and their views/templates can be removed only after:
@@ -73,6 +72,6 @@ These estimates are based on code inspection, not metrics:
 | Clients CRUD | ~85% migrated | Dynamic form used; some edge cases remain |
 | Inventory | ~80% migrated | Dynamic views handle movements; stock operations via hooks |
 | Categories | ~0% migrated | No dynamic equivalent |
-| Reports | ~85% migrated | Main view + Excel + Ventas PDF on dynamic data; Complete PDF remains legacy |
+| Reports | **100% migrated** | All views on Dynamic Forms; legacy code removed |
 | Data Migration | ~0% migrated | No migration script exists |
 | Legacy model cleanup | ~0% | All legacy models and views still present |
