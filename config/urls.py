@@ -3,10 +3,12 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
-from apps.legacy.productos.views import catalogo_publico
 from apps.legacy.productos.views_dynamic import (
     actualizar_stock,
+    agregar_categoria,
     agregar_producto,
+    catalogo_publico,
+    crear_categoria,
     editar_producto,
     eliminar_producto,
     exportar_historial_inventario_excel,
@@ -36,9 +38,9 @@ urlpatterns = [
     path('productos/agregar/', agregar_producto, name='agregar_producto'),
     path('productos/editar/<int:producto_id>/', editar_producto, name='editar_producto'),
     path('productos/eliminar/<int:producto_id>/', eliminar_producto, name='eliminar_producto'),
-    # Productos — categorías legacy (pendientes de migrar a Dynamic Forms)
-    path('productos/agregar-categoria/', productos_views.agregar_categoria, name='agregar_categoria'),
-    path('productos/crear-categoria/', productos_views.crear_categoria, name='crear_categoria'),
+    # Productos — categorías (Dynamic Forms — opciones dinámicas)
+    path('productos/agregar-categoria/', agregar_categoria, name='agregar_categoria'),
+    path('productos/crear-categoria/', crear_categoria, name='crear_categoria'),
     # Productos — Inventario (Dynamic Forms)
     path('productos/stock/<int:producto_id>/', actualizar_stock, name='actualizar_stock'),
     path('productos/inventario/', inventario, name='inventario'),

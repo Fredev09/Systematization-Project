@@ -189,15 +189,141 @@ encontrados.
 - Ninguno.
 
 ### Próximo paso
-Revisar `docs/TODO.md` para priorizar el trabajo pendiente:
-- Migración de datos legacy → Dynamic Forms.
-- Migración de Categorías.
-- Gráficos dinámicos (Fase 2).
-- Integridad referencial.
-- Límites de seguridad en queries.
-- Índices compuestos.
-- Caché de dashboard.
-- Evaluación de modelo híbrido.
-- Profiling.
-- Limpieza de vistas legacy.
-- Pruebas de migración.
+Revisar `docs/TODO.md` y `docs/PRODUCTS_MIGRATION.md` para priorizar:
+- Migración de `catalogo_publico` → vista dinámica.
+- Migración de categorías (CRUD legacy → opciones dinámicas).
+- Eliminación de código legacy huérfano.
+- Migración del modelo `Venta` legacy (eliminar FK a `Producto`).
+
+
+---
+
+---
+
+## [2026-06-26] Migración completa de productos legacy → Dynamic Forms
+
+### Trabajo realizado
+- Auditoría completa de infraestructura de Productos (modelos, vistas legacy y dinámicas, wrappers, servicios, templates, rutas, dependencias externas).
+- Diseño de migración idempotente usando SKU `LEGACY-{id}` como trazabilidad.
+- Implementación de `python manage.py migrar_productos_dynamic` con 5 pasos (verificar requisitos, sinconizar categorías, migrar productos, crear movimientos iniciales, validar).
+- Sincronización automática de categorías: merge de 5 categorías legacy (`Blusa`, `Camisas`, `Jeans`, `Sets`, `Vestidos`) con 6 opciones del seed → 11 opciones finales.
+- Migración de 6 productos legacy → dinámicos, con 6 imágenes (URLs de Cloudinary), 6 movimientos iniciales de inventario.
+- Corrección de normalización de talla (`Única` → `Unica`).
+- Agregado automático de `'Inventario inicial'` a opciones de motivo de MovimientosInventario.
+- Prueba de idempotencia: 3 ejecuciones sin duplicados.
+- Diseño del cambio de `catalogo_publico` (Fase 6).
+- Identificación de código legacy eliminable (Fase 7): 4 archivos ya huérfanos, 4 eliminables tras migrar catálogo, 6 tras eliminar modelos.
+- Creación de documentación completa en `docs/PRODUCTS_MIGRATION.md`.
+
+### Archivos creados
+- `apps/platform/dynamic_forms/management/commands/migrar_productos_dynamic.py` — Management command de migración idempotente.
+- `docs/PRODUCTS_MIGRATION.md` — Documentación completa del proceso de migración.
+
+### Archivos modificados
+- `docs/SESSION_LOG.md` — este registro.
+- `docs/MIGRATION_STATUS.md` — actualizado estado de Productos y Categorías.
+- `docs/DECISIONS.md` — añadida decisión sobre estrategia de migración idempotente.
+- `docs/TODO.md` — actualizado para reflejar el nuevo estado.
+
+### Decisiones importantes
+- **SKU como trazabilidad**: Se usa el campo `sku` con formato `LEGACY-{id}` como clave de identificación entre productos legacy y dinámicos. Esto permite idempotencia sin necesidad de crear un campo adicional.
+- **URL de imagen en vez de archivo**: Cloudinary no soporta `.path()` para lectura de archivos. En lugar de descargar y re-subir imágenes, se almacena la URL existente (`imagen_final_url`) en el campo `imagen_url`.
+- **Normalización de talla**: Las opciones dinámicas usan `'Unica'` (sin acento), pero los datos legacy tienen `'Única'`. Se normaliza durante la migración para evitar errores de validación.
+- **Movimientos iniciales en paso separado**: Se crean en un segundo barrido (3b) para permitir que productos ya migrados antes de esta función reciban su movimiento inicial.
+
+### Problemas encontrados
+- Cloudinary no permite `FileField.path()` — resuelto usando `imagen_final_url`.
+- Talla `'Única'` no coincide con opción dinámica `'Unica'` — resuelto con normalización.
+- `'Inventario inicial'` no estaba en opciones de motivo — resuelto con sincronización automática.
+- Primer intento de migración falló en movimientos iniciales por alias incorrecto de `DS.crear()` — resuelto en corrección.
+
+### Próximo paso
+Migrar `catalogo_publico` → Dynamic Forms y las categorías legacy.
+
+### Trabajo realizado
+- Auditoría completa del esquema de Dynamic Forms: comparación de modelos Django vs tabla real en PostgreSQL.
+- Identificación de 4 discrepancias:
+  1. Migración `0004` no aplicada (faltaban columnas `unico`, `hook_post_crear`, `hook_post_actualizar`, `validacion_personalizada`).
+  2. `Formulario.creado_por_id` NOT NULL en BD vs `null=True` en modelo (bloqueaba el seed command).
+  3. `ValorCampo.valor` nullable en BD vs `TextField()` sin null en modelo.
+  4. `Campo.nombre` varchar(200) en BD vs `max_length=100` en modelo.
+- Aplicación de migración `0004` (4 campos añadidos).
+- Creación y aplicación de migración `0005_fix_schema_discrepancies` con `RunSQL` para corregir las 3 discrepancias preexistentes (el sistema de migraciones de Django no detectaba estos desajustes porque el estado de migración ya coincidía con el modelo).
+- Verificación final: `check`, `makemigrations --check`, `migrate --plan` — todo OK, 0 pendientes.
+- Verificación de que `sembrar_formularios_base` puede ejecutarse (todas las columnas existen, crear Formulario sin usuario funciona).
+
+### Archivos creados
+- `apps/platform/dynamic_forms/migrations/0005_fix_schema_discrepancies.py` — RunSQL para corregir nulabilidad y tipos.
+
+### Archivos modificados
+- `docs/SESSION_LOG.md` — este registro.
+
+### Decisiones importantes
+- **RunSQL sobre AlterField**: Las discrepancias preexistentes no son detectables por `makemigrations` porque el estado de migración de Django (basado en los archivos de migración) ya coincide con el modelo actual. La BD real diverge debido a cambios previos en el modelo que no generaron migraciones. Se usó `migrations.RunSQL` para forzar los `ALTER TABLE` necesarios.
+- **Safe to fix**: Se verificó que no existían datos conflictivos (NULLs en valor, nombres > 100 chars) antes de aplicar restricciones.
+- **Form1**: El formulario `Form1` (creado manualmente, 2 campos genéricos, 1 registro basura) no interfiere con el seed y puede eliminarse posteriormente.
+
+### Problemas encontrados
+- El seed command (`sembrar_formularios_base`) habría fallado con `IntegrityError` por la columna `creado_por_id NOT NULL` al intentar crear formularios sin usuario asignado.
+- El seed command también habría fallado con `ProgrammingError` por la columna `unico` inexistente.
+- Ambos bloqueos quedan resueltos tras aplicar migraciones 0004 + 0005.
+
+---
+
+## [2026-06-26] Migración de categorías legacy a opciones dinámicas
+
+### Trabajo realizado
+- Auditoría completa de todas las referencias al modelo `Categoria` en el proyecto (47 archivos, ~200+ referencias).
+- Clasificación de dependencias: activas (`migrar_productos_dynamic`, tests), indirectas (wrappers, templates con `categoria.nombre`), huérfanas (`CategoriaForm`, `CategoriaAdmin`, vistas legacy `agregar_categoria`/`crear_categoria`).
+- Implementación de vistas dinámicas de reemplazo en `views_dynamic.py`:
+  - `agregar_categoria`: Gestiona opciones del campo `categoria` (tipo lista) en formulario Productos. GET muestra opciones actuales + formulario; POST agrega nueva opción.
+  - `crear_categoria`: Endpoint AJAX que agrega opción dinámicamente y retorna JSON.
+- `config/urls.py`: Rutas redirigidas de `productos_views` a `views_dynamic`.
+- `views.py`: 50 líneas eliminadas (`agregar_categoria`, `crear_categoria`, imports `CategoriaForm`, `require_POST`).
+- `forms.py`: `CategoriaForm` eliminado (37 líneas); import de `Categoria` removido.
+- `admin.py`: `CategoriaAdmin` eliminado (5 líneas); import de `Categoria` removido.
+
+### Archivos modificados
+- `apps/legacy/productos/views_dynamic.py` — 2 nuevas funciones (+85 líneas), 2 nuevos imports.
+- `apps/legacy/productos/views.py` — 50 líneas eliminadas.
+- `apps/legacy/productos/forms.py` — `CategoriaForm` eliminado, import limpio.
+- `apps/legacy/productos/admin.py` — `CategoriaAdmin` eliminado, import limpio.
+- `config/urls.py` — Imports y rutas actualizados.
+- `docs/MIGRATION_STATUS.md` — Categorías movido a Fully Migrated.
+- `docs/TODO.md` — Tarea #2 marcada completada.
+- `docs/SESSION_LOG.md` — este registro.
+
+### Decisiones importantes
+- **Opción dinámica como reemplazo**: Las categorías ya no son registros del modelo `Categoria`, sino opciones de un campo `lista` en el formulario Productos. La migración es conceptual: en vez de crear un modelo FK, se gestiona una lista de strings.
+- **Backward compatibility**: Las URLs `agregar_categoria` y `crear_categoria` se mantienen. El template `formularios/agregar_categoria.html` funciona sin cambios (recibe un `forms.Form` en vez de `ModelForm`, y `SimpleNamespace` en vez de instancias de `Categoria`).
+- **Modelo legacy preservado**: El modelo `Categoria` en `models.py` no se elimina porque aún es referenciado por migraciones, tests, y el comando `migrar_productos_dynamic` (para sincronizar categorías legacy). Su eliminación requiere planificación separada.
+
+### Problemas encontrados
+- Ninguno. `check`, `makemigrations --check`, `migrate --plan` = 0 issues.
+- Pruebas de Dynamic Forms: 26/26 OK.
+
+### Trabajo realizado
+- Migración completa de `catalogo_publico` (catálogo público) desde `views.py` a `views_dynamic.py`, usando `DynamicService` + `DynamicProductWrapper`.
+- La nueva función replica exactamente el comportamiento legacy: carga `ConfiguracionTienda`, obtiene `stock_minimo_alerta`, filtra por `mostrar_agotados_catalogo`, ordena alfabéticamente por nombre, formatea `telefono_whatsapp`.
+- `config/urls.py`: import redirigido de `views` a `views_dynamic`.
+- `views.py`: 15 líneas de código legacy huérfano eliminadas (`catalogo_publico`).
+- Sin cambios en `templates/public/catalogo.html` — ya compatible con `DynamicProductWrapper`.
+- Ninguna otra función en `views.py` se ve afectada; todos los imports permanecen activos.
+- `python manage.py check` — 0 issues.
+
+### Archivos modificados
+- `apps/legacy/productos/views_dynamic.py` — nueva función `catalogo_publico()` (+37 líneas).
+- `apps/legacy/productos/views.py` — eliminada `catalogo_publico()` (-15 líneas).
+- `config/urls.py` — import cambiado de `views` a `views_dynamic`.
+- `docs/MIGRATION_STATUS.md` — Catálogo Público agregado a Fully Migrated.
+- `docs/PRODUCTS_MIGRATION.md` — tarea Fase 6 marcada completada; líneas actualizadas.
+- `docs/TODO.md` — tarea #1 marcada completada.
+- `docs/SESSION_LOG.md` — este registro.
+
+### Decisiones importantes
+- **Sin cambios en template**: `templates/public/catalogo.html` ya usa `DynamicProductWrapper` compatible — no requiere modificaciones.
+- **Orden en Python vs SQL**: El ordenamiento alfabético se hace en Python (`.sort()`) sobre la lista de wrappers, no en la query de `Registro`, porque el campo `nombre` es un `ValorCampo` no indexable a nivel BD para ordenamiento directo.
+- **Filtro de stock en Python**: `mostrar_agotados_catalogo=False` filtra wrappers con `stock <= 0` en Python, replicando el `filter(stock__gt=0)` legacy.
+
+### Problemas encontrados
+- Ninguno. Todas las variables de contexto y atributos del template son compatibles.

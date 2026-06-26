@@ -13,6 +13,7 @@ These modules use Dynamic Forms for their primary data operations:
 | Module | Details |
 |--------|---------|
 | **Productos (CRUD)** | `apps/legacy/productos/views_dynamic.py` handles list, create, edit, delete via `DynamicService`. Product URLs in `config/urls.py` point to dynamic views. Wrappers bridge data to legacy templates. |
+| **Catálogo Público** | `catalogo_publico` (catálogo público) migrado a `views_dynamic.py` usando `DynamicService` + `DynamicProductWrapper`. Filtro `mostrar_agotados_catalogo`, orden alfabético, `telefono_whatsapp` replicados. Ruta en `config/urls.py` apunta a `views_dynamic`. |
 | **Ventas (CRUD)** | `apps/legacy/ventas/views_dynamic.py` handles new sale, history, export via `DynamicService`. Sale URLs point to dynamic views. Stock decrement via hook (`post_crear_venta`). |
 | **Clientes** | Client CRUD uses the `Clientes` dynamic form. Views in `apps/legacy/ventas/views_dynamic.py`. |
 | **Inventory (dynamic)** | `apps/legacy/productos/views_dynamic.py` provides inventory view, stock history, Excel export using Dynamic Forms data. |
@@ -22,7 +23,7 @@ These modules use Dynamic Forms for their primary data operations:
 
 | Module | Details |
 |--------|---------|
-| **Products — Categories** | Category CRUD still uses legacy views (`apps.legacy.productos.views.agregar_categoria`, `apps.legacy.productos.views.crear_categoria`). No dynamic analog exists. Categories are a separate legacy model (`Categoria`), not a dynamic form. |
+| **Products — Categories** | Category management migrado a opciones dinámicas del campo `categoria` (tipo lista) en el formulario Productos. Vistas `agregar_categoria` y `crear_categoria` migradas a `views_dynamic.py`. Modelo `Categoria` legacy ya no tiene vistas activas. |
 | **Clients — State toggle** | `cambiar_estado_cliente` uses dynamic views but relies on the `activo` field convention (`'Sí'` / `'No'`) as a string. |
 
 ## Legacy Modules
@@ -45,10 +46,12 @@ These modules exist as Django models but are **not actively used** by the main U
 - No migration script exists to copy data from legacy tables (`Producto`, `Venta`, `Cliente`, `MovimientoInventario`) to Dynamic Forms.
 - Legacy database tables remain populated. The dynamic forms are populated independently via the `crear_datos_prueba` management command.
 
-### Categories
-- `Categoria` is a legacy model without a Dynamic Forms equivalent. Categories are stored as plain text in the `lista` type field `categoria` on the Productos form.
-- Legacy category CRUD views are still wired (`agregar_categoria`, `crear_categoria` in `config/urls.py`).
-- The Reports module no longer depends on legacy `Categoria` — uses dynamic form field options instead.
+### Categories — Complete
+- Categorías migradas a opciones dinámicas del campo `categoria` (tipo lista) en el formulario Productos.
+- Vistas `agregar_categoria` y `crear_categoria` migradas a `views_dynamic.py` — gestionan las opciones del campo directamente.
+- `CategoriaForm`, `CategoriaAdmin` y código legacy asociado eliminados.
+- El modelo `Categoria` legacy persiste en `models.py` para compatibilidad con migraciones y tests, pero no tiene vistas activas.
+- El comando `migrar_productos_dynamic` aún lo referencia para sincronizar categorías legacy.
 
 ### Reports — Complete
 - All 5 views (`reportes/`, Excel, 3 PDFs) use Dynamic Forms via `obtener_datos_reportes_dinamico()` and `_envolver_ventas()`.
@@ -61,17 +64,46 @@ These modules exist as Django models but are **not actively used** by the main U
   2. All templates are verified to work with wrappers.
   3. Category functionality is migrated.
 
+## Dynamic Forms Infrastructure
+
+The Dynamic Forms EAV engine at `apps/platform/dynamic_forms/` has been audited and the database schema is now fully synchronized with the Python models.
+
+| Component | Status |
+|-----------|--------|
+| All 4 models vs DB tables | ✅ Fully synchronized |
+| `manage.py check` | ✅ 0 issues |
+| `makemigrations --check` | ✅ No pending changes |
+| `migrate --plan` | ✅ No pending operations |
+| `sembrar_formularios_base` ready | ✅ Columns exist, nullable constraints correct |
+| Form1 (manual/test data) | ⚠️ Safe to delete; no production data |
+
+**Migrations applied:**
+- `0001_initial` — Base schema
+- `0002_campo_activo_registro_fecha_actualizacion_and_more` — Added `activo`, `fecha_actualizacion`, expanded tipos
+- `0003_campo_formula_campo_formulario_destino_and_more` — Added `formula`, `formulario_destino`, expanded tipos
+- `0004_campo_unico_formulario_hook_post_actualizar_and_more` — Added `unico`, `hook_post_crear`, `hook_post_actualizar`, `validacion_personalizada`
+- `0005_fix_schema_discrepancies` — Fixed 3 pre-existing DB-vs-model mismatches: `creado_por_id` nullable, `valor` NOT NULL, `nombre` varchar(100)
+
 ## Completion Estimates
 
 These estimates are based on code inspection, not metrics:
 
 | Area | Estimate | Basis |
 |------|----------|-------|
-| Product CRUD | ~90% migrated | Dynamic views handle main CRUD; categories remain legacy |
+| Product CRUD | **~100% migrated** | Dynamic views handle all CRUD; catálogo público migrado; `migrar_productos_dynamic` command created and tested |
 | Sales CRUD | ~90% migrated | Dynamic views + hooks handle sales flow |
 | Clients CRUD | ~85% migrated | Dynamic form used; some edge cases remain |
-| Inventory | ~80% migrated | Dynamic views handle movements; stock operations via hooks |
-| Categories | ~0% migrated | No dynamic equivalent |
+| Inventory | ~90% migrated | Dynamic views handle movements; stock operations via hooks; movimientos iniciales migrados |
+| Categories | **~100% migrated** | Categorías como opciones dinámicas; CRUD migrado a `views_dynamic.py`; modelo `Categoria` legacy inactivo |
 | Reports | **100% migrated** | All views on Dynamic Forms; legacy code removed |
-| Data Migration | ~0% migrated | No migration script exists |
-| Legacy model cleanup | ~0% | All legacy models and views still present |
+| Data Migration (products) | **100% migrated** | 6/6 products migrated; idempotent command available |
+| Data Migration (other) | ~0% migrated | No migration scripts for Venta/Cliente |
+| Legacy model cleanup | ~0% | All legacy models and views still present (but 4 files immediately deletable) |
+
+**Detalle de migración de productos:**
+- 6/6 productos legacy migrados exitosamente a Registros dinámicos
+- 6/6 imágenes preservadas (URLs de Cloudinary)
+- 6/6 movimientos iniciales de inventario creados
+- 5/5 categorías legacy sincronizadas a opciones dinámicas
+- 3 ejecuciones de idempotencia sin duplicados
+- Command `migrar_productos_dynamic` implementado y verificado

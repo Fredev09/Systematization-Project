@@ -14,14 +14,14 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.dateparse import parse_date
-from django.views.decorators.http import require_POST
+
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 
 from config.pagination import OPCIONES_POR_PAGINA, obtener_por_pagina, parametros_sin_pagina
 from config.permissions import admin_required
 from apps.shared.configuracion.models import ConfiguracionTienda
-from .forms import CategoriaForm, OPCIONES_TALLAS, ProductoEditForm, ProductoForm
+from .forms import OPCIONES_TALLAS, ProductoEditForm, ProductoForm
 from .models import Categoria, MovimientoInventario, Producto
 
 
@@ -242,57 +242,6 @@ def agregar_producto(request):
 
 @login_required(login_url='login')
 @admin_required
-def agregar_categoria(request):
-    categorias = Categoria.objects.all().order_by('nombre')
-
-    if request.method == 'POST':
-        form = CategoriaForm(request.POST)
-
-        if form.is_valid():
-            categoria = form.save()
-            messages.success(request, f'Categoria "{categoria.nombre}" agregada correctamente.')
-            return redirect('agregar_categoria')
-
-        messages.error(request, 'No se pudo agregar la categoria. Revisa los datos ingresados.')
-    else:
-        form = CategoriaForm()
-
-    return render(request, 'formularios/agregar_categoria.html', {
-        'form': form,
-        'categorias': categorias
-    })
-
-
-@login_required(login_url='login')
-@admin_required
-@require_POST
-def crear_categoria(request):
-    try:
-        data = json.loads(request.body.decode('utf-8') or '{}')
-    except json.JSONDecodeError:
-        return JsonResponse({
-            'success': False,
-            'error': 'Solicitud invalida.'
-        }, status=400)
-
-    nombre = data.get('nombre', '').strip()
-
-    if not nombre:
-        return JsonResponse({
-            'success': False,
-            'error': 'El nombre es obligatorio.'
-        }, status=400)
-
-    categoria, creada = Categoria.objects.get_or_create(nombre=nombre)
-
-    return JsonResponse({
-        'success': True,
-        'id': categoria.id,
-        'nombre': categoria.nombre,
-        'creada': creada
-    })
-
-
 @login_required(login_url='login')
 @admin_required
 def editar_producto(request, producto_id):
@@ -724,18 +673,4 @@ def exportar_historial_inventario_excel(request):
     return response
 
 
-def catalogo_publico(request):
-    configuracion = ConfiguracionTienda.obtener()
-    stock_minimo = configuracion.stock_minimo_alerta
-    productos = Producto.objects.select_related('categoria').all().order_by('nombre')
-    telefono_whatsapp = ''.join(caracter for caracter in configuracion.telefono if caracter.isdigit()) or '573001234567'
 
-    if not configuracion.mostrar_agotados_catalogo:
-        productos = productos.filter(stock__gt=0)
-
-    return render(request, 'public/catalogo.html', {
-        'productos': productos,
-        'stock_minimo_alerta': stock_minimo,
-        'configuracion': configuracion,
-        'telefono_whatsapp': telefono_whatsapp,
-    })

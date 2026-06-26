@@ -19,9 +19,10 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from config.pagination import OPCIONES_POR_PAGINA, obtener_por_pagina, parametros_sin_pagina
 from config.permissions import admin_required, es_administrador, rol_usuario
@@ -1355,8 +1356,143 @@ def _tiene_ventas_asociadas(producto_id):
     ).exists()
 
 
+# ======================================================================
+# CATEGORÍAS — Gestión de Opciones Dinámicas
+# ======================================================================
+
+
+@login_required(login_url='login')
+@admin_required
+def agregar_categoria(request):
+    """
+    Reemplazo dinámico de la vista legacy agregar_categoria.
+    Gestiona las opciones del campo 'categoria' (tipo lista) del formulario Productos
+    en lugar del modelo Categoria legacy.
+    """
+    from django import forms as django_forms
+
+    formulario = DS.obtener_formulario(FORM_PRODUCTOS)
+    campo_categoria = formulario.campos.filter(activo=True, nombre='categoria').first()
+    opciones = list(campo_categoria.opciones or [])
+
+    class _CategoriaForm(django_forms.Form):
+        nombre = django_forms.CharField(
+            max_length=100,
+            widget=django_forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ej: Blusas, Vestidos, Accesorios'
+            }),
+            label='Nombre de la categoría'
+        )
+
+    if request.method == 'POST':
+        form = _CategoriaForm(request.POST)
+        if form.is_valid():
+            nombre = form.cleaned_data['nombre'].strip()
+            if nombre not in opciones:
+                opciones.append(nombre)
+                campo_categoria.opciones = opciones
+                campo_categoria.save(update_fields=['opciones'])
+                messages.success(request, f'Categoría "{nombre}" agregada correctamente.')
+            else:
+                messages.warning(request, f'La categoría "{nombre}" ya existe.')
+            return redirect('agregar_categoria')
+        messages.error(request, 'No se pudo agregar la categoría. Revisa los datos ingresados.')
+    else:
+        form = _CategoriaForm()
+
+    from types import SimpleNamespace
+    categorias = [SimpleNamespace(nombre=op) for op in opciones]
+
+    return render(request, 'formularios/agregar_categoria.html', {
+        'form': form,
+        'categorias': categorias,
+    })
+
+
+@login_required(login_url='login')
+@admin_required
+@require_POST
+def crear_categoria(request):
+    """
+    Reemplazo dinámico de la vista legacy crear_categoria (AJAX).
+    Agrega una opción al campo 'categoria' del formulario Productos.
+    """
+    import json
+    try:
+        data = json.loads(request.body.decode('utf-8') or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Solicitud inválida.'
+        }, status=400)
+
+    nombre = data.get('nombre', '').strip()
+    if not nombre:
+        return JsonResponse({
+            'success': False,
+            'error': 'El nombre es obligatorio.'
+        }, status=400)
+
+    formulario = DS.obtener_formulario(FORM_PRODUCTOS)
+    campo_categoria = formulario.campos.filter(activo=True, nombre='categoria').first()
+    opciones = list(campo_categoria.opciones or [])
+
+    creada = nombre not in opciones
+    if creada:
+        opciones.append(nombre)
+        campo_categoria.opciones = opciones
+        campo_categoria.save(update_fields=['opciones'])
+
+    nuevo_id = opciones.index(nombre) + 1
+
+    return JsonResponse({
+        'success': True,
+        'id': nuevo_id,
+        'nombre': nombre,
+        'creada': creada,
+    })
+
+
 def _entero(valor, default=0):
     try:
         return int(float(str(valor).replace(',', '.')))
     except (ValueError, TypeError):
         return default
+
+
+# ======================================================================
+# CATÁLOGO PÚBLICO
+# ======================================================================
+
+
+def catalogo_publico(request):
+    from apps.shared.configuracion.models import ConfiguracionTienda
+
+    configuracion = ConfiguracionTienda.obtener()
+    stock_minimo = configuracion.stock_minimo_alerta
+    telefono_whatsapp = ''.join(
+        c for c in configuracion.telefono if c.isdigit()
+    ) or '573001234567'
+
+    registros = Registro.objects.filter(
+        formulario=DS.obtener_formulario(FORM_PRODUCTOS)
+    ).order_by('-fecha_creacion')
+
+    valores_map = DS.cargar_valores_mapa(registros)
+    productos = [
+        DynamicProductWrapper(r, valores_map.get(r.id, {}))
+        for r in registros
+    ]
+
+    if not configuracion.mostrar_agotados_catalogo:
+        productos = [p for p in productos if _entero(p.stock, 0) > 0]
+
+    productos.sort(key=lambda p: (p.nombre or '').lower())
+
+    return render(request, 'public/catalogo.html', {
+        'productos': productos,
+        'stock_minimo_alerta': stock_minimo,
+        'configuracion': configuracion,
+        'telefono_whatsapp': telefono_whatsapp,
+    })

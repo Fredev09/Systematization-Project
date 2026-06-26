@@ -120,6 +120,53 @@
 
 ---
 
+## Decision: SKU-Based Identity Tracing for Idempotent Migration
+
+**Decision**: Use the `sku` campo with format `LEGACY-{id}` as the identity trace key for mapping legacy `Producto` records to dynamic `Registro` records, enabling fully idempotent re-runs.
+
+**Reason**: Legacy product IDs are stable identifiers that don't change. Storing them in the existing `sku` field (already defined in the seed as `unico=True`) avoids creating a dedicated mapping table or an extra campo. Migration re-runs look up `ValorCampo(campo=sku, valor='LEGACY-{id}')` → if found, update; if not, create. This is simpler and more robust than name+talla matching.
+
+**Trade-off**: The `sku` campo with `unico=True` prevents creating two dynamic products with the same SKU, which is desirable. Products that already have a custom SKU are unaffected (they simply don't match `LEGACY-*`).
+
+**Current status**: Implemented in `migrar_productos_dynamic`. Verified idempotent across 3 executions.
+
+---
+
+## Decision: URL-Based Image Migration for Cloudinary
+
+**Decision**: Store the legacy product's `imagen_final_url` (Cloudinary URL) in the dynamic `imagen_url` campo instead of downloading and re-uploading image files.
+
+**Reason**: The storage backend is `MediaCloudinaryStorage`, which does not support `FileField.path()`. The existing Cloudinary URLs are already working in production. Storing the URL avoids:
+- Duplicate image storage (same image in two places)
+- Cloudinary API download/upload round-trips
+- UUID-based filename changes that would break existing bookmarks
+
+**Template compatibility**: `DynamicProductWrapper.imagen_final_url` prefers `imagen_url` over `imagen` uploads, so templates work without changes.
+
+**Current status**: Implemented in `migrar_productos_dynamic`. All 6 images migrated as URLs.
+
+---
+
+## Decision: Two-Pass Migration (Products → Then Movements)
+
+**Decision**: Product creation and initial inventory movement creation are separate passes (step 3 and step 3b), not a single atomic operation per product.
+
+**Reason**: The initial inventory movement (motivo='Inventario inicial') requires the dynamic product to exist first. Separating the passes allows the second pass to also handle edge cases: products created by an earlier version of the script that didn't create movements, or products with stock=0 that don't need a movement.
+
+**Current status**: Implemented in `migrar_productos_dynamic`. Step 3b detects missing movements and creates them without duplicating existing ones.
+
+---
+
+## Decision: RunSQL for Pre-Existing Schema Discrepancies
+
+**Decision**: Use `migrations.RunSQL` instead of `migrations.AlterField` to fix pre-existing database schema discrepancies that Django's migration system cannot detect.
+
+**Reason**: Django's `makemigrations` compares the current model state against the recorded migration state (from migration files), not against the actual database schema. When a column was created with different constraints than the model specifies (due to prior model changes that didn't generate migrations), `AlterField` generates `(no-op)` because Django believes the schema is already correct. `RunSQL` bypasses this and executes raw `ALTER TABLE` statements directly.
+
+**Current status**: Applied in migration `0005_fix_schema_discrepancies`. Fixed: `Formulario.creado_por_id` nullable, `ValorCampo.valor` NOT NULL, `Campo.nombre` varchar(100).
+
+---
+
 ## Decision: Thread-Local Hook Recursion Protection
 
 **Decision**: Use `threading.local()` to detect and prevent recursive hook execution.

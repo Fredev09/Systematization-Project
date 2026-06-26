@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import Categoria, Producto
+from .models import Producto
 
 
 OPCIONES_TALLAS = [
@@ -27,19 +27,6 @@ OPCIONES_TALLAS = [
     ('38', '38'),
     ('40', '40'),
 ]
-
-
-class CategoriaForm(forms.ModelForm):
-    class Meta:
-        model = Categoria
-        fields = ['nombre']
-
-        widgets = {
-            'nombre': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'Ej: Blusas, Vestidos, Accesorios'
-            })
-        }
 
 
 class ProductoForm(forms.ModelForm):
