@@ -1,0 +1,21 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "docs/AGENT_CONTEXT.md",
+    "docs/TODO.md",
+    "docs/SESSION_LOG.md",
+    "docs/MIGRATION_STATUS.md",
+    "docs/DECISIONS.md"
+  ],
+  "skills": {
+    "paths": [
+      ".ai/skills/community",
+      ".ai/skills/project"
+    ]
+  },
+  "permission": {
+    "skill": {
+      "*": "allow"
+    }
+  }
+}

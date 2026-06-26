@@ -25,6 +25,7 @@ from apps.legacy.productos.wrappers import DynamicProductWrapper
 from apps.platform.dynamic_forms.models import Registro
 from apps.platform.dynamic_forms.services_dynamic import DynamicService as DS
 from apps.legacy.ventas.models import Cliente, Venta
+from apps.legacy.ventas.views_dynamic import _envolver_ventas
 
 
 def rango_dia(fecha):
@@ -909,7 +910,7 @@ def agregar_encabezado_pdf(elementos, estilos, titulo, request, filtros):
 @login_required(login_url='login')
 @admin_required
 def reportes(request):
-    datos = obtener_datos_reportes(request)
+    datos = obtener_datos_reportes_dinamico(request)
 
     return render(request, 'reportes/reportes.html', {
         'fecha_inicio': datos['filtros']['fecha_inicio'],
@@ -949,8 +950,7 @@ def reportes(request):
 @login_required(login_url='login')
 @admin_required
 def exportar_reporte_excel(request):
-    datos = obtener_datos_reportes(request)
-    ventas = datos['ventas'].order_by('-fecha')
+    datos = obtener_datos_reportes_dinamico(request)
     filtros = datos['filtros']
 
     vendedor_nombre = 'Todos'
@@ -963,14 +963,42 @@ def exportar_reporte_excel(request):
             vendedor_nombre = vendedor.get_full_name() or vendedor.username
 
     if filtros['categoria_id']:
-        categoria = Categoria.objects.filter(id=filtros['categoria_id']).first()
-        if categoria:
-            categoria_nombre = categoria.nombre
+        try:
+            cat_id = int(filtros['categoria_id'])
+            for cat in datos['categorias']:
+                if cat.id == cat_id:
+                    categoria_nombre = cat.nombre
+                    break
+        except (ValueError, TypeError):
+            pass
 
     if filtros['producto_id']:
-        producto = Producto.objects.filter(id=filtros['producto_id']).first()
-        if producto:
-            producto_nombre = producto.nombre
+        try:
+            prod_id = int(filtros['producto_id'])
+            for prod in datos['productos']:
+                if prod.id == prod_id:
+                    producto_nombre = prod.nombre
+                    break
+        except (ValueError, TypeError):
+            pass
+
+    form_ventas = DS.obtener_formulario('Ventas', raise_if_missing=False)
+    if form_ventas:
+        registros_qs = Registro.objects.filter(formulario=form_ventas)
+        fecha_inicio_parseada = parse_date(filtros['fecha_inicio']) if filtros['fecha_inicio'] else None
+        fecha_fin_parseada = parse_date(filtros['fecha_fin']) if filtros['fecha_fin'] else None
+        if fecha_inicio_parseada:
+            registros_qs = registros_qs.filter(fecha_creacion__date__gte=fecha_inicio_parseada)
+        if fecha_fin_parseada:
+            registros_qs = registros_qs.filter(fecha_creacion__date__lte=fecha_fin_parseada)
+        if filtros['vendedor_id']:
+            registros_qs = registros_qs.filter(usuario_id=filtros['vendedor_id'])
+        registros_qs = registros_qs.order_by('-fecha_creacion')
+        registros = list(registros_qs)
+        valores_map = DS.cargar_valores_mapa(registros)
+        ventas = _envolver_ventas(registros, valores_map)
+    else:
+        ventas = []
 
     wb = Workbook()
     ws = wb.active
@@ -1056,7 +1084,7 @@ def exportar_reporte_excel(request):
         f"Vendedor: {vendedor_nombre}",
         f"Categoria: {categoria_nombre}",
         f"Producto: {producto_nombre}",
-        f"Registros: {ventas.count()}"
+        f"Registros: {len(ventas)}"
     ])
     ventas_ws.append([])
     ventas_ws.append(encabezados_ventas)
@@ -1066,8 +1094,8 @@ def exportar_reporte_excel(request):
             timezone.localtime(venta.fecha).strftime('%d/%m/%Y %I:%M %p'),
             venta.producto.nombre,
             venta.producto.categoria.nombre if venta.producto.categoria else 'Sin categoria',
-            venta.producto.color,
-            venta.producto.talla,
+            venta.producto.color or '',
+            venta.producto.talla or '',
             venta.cantidad,
             float(venta.total or 0),
             venta.vendedor.username if venta.vendedor else '',
@@ -1234,7 +1262,7 @@ def exportar_reporte_completo_pdf(request):
 @login_required(login_url='login')
 @admin_required
 def exportar_reporte_ventas_pdf(request):
-    datos = obtener_datos_reportes(request)
+    datos = obtener_datos_reportes_dinamico(request)
     estilos = crear_estilos_pdf()
     elementos = []
 
@@ -1254,7 +1282,23 @@ def exportar_reporte_ventas_pdf(request):
 
     elementos.append(Paragraph('Detalle de ventas', estilos['subtitulo']))
 
-    ventas = datos['ventas'].order_by('-fecha')[:120]
+    filtros = datos['filtros']
+    form_ventas = DS.obtener_formulario('Ventas', raise_if_missing=False)
+    if form_ventas:
+        registros_qs = Registro.objects.filter(formulario=form_ventas)
+        fecha_inicio_parseada = parse_date(filtros['fecha_inicio']) if filtros['fecha_inicio'] else None
+        fecha_fin_parseada = parse_date(filtros['fecha_fin']) if filtros['fecha_fin'] else None
+        if fecha_inicio_parseada:
+            registros_qs = registros_qs.filter(fecha_creacion__date__gte=fecha_inicio_parseada)
+        if fecha_fin_parseada:
+            registros_qs = registros_qs.filter(fecha_creacion__date__lte=fecha_fin_parseada)
+        if filtros['vendedor_id']:
+            registros_qs = registros_qs.filter(usuario_id=filtros['vendedor_id'])
+        registros = list(registros_qs.order_by('-fecha_creacion')[:120])
+        valores_map = DS.cargar_valores_mapa(registros)
+        ventas = _envolver_ventas(registros, valores_map)
+    else:
+        ventas = []
 
     tabla_ventas = [['Fecha', 'Producto', 'Categoría', 'Cliente', 'Vendedor', 'Cantidad', 'Total']]
 
