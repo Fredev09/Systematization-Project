@@ -1,4 +1,5 @@
 from datetime import datetime, time, timedelta
+from decimal import Decimal
 from math import floor, log10
 
 from django.contrib.auth.decorators import login_required
@@ -415,6 +416,377 @@ def obtener_datos_reportes(request):
         'porcentaje_mes': porcentaje_mes,
         'porcentaje_productos': porcentaje_productos,
         'porcentaje_clientes': porcentaje_clientes,
+        'ventas_meses': ventas_meses,
+        'ventas_meses_line_path': ventas_meses_line_path,
+        'ventas_meses_area_path': ventas_meses_area_path,
+        'escala_y': escala_y,
+        'donut_gradient': donut_gradient,
+        'ventas_categorias': ventas_categorias,
+        'top_productos': top_productos,
+        'categoria_top': categoria_top,
+        'ticket_promedio': ticket_promedio,
+        'vendedor_top': vendedor_top,
+        'productos_stock_critico': productos_stock_critico,
+    }
+
+
+# ======================================================================
+# VERSIÓN DINÁMICA (Fase 1: KPIs básicos)
+# ======================================================================
+# Reemplazo progresivo de obtener_datos_reportes().
+# Por ahora solo migra KPIs numéricos. Gráficas, donut y rankings
+# retornan placeholders hasta fases posteriores.
+# ======================================================================
+
+
+def _decimal_seguro(valor, default=Decimal('0')):
+    try:
+        return Decimal(str(valor).replace(',', '.'))
+    except (ValueError, TypeError):
+        return default
+
+
+def _entero_seguro(valor, default=0):
+    try:
+        return int(float(str(valor).replace(',', '.')))
+    except (ValueError, TypeError):
+        return default
+
+
+def obtener_datos_reportes_dinamico(request):
+    """
+    Versión dinámica de obtener_datos_reportes que usa DynamicService.
+
+    KPIs migrados (Fase 1):
+      - ventas_totales, ingresos_mes, productos_vendidos
+      - clientes_nuevos, ticket_promedio, productos_stock_critico
+      - porcentaje_mes (vs mes anterior)
+
+    Placeholders (Fase 2+):
+      - Gráfica de línea, donut, rankings, porcentajes comparativos
+
+    Reutiliza:
+      - _stock_stats_completo() de productos/views_dynamic
+      - DynamicProductWrapper para el select de productos
+      - rango_mes(), calcular_porcentaje(), obtener_filtros_reportes() del mismo módulo
+    """
+    from types import SimpleNamespace
+
+    filtros = obtener_filtros_reportes(request)
+
+    # ==================================================================
+    # Vendedores (misma lógica que legacy)
+    # ==================================================================
+    vendedores = vendedores_registrados()
+
+    # ==================================================================
+    # Categorías (desde el campo 'categoria' del formulario Productos)
+    # ==================================================================
+    categorias = []
+    try:
+        campo_categoria = DS.obtener_campo(
+            DS.obtener_formulario('Productos', raise_if_missing=False),
+            'categoria', raise_if_missing=False
+        )
+        if campo_categoria and campo_categoria.opciones:
+            for i, opcion in enumerate(campo_categoria.opciones):
+                categorias.append(SimpleNamespace(id=i + 1, nombre=opcion))
+    except Exception:
+        pass
+
+    # ==================================================================
+    # Productos (desde Dynamic Forms)
+    # ==================================================================
+    prod_registros = Registro.objects.none()
+    prod_valores = {}
+    productos = []
+    try:
+        form_prod = DS.obtener_formulario('Productos', raise_if_missing=False)
+        if form_prod:
+            prod_registros = Registro.objects.filter(formulario=form_prod)
+            prod_valores = DS.cargar_valores_mapa(prod_registros)
+            productos = [
+                DynamicProductWrapper(r, prod_valores.get(r.id, {}))
+                for r in prod_registros
+            ]
+            productos.sort(key=lambda p: p.nombre.lower())
+    except Exception:
+        pass
+
+    # ==================================================================
+    # Rango de meses para cálculos
+    # ==================================================================
+    hoy = timezone.localdate()
+    inicio_mes, fin_mes = rango_mes(hoy)
+
+    if hoy.month == 1:
+        fecha_mes_anterior = hoy.replace(year=hoy.year - 1, month=12)
+    else:
+        fecha_mes_anterior = hoy.replace(month=hoy.month - 1)
+    inicio_mes_anterior, fin_mes_anterior = rango_mes(fecha_mes_anterior)
+
+    # ==================================================================
+    # Preparar mapas de productos (categoria, nombre) desde datos ya cargados
+    # ==================================================================
+    prod_categoria = {}  # {registro_id: nombre_categoria}
+    prod_nombre = {}     # {registro_id: nombre_producto}
+    try:
+        for r in prod_registros:
+            pv = prod_valores.get(r.id, {})
+            prod_categoria[r.id] = pv.get('categoria', '').strip() or 'Sin categoría'
+            prod_nombre[r.id] = pv.get('nombre', f'Producto #{r.id}')
+    except Exception:
+        pass
+
+    # ==================================================================
+    # Ventas — registros desde Dynamic Forms
+    # ==================================================================
+    # Preparar 6 rangos mensuales para la gráfica
+    hoy = timezone.localdate()
+    month_ranges = []
+    for i in range(5, -1, -1):
+        mes = hoy.month - i
+        year = hoy.year
+        while mes <= 0:
+            mes += 12
+            year -= 1
+        m_inicio = datetime(year, mes, 1)
+        if mes == 12:
+            m_fin = datetime(year + 1, 1, 1)
+        else:
+            m_fin = datetime(year, mes + 1, 1)
+        m_inicio = timezone.make_aware(m_inicio, timezone.get_current_timezone())
+        m_fin = timezone.make_aware(m_fin, timezone.get_current_timezone())
+        month_ranges.append((m_inicio, m_fin, m_inicio.strftime('%b %Y')))
+
+    # Acumuladores
+    ventas_totales = Decimal('0')
+    productos_vendidos = 0
+    cantidad_ventas = 0
+    ingresos_mes = Decimal('0')
+    ingresos_mes_anterior = Decimal('0')
+    mes_totales = [Decimal('0') for _ in range(6)]  # un total por mes
+    producto_data = {}   # {prod_id: {'cantidad': int, 'total': Decimal}}
+    vendedor_data = {}   # {user_id: {'total': Decimal}}
+    categoria_data = {}  # {cat_name: {'total': Decimal}}
+    registros_qs = Registro.objects.none()
+
+    try:
+        form_ventas = DS.obtener_formulario('Ventas', raise_if_missing=False)
+        if not form_ventas:
+            raise Exception('Formulario Ventas no encontrado')
+
+        registros_qs = Registro.objects.filter(formulario=form_ventas)
+
+        # Aplicar filtros básicos de fecha y vendedor
+        fecha_inicio_parseada = parse_date(filtros['fecha_inicio']) if filtros['fecha_inicio'] else None
+        fecha_fin_parseada = parse_date(filtros['fecha_fin']) if filtros['fecha_fin'] else None
+
+        if fecha_inicio_parseada:
+            registros_qs = registros_qs.filter(fecha_creacion__date__gte=fecha_inicio_parseada)
+        if fecha_fin_parseada:
+            registros_qs = registros_qs.filter(fecha_creacion__date__lte=fecha_fin_parseada)
+        if filtros['vendedor_id']:
+            registros_qs = registros_qs.filter(usuario_id=filtros['vendedor_id'])
+
+        # Precargar valores en lote
+        valores_map = DS.cargar_valores_mapa(registros_qs)
+
+        # Resolver nombres de usuario para vendedores
+        user_ids_en_ventas = {r.usuario_id for r in registros_qs if r.usuario_id}
+        username_map = {}
+        if user_ids_en_ventas:
+            for u in User.objects.filter(id__in=list(user_ids_en_ventas)).only('id', 'username'):
+                username_map[u.id] = u.username
+
+        # PASADA ÚNICA: KPIs + agregaciones mensuales, por producto, por vendedor, por categoría
+        for r in registros_qs:
+            vals = valores_map.get(r.id, {})
+            total = _decimal_seguro(vals.get('total', '0'))
+            cantidad = _entero_seguro(vals.get('cantidad', '0'))
+            prod_id_str = vals.get('producto', '').strip()
+            prod_id = int(prod_id_str) if prod_id_str and prod_id_str.isdigit() else None
+
+            ventas_totales += total
+            productos_vendidos += cantidad
+            cantidad_ventas += 1
+
+            # Ingresos del mes actual y anterior
+            if inicio_mes <= r.fecha_creacion < fin_mes:
+                ingresos_mes += total
+            if inicio_mes_anterior <= r.fecha_creacion < fin_mes_anterior:
+                ingresos_mes_anterior += total
+
+            # Agregación mensual para la gráfica de línea
+            for mi, (mm_inicio, mm_fin, _) in enumerate(month_ranges):
+                if mm_inicio <= r.fecha_creacion < mm_fin:
+                    mes_totales[mi] += total
+                    break
+
+            # Agregación por producto
+            if prod_id:
+                if prod_id not in producto_data:
+                    producto_data[prod_id] = {'cantidad': 0, 'total': Decimal('0')}
+                producto_data[prod_id]['cantidad'] += cantidad
+                producto_data[prod_id]['total'] += total
+
+                # Agregación por categoría (resuelta desde los datos del producto)
+                cat = prod_categoria.get(prod_id, 'Sin categoría')
+                if cat not in categoria_data:
+                    categoria_data[cat] = {'total': Decimal('0')}
+                categoria_data[cat]['total'] += total
+
+            # Agregación por vendedor
+            if r.usuario_id:
+                if r.usuario_id not in vendedor_data:
+                    vendedor_data[r.usuario_id] = {'total': Decimal('0')}
+                vendedor_data[r.usuario_id]['total'] += total
+
+    except Exception:
+        pass
+
+    # ==================================================================
+    # Cálculos post-pasada
+    # ==================================================================
+    ticket_promedio = ventas_totales / cantidad_ventas if cantidad_ventas > 0 else Decimal('0')
+    porcentaje_mes = calcular_porcentaje(ingresos_mes, ingresos_mes_anterior)
+    porcentaje_ventas = porcentaje_mes
+
+    # ==================================================================
+    # Gráfica de línea: ventas por mes
+    # ==================================================================
+    ventas_meses = []
+    ventas_meses_line_path = ''
+    ventas_meses_area_path = ''
+    escala_y = []
+    try:
+        for mi, (_, _, nombre_mes) in enumerate(month_ranges):
+            ventas_meses.append({
+                'nombre': nombre_mes,
+                'total': mes_totales[mi],
+            })
+
+        maximo_real = max([float(mt or 0) for mt in mes_totales] + [0])
+        maximo_eje = calcular_maximo_eje(maximo_real)
+        escala_y = construir_escala_y(maximo_eje)
+
+        puntos = []
+        for index, mes in enumerate(ventas_meses):
+            total = float(mes['total'] or 0)
+            x = 20 + (index * 112)
+            proporcion = total / maximo_eje if maximo_eje > 0 else 0
+            y = 230 - (proporcion * 210)
+            puntos.append(f'{x} {y}')
+            mes['left'] = round(4 + ((index / 5) * 92), 2) if len(ventas_meses) > 1 else 50
+            mes['bottom'] = round(proporcion * 92, 2)
+
+        line_path = 'M' + ' L'.join(puntos) if puntos else ''
+        if puntos:
+            primer_x = 20
+            ultimo_x = 20 + ((len(ventas_meses) - 1) * 112)
+            area_path = line_path + f' L{ultimo_x} 230 L{primer_x} 230 Z'
+            ventas_meses_line_path = line_path
+            ventas_meses_area_path = area_path
+    except Exception:
+        pass
+
+    # ==================================================================
+    # Donut: ventas por categoría
+    # ==================================================================
+    donut_gradient = ''
+    ventas_categorias = []
+    categoria_top = 'Sin datos'
+    try:
+        categorias_ordenadas = sorted(
+            [{'nombre': k, 'total': v['total']} for k, v in categoria_data.items()],
+            key=lambda x: x['total'],
+            reverse=True
+        )[:6]
+        donut_gradient, ventas_categorias = construir_donut_categorias(
+            [{'producto__categoria__nombre': c['nombre'], 'total': c['total']} for c in categorias_ordenadas]
+        )
+        if ventas_categorias:
+            categoria_top = f"{ventas_categorias[0]['nombre']} ({ventas_categorias[0]['porcentaje']}%)"
+    except Exception:
+        pass
+
+    # ==================================================================
+    # Top productos vendidos
+    # ==================================================================
+    top_productos = []
+    try:
+        productos_ordenados = sorted(
+            [(pid, pd['cantidad'], pd['total']) for pid, pd in producto_data.items()],
+            key=lambda x: x[1],
+            reverse=True
+        )[:5]
+
+        max_top = max([p[1] or 0 for p in productos_ordenados] + [1])
+        for pid, cant, tot in productos_ordenados:
+            top_productos.append({
+                'nombre': prod_nombre.get(pid, f'Producto #{pid}'),
+                'cantidad': cant,
+                'total': tot,
+                'porcentaje': max(12, round((cant / max_top) * 100)),
+            })
+    except Exception:
+        pass
+
+    # ==================================================================
+    # Vendedor con mayores ventas
+    # ==================================================================
+    vendedor_top = 'Sin datos'
+    try:
+        if vendedor_data:
+            top_vendedor_id = max(vendedor_data, key=lambda uid: vendedor_data[uid]['total'])
+            top_vendedor_total = vendedor_data[top_vendedor_id]['total']
+            top_vendedor_nombre = username_map.get(top_vendedor_id, f'#{top_vendedor_id}')
+            vendedor_top = f"{top_vendedor_nombre} ({formato_corto_pesos(top_vendedor_total)})"
+    except Exception:
+        pass
+
+    # ==================================================================
+    # Clientes nuevos (desde formulario Clientes)
+    # ==================================================================
+    clientes_nuevos = 0
+    try:
+        form_clientes = DS.obtener_formulario('Clientes', raise_if_missing=False)
+        if form_clientes:
+            clientes_nuevos = Registro.objects.filter(
+                formulario=form_clientes,
+                fecha_creacion__gte=inicio_mes,
+                fecha_creacion__lt=fin_mes
+            ).count()
+    except Exception:
+        pass
+
+    # ==================================================================
+    # Stock crítico (reutiliza _stock_stats_completo)
+    # ==================================================================
+    productos_stock_critico = 0
+    try:
+        stats = _stock_stats_completo(stock_minimo=5)
+        productos_stock_critico = stats['sin_stock'] + stats['stock_bajo']
+    except Exception:
+        pass
+
+    # ==================================================================
+    # Contexto completo para el template
+    # ==================================================================
+    return {
+        'ventas': registros_qs,
+        'filtros': filtros,
+        'vendedores': vendedores,
+        'categorias': categorias,
+        'productos': productos,
+        'ventas_totales': ventas_totales,
+        'ingresos_mes': ingresos_mes,
+        'productos_vendidos': productos_vendidos,
+        'clientes_nuevos': clientes_nuevos,
+        'porcentaje_ventas': porcentaje_ventas,
+        'porcentaje_mes': porcentaje_mes,
+        'porcentaje_productos': 0.0,
+        'porcentaje_clientes': 0.0,
         'ventas_meses': ventas_meses,
         'ventas_meses_line_path': ventas_meses_line_path,
         'ventas_meses_area_path': ventas_meses_area_path,
