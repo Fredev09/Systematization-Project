@@ -5,16 +5,17 @@ import logging
 from django.contrib import messages
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.models import User
-from django.core.paginator import Paginator
-from django.db.models import Q, Sum
-from django.shortcuts import redirect, render
 from decimal import Decimal
 
+from django.contrib.auth.models import User
+from django.core.paginator import Paginator
+from django.shortcuts import redirect, render
+
 from config.pagination import OPCIONES_POR_PAGINA, obtener_por_pagina, parametros_sin_pagina
-from apps.legacy.productos.models import Producto
-from apps.legacy.ventas.models import Venta
 from apps.shared.configuracion.models import ConfiguracionTienda
+from apps.platform.dynamic_forms.models import Registro, ValorCampo
+from apps.platform.dynamic_forms.services_dynamic import DynamicService as DS
+from apps.legacy.productos.wrappers import DynamicProductWrapper, DynamicVentaWrapper
 from .permissions import es_administrador, rol_usuario
 
 logger = logging.getLogger(__name__)
@@ -48,81 +49,15 @@ def login_view(request):
 
 @login_required(login_url='login')
 def dashboard(request):
-    query = request.GET.get('q', '').strip()
-    es_admin = es_administrador(request.user)
-    configuracion = ConfiguracionTienda.obtener()
-    stock_minimo = configuracion.stock_minimo_alerta
-
-    productos = Producto.objects.select_related('categoria').all()
-
-    if query:
-        productos = productos.filter(
-            Q(nombre__icontains=query) |
-            Q(categoria__nombre__icontains=query) |
-            Q(color__icontains=query) |
-            Q(talla__icontains=query)
-        )
-
-    productos = productos.annotate(
-        total_vendidos=Sum('ventas__cantidad')
-    ).distinct().order_by('-total_vendidos', 'nombre')[:3]
-
-    total_productos = Producto.objects.count()
-    stock_bajo = Producto.objects.filter(stock__gte=1, stock__lte=stock_minimo).count()
-
-    if es_admin:
-        ventas_base = Venta.objects.select_related('producto', 'vendedor')
-        total_clientes = User.objects.count()
-    else:
-        ventas_base = Venta.objects.select_related('producto', 'vendedor').filter(
-            vendedor=request.user
-        )
-        total_clientes = None
-
-    total_ventas = ventas_base.aggregate(total=Sum('total'))['total'] or 0
-
-    ventas_recientes = ventas_base.order_by('-fecha')[:5]
-
-    return render(request, 'dashboard/dashboard.html', {
-        'query': query,
-        'productos': productos,
-        'ventas_recientes': ventas_recientes,
-        'total_productos': total_productos,
-        'stock_bajo': stock_bajo,
-        'stock_minimo_alerta': stock_minimo,
-        'total_ventas': total_ventas,
-        'total_clientes': total_clientes,
-        'es_admin': es_admin,
-        'rol_usuario': rol_usuario(request.user),
-    })
-
-
-# ======================================================================
-# DASHBOARD PARALELO (Dynamic Forms)
-# ======================================================================
-# Versión del dashboard que usa DynamicService en lugar de modelos legacy.
-# Mantiene la misma lógica y variables de template para comparación.
-# No reemplaza el dashboard original, coexiste en ruta paralela.
-# ======================================================================
-
-
-@login_required(login_url='login')
-def dashboard_dinamico(request):
     """
     Dashboard usando DynamicService.
     
-    Proporciona las mismas estadísticas que el dashboard legacy:
+    Proporciona las mismas estadísticas:
     - Total ventas, productos, clientes
     - Stock bajo
     - Top productos vendidos
     - Ventas recientes
-    
-    Usa el mismo template (dashboard.html) para facilitar la comparación.
     """
-    from apps.platform.dynamic_forms.models import Formulario, Registro
-    from apps.platform.dynamic_forms.services_dynamic import DynamicService as DS
-    from apps.legacy.productos.wrappers import DynamicProductWrapper, DynamicVentaWrapper
-
     query = request.GET.get('q', '').strip()
     es_admin = es_administrador(request.user)
     configuracion = ConfiguracionTienda.obtener()
@@ -162,7 +97,6 @@ def dashboard_dinamico(request):
             ).first()
             if campo_producto:
                 from django.db.models import Count
-                from apps.platform.dynamic_forms.models import ValorCampo
 
                 # Contar ventas por producto
                 ventas_por_producto = {}
@@ -232,7 +166,7 @@ def dashboard_dinamico(request):
         total_clientes = DS.contar('Clientes') if es_admin else None
 
     except Exception as e:
-        logger.exception(f'Error en dashboard_dinamico: {e}')
+        logger.exception(f'Error en dashboard: {e}')
         productos = []
         ventas_recientes = []
         total_productos = 0

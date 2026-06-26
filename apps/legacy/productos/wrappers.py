@@ -289,18 +289,6 @@ class DynamicVentaWrapper:
         # Producto relacionado
         self.producto = producto_wrapper or self._resolver_producto_por_defecto()
 
-    def _resolver_producto_por_defecto(self):
-        """Crea un producto fallback con todos los atributos que esperan los templates."""
-        prod_nombre = self._valores.get('producto_nombre', self._valores.get('producto', ''))
-        return SimpleNamespace(
-            nombre=prod_nombre,
-            categoria=SimpleNamespace(nombre=''),
-            color=self._valores.get('producto_color', ''),
-            talla=self._valores.get('producto_talla', ''),
-            imagen_final_url='',
-            tiene_imagen=False,
-        )
-
         # Vendedor
         self.vendedor = SimpleNamespace(
             username=vendedor_username or f'#{registro.usuario_id or 0}'
@@ -314,6 +302,18 @@ class DynamicVentaWrapper:
             nombre_completo=cliente_nombre,
             documento=self._valores.get('cliente_documento', ''),
             correo=self._valores.get('cliente_correo', ''),
+        )
+
+    def _resolver_producto_por_defecto(self):
+        """Crea un producto fallback con todos los atributos que esperan los templates."""
+        prod_nombre = self._valores.get('producto_nombre', self._valores.get('producto', ''))
+        return SimpleNamespace(
+            nombre=prod_nombre,
+            categoria=SimpleNamespace(nombre=''),
+            color=self._valores.get('producto_color', ''),
+            talla=self._valores.get('producto_talla', ''),
+            imagen_final_url='',
+            tiene_imagen=False,
         )
 
     def __str__(self):

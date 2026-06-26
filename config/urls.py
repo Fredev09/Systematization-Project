@@ -59,7 +59,6 @@ urlpatterns = [
     path('catalogo/', catalogo_publico, name='catalogo_publico'),
     path('reportes/', include('apps.shared.reportes.urls')),
     path('forms/', include('apps.platform.dynamic_forms.urls')),
-    path('dashboard-dinamico/', views.dashboard_dinamico, name='dashboard_dinamico'),
     path('', views.index, name='index'),
 ]
 
