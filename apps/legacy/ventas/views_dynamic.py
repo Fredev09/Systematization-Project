@@ -14,10 +14,14 @@ import logging
 from decimal import Decimal
 
 from django.contrib import messages
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.core.paginator import Paginator
 from django.db import transaction
+from django.http import HttpResponse
 from django.shortcuts import redirect, render, get_object_or_404
 from django.utils import timezone
 from django.utils.dateparse import parse_date
@@ -488,6 +492,274 @@ def historial_ventas(request):
     })
 
 
+# ======================================================================
+# VISTA: EXPORTAR VENTAS A EXCEL (DINÁMICO)
+# ======================================================================
+
+
+@login_required(login_url='login')
+def exportar_ventas(request):
+    """
+    Exporta el historial de ventas filtrado a Excel.
+
+    Reimplementación dinámica de exportar_ventas legacy.
+    Mantiene exactamente el mismo formato:
+    - Mismas columnas: Fecha, Producto, Categoria, Color, Talla,
+      Cantidad, Total, Vendedor, Documento cliente, Cliente, Correo cliente
+    - Mismos estilos: título rosa, encabezados fondo rosa claro,
+      bordes, anchos de columna, congelamiento, filtro automático
+    - Mismo nombre de archivo: historial_ventas.xlsx (admin) / mis_ventas.xlsx (vendedor)
+
+    Reutiliza _aplicar_filtros_ventas_dinamico() y _envolver_ventas()
+    para obtener datos filtrados sin introducir consultas N+1.
+    """
+    es_admin = es_administrador(request.user)
+
+    try:
+        form = DS.obtener_formulario(FORM_VENTAS)
+    except Exception:
+        wb = Workbook()
+        ws = wb.active
+        ws.title = 'Historial ventas'
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        nombre_archivo = 'historial_ventas.xlsx' if es_admin else 'mis_ventas.xlsx'
+        response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
+        wb.save(response)
+        return response
+
+    # Obtener registros
+    registros = Registro.objects.filter(formulario=form).order_by('-fecha_creacion')
+
+    if not es_admin:
+        registros = registros.filter(usuario=request.user)
+
+    valores_map = DS.cargar_valores_mapa(registros)
+
+    # Aplicar filtros (mismos que historial_ventas)
+    registros_filtrados, query, fecha, vendedor_id = _aplicar_filtros_ventas_dinamico(
+        request, list(registros), valores_map, es_admin
+    )
+
+    if not registros_filtrados:
+        wb = Workbook()
+        ws = wb.active
+        ws.title = 'Historial ventas'
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        nombre_archivo = 'historial_ventas.xlsx' if es_admin else 'mis_ventas.xlsx'
+        response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
+        wb.save(response)
+        return response
+
+    # Envolver ventas con relaciones precargadas
+    ventas = _envolver_ventas(registros_filtrados, valores_map)
+
+    # --- Pre-resolver vendedores (evitar N+1) ---
+    user_ids = {r.usuario_id for r in registros_filtrados if r.usuario_id}
+    users_map = {}
+    if user_ids:
+        for u in User.objects.filter(id__in=list(user_ids)).only('id', 'username', 'first_name', 'last_name'):
+            users_map[u.id] = u.get_full_name() or u.username
+
+    # --- Pre-resolver clientes (evitar N+1) ---
+    cliente_ids = set()
+    for r in registros_filtrados:
+        vals = valores_map.get(r.id, {})
+        cli_id = vals.get('cliente', '').strip()
+        if cli_id and cli_id.isdigit():
+            cliente_ids.add(int(cli_id))
+
+    clientes_map = {}  # {id: {documento, nombre_completo, correo}}
+    if cliente_ids:
+        try:
+            form_cli = DS.obtener_formulario(FORM_CLIENTES)
+            cli_registros = Registro.objects.filter(id__in=list(cliente_ids), formulario=form_cli)
+            cli_valores = DS.cargar_valores_mapa(cli_registros)
+            for cr in cli_registros:
+                cv = cli_valores.get(cr.id, {})
+                documento = cv.get('documento', '')
+                nombre = cv.get('nombre', '')
+                apellido = cv.get('apellido', '')
+                correo = cv.get('correo', '')
+                nombre_completo = f'{nombre} {apellido}'.strip()
+                clientes_map[cr.id] = {
+                    'documento': documento,
+                    'nombre_completo': nombre_completo or 'Sin cliente',
+                    'correo': correo,
+                }
+        except Exception:
+            pass
+
+    # --- Calcular estadísticas (solo sobre registros filtrados) ---
+    total_filtrado = Decimal('0')
+    unidades_filtradas = 0
+    for r in registros_filtrados:
+        vals = valores_map.get(r.id, {})
+        total_filtrado += _decimal(vals.get('total', '0'))
+        unidades_filtradas += _entero(vals.get('cantidad', '0'))
+    cantidad_ventas = len(ventas)
+
+    # --- Nombre del vendedor para el resumen ---
+    nombre_vendedor = 'Todos'
+    if es_admin and vendedor_id:
+        vendedor = User.objects.filter(id=vendedor_id).first()
+        if vendedor:
+            nombre_vendedor = vendedor.get_full_name() or vendedor.username
+    if not es_admin:
+        nombre_vendedor = request.user.get_full_name() or request.user.username
+
+    nombre_archivo = 'historial_ventas.xlsx' if es_admin else 'mis_ventas.xlsx'
+
+    # --- Generar Excel ---
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Historial ventas'
+
+    encabezados = [
+        'Fecha',
+        'Producto',
+        'Categoria',
+        'Color',
+        'Talla',
+        'Cantidad',
+        'Total',
+        'Vendedor',
+        'Documento cliente',
+        'Cliente',
+        'Correo cliente'
+    ]
+
+    ws.append(['Historial de ventas'])
+    ws.append([
+        f"Busqueda: {query or 'Todos'}",
+        f"Fecha: {fecha or 'Todas'}",
+        f"Vendedor: {nombre_vendedor}",
+        f"Ventas: {cantidad_ventas}",
+        f"Unidades: {unidades_filtradas}",
+        f"Total: ${int(total_filtrado):,}".replace(',', '.')
+    ])
+    ws.append([])
+    ws.append(encabezados)
+
+    # Mapa rápido venta.id → registro (evitar O(n²))
+    registro_map = {r.id: r for r in registros_filtrados}
+
+    for venta in ventas:
+        vals = valores_map.get(venta.id, {})
+        r = registro_map.get(venta.id)
+        username = users_map.get(r.usuario_id, '') if r and r.usuario_id else ''
+
+        # Resolver cliente
+        cli_id_str = vals.get('cliente', '').strip()
+        cli_id = int(cli_id_str) if cli_id_str and cli_id_str.isdigit() else None
+        cli_data = clientes_map.get(cli_id, {}) if cli_id else {}
+
+        ws.append([
+            timezone.localtime(venta.fecha).strftime('%d/%m/%Y %I:%M %p'),
+            venta.producto.nombre if venta.producto else '',
+            venta.producto.categoria.nombre if venta.producto and venta.producto.categoria else 'Sin categoria',
+            venta.producto.color if venta.producto else '',
+            venta.producto.talla if venta.producto else '',
+            venta.cantidad,
+            float(venta.total or 0),
+            username,
+            cli_data.get('documento', ''),
+            cli_data.get('nombre_completo', 'Sin cliente'),
+            cli_data.get('correo', ''),
+        ])
+
+    # --- Estilos (idénticos al legacy) ---
+    titulo_fill = PatternFill('solid', fgColor='D41473')
+    encabezado_fill = PatternFill('solid', fgColor='FCE7F3')
+    resumen_fill = PatternFill('solid', fgColor='FFF1F8')
+    borde_color = Side(style='thin', color='E5E7EB')
+
+    titulo_font = Font(color='FFFFFF', bold=True, size=15)
+    encabezado_font = Font(color='111827', bold=True)
+    resumen_font = Font(color='4B5563', bold=True)
+    texto_font = Font(color='111827')
+
+    center = Alignment(horizontal='center', vertical='center')
+    left = Alignment(horizontal='left', vertical='center')
+
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=11)
+    ws['A1'].fill = titulo_fill
+    ws['A1'].font = titulo_font
+    ws['A1'].alignment = center
+    ws.row_dimensions[1].height = 28
+
+    for cell in ws[2]:
+        cell.fill = resumen_fill
+        cell.font = resumen_font
+        cell.alignment = left
+        cell.border = Border(
+            left=borde_color,
+            right=borde_color,
+            top=borde_color,
+            bottom=borde_color
+        )
+
+    for cell in ws[4]:
+        cell.fill = encabezado_fill
+        cell.font = encabezado_font
+        cell.alignment = center
+        cell.border = Border(
+            left=borde_color,
+            right=borde_color,
+            top=borde_color,
+            bottom=borde_color
+        )
+
+    for row in ws.iter_rows(min_row=5):
+        for cell in row:
+            cell.font = texto_font
+            cell.alignment = left
+            cell.border = Border(
+                left=borde_color,
+                right=borde_color,
+                top=borde_color,
+                bottom=borde_color
+            )
+
+    for row in ws.iter_rows(min_row=5, min_col=6, max_col=7):
+        for cell in row:
+            cell.alignment = center
+
+    for cell in ws['G'][4:]:
+        cell.number_format = '"$"#,##0'
+
+    anchos = {
+        'A': 23,
+        'B': 28,
+        'C': 22,
+        'D': 16,
+        'E': 12,
+        'F': 12,
+        'G': 16,
+        'H': 22,
+        'I': 20,
+        'J': 28,
+        'K': 30,
+    }
+
+    for columna, ancho in anchos.items():
+        ws.column_dimensions[columna].width = ancho
+
+    ws.freeze_panes = 'A5'
+    ws.auto_filter.ref = f'A4:K{ws.max_row}'
+
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
+    wb.save(response)
+
+    return response
+
+
 def _render_historial_vacio(request, es_admin):
     """Renderiza el historial vacío cuando no hay formulario Ventas."""
     return render(request, 'ventas/historial_ventas.html', {
@@ -787,3 +1059,49 @@ def editar_cliente(request, cliente_id):
         'es_admin': es_administrador(request.user),
         'rol_usuario': rol_usuario(request.user),
     })
+
+
+# ======================================================================
+# VISTA: CAMBIAR ESTADO CLIENTE (DINÁMICO)
+# ======================================================================
+
+
+@login_required(login_url='login')
+@admin_required
+def cambiar_estado_cliente(request, cliente_id):
+    """
+    Cambia el estado activo/inactivo de un cliente.
+
+    Lee el valor actual del campo 'activo' del formulario Clientes,
+    lo alterna entre 'Sí' y 'No' usando DS.actualizar().
+
+    Args:
+        cliente_id: ID del Registro del formulario Clientes.
+    """
+    try:
+        form = DS.obtener_formulario(FORM_CLIENTES)
+        registro = get_object_or_404(
+            Registro.objects.filter(formulario=form),
+            id=cliente_id
+        )
+    except Exception:
+        messages.error(request, 'Cliente no encontrado.')
+        return redirect('clientes')
+
+    if request.method == 'POST':
+        valores_actuales = DS.obtener_valores(registro)
+        activo_actual = valores_actuales.get('activo', 'Sí')
+        nuevo_activo = 'No' if activo_actual == 'Sí' else 'Sí'
+
+        try:
+            DS.actualizar(registro, {'activo': nuevo_activo}, usuario=request.user)
+
+            if nuevo_activo == 'Sí':
+                messages.success(request, 'Cliente activado correctamente.')
+            else:
+                messages.success(request, 'Cliente desactivado correctamente.')
+        except Exception as e:
+            logger.exception(f'Error cambiando estado del cliente #{cliente_id}: {e}')
+            messages.error(request, f'No se pudo cambiar el estado del cliente: {e}')
+
+    return redirect('clientes')

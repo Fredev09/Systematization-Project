@@ -16,13 +16,14 @@ from apps.legacy.productos.views_dynamic import (
 )
 from apps.legacy.productos import views as productos_views
 from apps.legacy.ventas.views_dynamic import (
+    cambiar_estado_cliente,
     clientes,
     detalle_cliente,
     editar_cliente,
+    exportar_ventas,
     historial_ventas,
     nueva_venta,
 )
-from apps.legacy.ventas import views as ventas_views
 from . import views
 
 urlpatterns = [
@@ -48,10 +49,10 @@ urlpatterns = [
     path('venta/historial/', historial_ventas, name='historial_ventas'),
     path('venta/clientes/<int:cliente_id>/', detalle_cliente, name='detalle_cliente'),
     # Ventas — vistas legacy (pendientes de migrar)
-    path('venta/exportar/', ventas_views.exportar_ventas, name='exportar_ventas'),
+    path('venta/exportar/', exportar_ventas, name='exportar_ventas'),
     path('venta/clientes/', clientes, name='clientes'),
     path('venta/clientes/<int:cliente_id>/editar/', editar_cliente, name='editar_cliente'),
-    path('venta/clientes/<int:cliente_id>/estado/', ventas_views.cambiar_estado_cliente, name='cambiar_estado_cliente'),
+    path('venta/clientes/<int:cliente_id>/estado/', cambiar_estado_cliente, name='cambiar_estado_cliente'),
     # Otros módulos
     path('configuracion/', include('apps.shared.configuracion.urls')),
     path('', include('apps.shared.usuarios.urls')),
