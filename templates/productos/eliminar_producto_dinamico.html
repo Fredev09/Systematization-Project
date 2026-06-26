@@ -1,0 +1,75 @@
+{% extends 'base/form_base.html' %}
+{% load static %}
+
+{% block titulo %}Eliminar producto (dinámico) | {{ configuracion_tienda.nombre_tienda|default:'Tonjeo' }}{% endblock %}
+
+{% block contenido %}
+
+<section class="page-header form-page-header">
+    <header>
+        <p>Catálogo</p>
+        <h1>Eliminar producto</h1>
+        <span>Confirma si deseas eliminar este producto del catálogo</span>
+    </header>
+
+    <nav class="header-actions">
+        <a href="{% url 'productos' %}" class="btn-outline-secondary">
+            <i class='fas fa-arrow-left'></i>
+            Volver
+        </a>
+    </nav>
+</section>
+
+{% if error %}
+<div class="alert alert-danger">
+    <i class='fas fa-exclamation-circle'></i>
+    <span>{{ error }}</span>
+</div>
+{% endif %}
+
+<section class="panel-card border-danger-soft">
+    <header class="panel-header bg-danger-soft">
+        <section>
+            <h2 class="text-danger">
+                <i class='fas fa-exclamation-triangle'></i> Confirmar eliminación
+            </h2>
+            <p>Esta acción no se puede deshacer</p>
+        </section>
+        <span class="badge badge-danger">Peligro</span>
+    </header>
+
+    <div class="card-body">
+        <div class="alert alert-danger">
+            <i class='fas fa-info-circle'></i>
+            Vas a eliminar <strong>{{ producto.nombre }}</strong>. Esta acción no se puede deshacer.
+        </div>
+
+        <form method="POST" class="confirm-form"
+              data-confirm-title="¿Eliminar producto?"
+              data-confirm-text="Esta acción no se puede deshacer."
+              data-confirm-icon="warning"
+              data-confirm-button="Sí, eliminar"
+              data-loading-text="Eliminando...">
+            {% csrf_token %}
+
+            <label class="form-check config-check mb-4">
+                <input type="checkbox" name="confirmar" value="si">
+                <span>
+                    <strong>Entiendo que esta acción no se puede deshacer.</strong>
+                </span>
+            </label>
+
+            <section class="form-actions">
+                <a href="{% url 'productos' %}" class="btn-cancel">
+                    Cancelar
+                </a>
+                <button type="submit" class="btn-delete">
+                    <i class='fas fa-trash'></i>
+                    Eliminar producto
+                </button>
+            </section>
+        </form>
+    </div>
+</section>
+
+{% endblock %}

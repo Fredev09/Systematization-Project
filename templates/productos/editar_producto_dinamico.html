@@ -1,0 +1,209 @@
+{% extends 'base/form_base.html' %}
+{% load static %}
+{% load dynamic_forms_extras %}
+
+{% block titulo %}Editar producto (dinámico) | {{ configuracion_tienda.nombre_tienda|default:'Tonjeo' }}{% endblock %}
+
+{% block estilos %}
+<link rel="stylesheet" href="{% static 'css/productos/agregar_producto.css' %}">
+{% endblock %}
+
+{% block contenido %}
+
+<section class="page-header form-page-header">
+    <header>
+        <p>Catálogo</p>
+        <h1>Editar producto</h1>
+        <span>Actualiza la información del producto #{{ registro.id }}</span>
+    </header>
+
+    <nav class="header-actions">
+        <a href="{% url 'productos' %}" class="btn-outline-secondary">
+            <i class='fas fa-arrow-left'></i>
+            Volver
+        </a>
+    </nav>
+</section>
+
+{% if errores %}
+<div class="alert alert-danger">
+    <i class='fas fa-exclamation-circle'></i>
+    <strong>Errores:</strong>
+    <ul class="mb-0 mt-1">
+        {% for error in errores %}
+        <li>{{ error }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<form method="POST" enctype="multipart/form-data" class="product-form confirm-form"
+      data-confirm-title="¿Guardar cambios?"
+      data-confirm-text="Se actualizará la información del producto."
+      data-confirm-icon="question"
+      data-confirm-button="Sí, guardar"
+      data-loading-text="Guardando...">
+    {% csrf_token %}
+
+    {% for campo in campos %}
+    <div class="mb-3 form-field">
+        <label class="form-label">
+            {{ campo.nombre }}
+            {% if campo.obligatorio %}<span class="text-danger">*</span>{% endif %}
+        </label>
+
+        {% if campo.tipo == 'texto' %}
+        <section class="input-icon">
+            {% if campo.nombre == 'nombre' %}<i class='fas fa-box'></i>
+            {% elif campo.nombre == 'color' %}<i class='fas fa-palette'></i>
+            {% elif campo.nombre == 'sku' %}<i class='fas fa-barcode'></i>{% endif %}
+            <input type="text"
+                   name="campo_{{ campo.id }}"
+                   class="form-control"
+                   placeholder="{{ campo.nombre }}"
+                   value="{{ valores_previos|dict_key:campo.id|default:'' }}"
+                   {% if campo.obligatorio %}required{% endif %}>
+        </section>
+
+        {% elif campo.tipo == 'numero' %}
+        <section class="input-icon">
+            {% if campo.nombre == 'precio' %}<i class='fas fa-dollar-sign'></i>
+            {% elif campo.nombre == 'stock' or campo.nombre == 'stock_minimo' %}<i class='fas fa-layer-group'></i>{% endif %}
+            <input type="number"
+                   name="campo_{{ campo.id }}"
+                   class="form-control"
+                   placeholder="0"
+                   step="any"
+                   min="0"
+                   value="{{ valores_previos|dict_key:campo.id|default:'' }}"
+                   {% if campo.obligatorio %}required{% endif %}>
+        </section>
+
+        {% elif campo.tipo == 'textarea' %}
+        <textarea name="campo_{{ campo.id }}"
+                  class="form-control"
+                  rows="4"
+                  placeholder="{{ campo.nombre }}"
+                  {% if campo.obligatorio %}required{% endif %}>{{ valores_previos|dict_key:campo.id|default:'' }}</textarea>
+
+        {% elif campo.tipo == 'lista' %}
+        <select name="campo_{{ campo.id }}"
+                class="form-select"
+                {% if campo.obligatorio %}required{% endif %}>
+            <option value="">-- Selecciona --</option>
+            {% for opcion in campo.opciones %}
+            <option value="{{ opcion }}" {% if valores_previos|dict_key:campo.id == opcion %}selected{% endif %}>
+                {{ opcion }}
+            </option>
+            {% endfor %}
+        </select>
+
+        {% elif campo.tipo == 'url' %}
+        <section class="input-icon">
+            <i class='fas fa-link'></i>
+            <input type="url"
+                   name="campo_{{ campo.id }}"
+                   class="form-control"
+                   placeholder="https://ejemplo.com/imagen.jpg"
+                   value="{{ valores_previos|dict_key:campo.id|default:'' }}"
+                   {% if campo.obligatorio %}required{% endif %}>
+        </section>
+
+        {% elif campo.tipo == 'imagen' %}
+        <section class="input-icon">
+            <i class='fas fa-image'></i>
+            <input type="file"
+                   name="campo_{{ campo.id }}"
+                   class="form-control"
+                   accept="image/*"
+                   data-preview-target="preview-{{ campo.id }}"
+                   {% if campo.obligatorio and not imagenes_actuales|dict_key:campo.id %}required{% endif %}>
+        </section>
+        <div class="image-preview-box" id="preview-{{ campo.id }}">
+            {% if imagenes_actuales|dict_key:campo.id %}
+            <img src="{{ imagenes_actuales|dict_key:campo.id }}" alt="Imagen actual">
+            <section class="image-preview-empty-icon" style="display: none;">
+                <i class='fas fa-box'></i>
+            </section>
+            <p style="display: none;">Sin imagen. El producto se mostrará con icono.</p>
+            {% else %}
+            <section class="image-preview-empty-icon">
+                <i class='fas fa-box'></i>
+            </section>
+            <p>Sin imagen. El producto se mostrará con icono.</p>
+            {% endif %}
+        </div>
+
+        {% elif campo.tipo == 'booleano' %}
+        <div class="form-check mt-2">
+            <input type="checkbox"
+                   name="campo_{{ campo.id }}"
+                   class="form-check-input"
+                   id="campo_{{ campo.id }}"
+                   {% if valores_previos|dict_key:campo.id == 'Sí' %}checked{% endif %}>
+            <label class="form-check-label" for="campo_{{ campo.id }}">Sí</label>
+        </div>
+
+        {% elif campo.tipo == 'calculado' %}
+        <div class="df-calculado-display">
+            <input type="text" class="form-control" value="{{ valores_previos|dict_key:campo.id|default:'Se calcula automáticamente' }}" disabled>
+            <small class="text-muted">Fórmula: {{ campo.formula }}</small>
+        </div>
+
+        {% else %}
+        <input type="text"
+               name="campo_{{ campo.id }}"
+               class="form-control"
+               placeholder="{{ campo.nombre }}"
+               value="{{ valores_previos|dict_key:campo.id|default:'' }}"
+               {% if campo.obligatorio %}required{% endif %}>
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    <div class="form-actions">
+        <a href="{% url 'productos' %}" class="btn-cancel">
+            Cancelar
+        </a>
+        <button type="submit" class="btn-save">
+            <i class='fas fa-save'></i>
+            Guardar cambios
+        </button>
+    </div>
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    // Image preview for file inputs (reemplaza preview al seleccionar nuevo archivo)
+    document.querySelectorAll('input[type="file"][data-preview-target]').forEach(function(input) {
+        input.addEventListener('change', function(e) {
+            var preview = document.getElementById(this.dataset.previewTarget);
+            if (!preview) return;
+            // Ocultar imagen actual e icono empty
+            var existingImg = preview.querySelector('img');
+            var icon = preview.querySelector('.image-preview-empty-icon');
+            var txt = preview.querySelector('p');
+            if (this.files && this.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function(ev) {
+                    if (!existingImg) {
+                        existingImg = document.createElement('img');
+                        existingImg.alt = 'Vista previa';
+                        preview.prepend(existingImg);
+                    }
+                    existingImg.src = ev.target.result;
+                    existingImg.style.display = 'block';
+                    preview.classList.add('has-image');
+                    if (icon) icon.style.display = 'none';
+                    if (txt) txt.style.display = 'none';
+                };
+                reader.readAsDataURL(this.files[0]);
+            }
+        });
+    });
+})();
+</script>
+{% endblock %}

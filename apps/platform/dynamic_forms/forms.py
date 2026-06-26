@@ -75,3 +75,8 @@ class CampoFormSetBase(forms.BaseFormSet):
                         f'El campo "{nombre}" está repetido.'
                     )
                 nombres.append(nombre)
+
+
+class RegistroEditForm(forms.Form):
+    """Formulario dinámico para editar registros existentes."""
+    pass  # Los campos se agregan dinámicamente en la vista

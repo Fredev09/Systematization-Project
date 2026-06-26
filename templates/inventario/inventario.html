@@ -1,6 +1,7 @@
 {% extends 'base/base.html' %}
 {% load static %}
 {% load formatos %}
+{% load dynamic_forms_extras %}
 
 {% block titulo %}Inventario | {{ configuracion_tienda.nombre_tienda|default:'Tonjeo' }}{% endblock %}
 
@@ -148,12 +149,11 @@
                     <section class="product-text">
                         <strong>{{ producto.nombre }}</strong>
                         <small>
-                            {% if producto.categoria %}
-                                {{ producto.categoria.nombre }}
-                            {% else %}
-                                Sin categoría
-                            {% endif %}
-                            · {{ producto.color }} · Talla {{ producto.talla }}
+                            {% for campo in campos_producto %}
+                                {% if campo.tipo not in 'imagen,archivo' and campo.nombre not in 'id,nombre,precio,stock,imagen,imagen_url,foto,descripcion_larga,observaciones,creado,actualizado,usuario,descripcion,stock_minimo' %}
+                                    {{ producto.valores|dict_key:campo.nombre|default:"-" }}{% if not forloop.last %} · {% endif %}
+                                {% endif %}
+                            {% endfor %}
                         </small>
                     </section>
                 </section>
@@ -283,11 +283,7 @@
                                 <section class="product-text">
                                     <strong>{{ movimiento.producto.nombre }}</strong>
                                     <small>
-                                        {% if movimiento.producto.categoria %}
-                                            {{ movimiento.producto.categoria.nombre }}
-                                        {% else %}
-                                            Sin categoría
-                                        {% endif %}
+                                        {{ movimiento.producto.valores|dict_key:"categoria"|default:"-" }}
                                     </small>
                                 </section>
                             </section>
@@ -382,23 +378,24 @@
                 type="text"
                 name="q"
                 value="{{ query }}"
-                placeholder="Buscar por nombre, talla o color..."
+                placeholder="Buscar productos..."
             >
         </section>
 
-        <section class="filter-group">
-            <select name="categoria">
-                <option value="">Todas las categorías</option>
-
-                {% for categoria in categorias %}
-                    {% with categoria_id_text=categoria.id|stringformat:"s" %}
-                        <option value="{{ categoria.id }}" {% if categoria_id == categoria_id_text %}selected{% endif %}>
-                            {{ categoria.nombre }}
+        {% for campo in campos_producto %}
+            {% if campo.tipo == 'lista' and campo.nombre not in 'id,nombre,precio,stock,imagen,imagen_url,foto,descripcion_larga,observaciones,creado,actualizado,usuario,descripcion,stock_minimo' %}
+            <section class="filter-group">
+                <select name="{{ campo.nombre }}">
+                    <option value="">Todas</option>
+                    {% for opcion in campo.opciones %}
+                        <option value="{{ opcion }}" {% if request.GET|dict_key:campo.nombre == opcion %}selected{% endif %}>
+                            {{ opcion }}
                         </option>
-                    {% endwith %}
-                {% endfor %}
-            </select>
-        </section>
+                    {% endfor %}
+                </select>
+            </section>
+            {% endif %}
+        {% endfor %}
 
         <section class="filter-group">
             <select name="stock">
@@ -442,9 +439,11 @@
                 <thead>
                     <tr>
                         <th>Producto</th>
-                        <th>Categoría</th>
-                        <th>Talla</th>
-                        <th>Color</th>
+                        {% for campo in campos_producto %}
+                            {% if campo.tipo not in 'imagen,archivo' and campo.nombre not in 'id,nombre,precio,stock,imagen,imagen_url,foto,descripcion_larga,observaciones,creado,actualizado,usuario,descripcion,stock_minimo' %}
+                            <th>{{ campo.nombre|capfirst }}</th>
+                            {% endif %}
+                        {% endfor %}
                         <th>Valor stock</th>
                         <th class="stock-column">Stock</th>
                         <th class="actions-column">Acciones</th>
@@ -483,25 +482,13 @@
                             </section>
                         </td>
 
-                        <td>
-                            {% if producto.categoria %}
-                                {{ producto.categoria.nombre }}
-                            {% else %}
-                                Sin categoría
+                        {% for campo in campos_producto %}
+                            {% if campo.tipo not in 'imagen,archivo' and campo.nombre not in 'id,nombre,precio,stock,imagen,imagen_url,foto,descripcion_larga,observaciones,creado,actualizado,usuario,descripcion,stock_minimo' %}
+                            <td>
+                                {{ producto.valores|dict_key:campo.nombre|default:"-" }}
+                            </td>
                             {% endif %}
-                        </td>
-
-                        <td>
-                            <span class="product-pill">
-                                {{ producto.talla }}
-                            </span>
-                        </td>
-
-                        <td>
-                            <span class="color-text">
-                                {{ producto.color }}
-                            </span>
-                        </td>
+                        {% endfor %}
 
                         <td class="price-cell">
                             {{ producto.valor_stock|default:"0"|formato_pesos }}
@@ -533,7 +520,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="empty-row">
+                        <td colspan="99" class="empty-row">
                             No hay productos registrados en el inventario.
                         </td>
                     </tr>

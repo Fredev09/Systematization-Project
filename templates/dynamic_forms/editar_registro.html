@@ -2,7 +2,7 @@
 {% load static %}
 {% load dynamic_forms_extras %}
 
-{% block titulo %}{{ formulario.nombre }} - {{ block.super }}{% endblock %}
+{% block titulo %}Editar registro #{{ registro.id }} - {{ formulario.nombre }} - {{ block.super }}{% endblock %}
 
 {% block estilos %}
 <link rel="stylesheet" href="{% static 'css/dynamic_forms/dynamic_forms.css' %}">
@@ -10,11 +10,11 @@
 
 {% block topbar_info %}
 <section class="topbar-icon">
-    <i class='fas fa-pencil-alt'></i>
+    <i class='fas fa-edit'></i>
 </section>
 <section>
-    <strong>{{ formulario.nombre }}</strong>
-    <span>Llenar formulario</span>
+    <strong>Editar registro #{{ registro.id }}</strong>
+    <span>{{ formulario.nombre }}</span>
 </section>
 {% endblock %}
 
@@ -23,48 +23,25 @@
 <section class="page-header">
     <header>
         <p>Formularios</p>
-        <h1>{{ formulario.nombre }}</h1>
-        {% if formulario.descripcion %}
-        <p class="df-description-text">{{ formulario.descripcion }}</p>
-        {% endif %}
+        <h1>Editar registro #{{ registro.id }}</h1>
+        <p class="df-description-text">{{ formulario.nombre }} — Creado el {{ registro.fecha_creacion|date:"d/m/Y H:i" }}</p>
     </header>
 
     <nav class="header-actions">
-        <a href="{% url 'dynamic_forms:listar_formularios' %}" class="btn btn-outline-secondary">
+        <a href="{% url 'dynamic_forms:ver_registros' formulario.id %}" class="btn btn-outline-secondary">
             <i class='fas fa-arrow-left'></i>
-            Volver
+            Volver a registros
         </a>
     </nav>
 </section>
 
-{% if formulario_inactivo %}
-<section class="df-inactive-banner">
-    <i class='fas fa-info-circle'></i>
-    <section>
-        <h4>Formulario no disponible</h4>
-        <p>El formulario "<strong>{{ formulario.nombre }}</strong>" ha sido desactivado por el administrador.</p>
-    </section>
-</section>
-
-<section class="panel-card">
-    <div class="df-empty-state">
-        <i class='fas fa-ban df-warning-icon'></i>
-        <h4>Este formulario no está disponible actualmente</h4>
-        <p>El administrador ha desactivado este formulario.</p>
-        <a href="/" class="btn btn-primary">
-            <i class='fas fa-home'></i> Ir al inicio
-        </a>
-    </div>
-</section>
-{% else %}
-
 <section class="panel-card">
     <header class="panel-header">
         <section>
-            <h2>Completa el formulario</h2>
-            <p>Los campos marcados con <span class="text-danger">*</span> son obligatorios</p>
+            <h2>{{ formulario.nombre }}</h2>
+            <p>Modifica los valores del registro. Los campos marcados con <span class="text-danger">*</span> son obligatorios</p>
         </section>
-        <span class="badge-custom">{{ campos|length }} campo(s)</span>
+        <span class="badge-custom">Registro #{{ registro.id }}</span>
     </header>
 
     <div class="card-body">
@@ -93,11 +70,13 @@
                     <small class="text-muted">({{ campo.get_tipo_display }})</small>
                 </label>
 
+                {% with valor_actual=valores_actuales|dict_key:campo.id %}
                 {% if campo.tipo == 'texto' %}
                 <input type="text"
                        name="campo_{{ campo.id }}"
                        class="form-control"
                        placeholder="{{ campo.nombre }}"
+                       value="{{ valor_actual }}"
                        {% if campo.obligatorio %}required{% endif %}>
 
                 {% elif campo.tipo == 'numero' %}
@@ -106,12 +85,14 @@
                        class="form-control"
                        placeholder="0"
                        step="any"
+                       value="{{ valor_actual }}"
                        {% if campo.obligatorio %}required{% endif %}>
 
                 {% elif campo.tipo == 'fecha' %}
                 <input type="date"
                        name="campo_{{ campo.id }}"
                        class="form-control"
+                       value="{{ valor_actual }}"
                        {% if campo.obligatorio %}required{% endif %}>
 
                 {% elif campo.tipo == 'booleano' %}
@@ -119,7 +100,8 @@
                     <input type="checkbox"
                            name="campo_{{ campo.id }}"
                            class="form-check-input"
-                           id="campo_{{ campo.id }}">
+                           id="campo_{{ campo.id }}"
+                           {% if valor_actual == 'Sí' %}checked{% endif %}>
                     <label class="form-check-label" for="campo_{{ campo.id }}">
                         Sí
                     </label>
@@ -131,7 +113,7 @@
                         {% if campo.obligatorio %}required{% endif %}>
                     <option value="">-- Selecciona --</option>
                     {% for opcion in campo.opciones %}
-                    <option value="{{ opcion }}">{{ opcion }}</option>
+                    <option value="{{ opcion }}" {% if valor_actual == opcion %}selected{% endif %}>{{ opcion }}</option>
                     {% endfor %}
                 </select>
 
@@ -140,6 +122,7 @@
                        name="campo_{{ campo.id }}"
                        class="form-control"
                        placeholder="correo@ejemplo.com"
+                       value="{{ valor_actual }}"
                        {% if campo.obligatorio %}required{% endif %}>
 
                 {% elif campo.tipo == 'url' %}
@@ -147,6 +130,7 @@
                        name="campo_{{ campo.id }}"
                        class="form-control"
                        placeholder="https://ejemplo.com"
+                       value="{{ valor_actual }}"
                        {% if campo.obligatorio %}required{% endif %}>
 
                 {% elif campo.tipo == 'telefono' %}
@@ -154,6 +138,7 @@
                        name="campo_{{ campo.id }}"
                        class="form-control"
                        placeholder="+57 300 123 4567"
+                       value="{{ valor_actual }}"
                        {% if campo.obligatorio %}required{% endif %}>
 
                 {% elif campo.tipo == 'textarea' %}
@@ -161,57 +146,77 @@
                           class="form-control"
                           rows="4"
                           placeholder="{{ campo.nombre }}"
-                          {% if campo.obligatorio %}required{% endif %}></textarea>
+                          {% if campo.obligatorio %}required{% endif %}>{{ valor_actual }}</textarea>
 
                 {% elif campo.tipo == 'imagen' %}
-                <input type="file"
-                       name="campo_{{ campo.id }}"
-                       class="form-control"
-                       accept="image/*"
-                       {% if campo.obligatorio %}required{% endif %}>
+                <div class="mb-2">
+                    {% if valor_actual %}
+                    <div class="df-file-current">
+                        <i class="fas fa-image"></i>
+                        <a href="{{ valor_actual }}" target="_blank">Ver imagen actual</a>
+                        <br>
+                        <small class="text-muted">{{ valor_actual }}</small>
+                    </div>
+                    {% endif %}
+                    <input type="file"
+                           name="campo_{{ campo.id }}"
+                           class="form-control"
+                           accept="image/*">
+                    {% if valor_actual %}
+                    <small class="text-muted">Deja vacío para mantener la imagen actual</small>
+                    {% endif %}
+                </div>
 
                 {% elif campo.tipo == 'archivo' %}
-                <input type="file"
-                       name="campo_{{ campo.id }}"
-                       class="form-control"
-                       {% if campo.obligatorio %}required{% endif %}>
+                <div class="mb-2">
+                    {% if valor_actual %}
+                    <div class="df-file-current">
+                        <i class="fas fa-file"></i>
+                        <a href="{{ valor_actual }}" target="_blank">Ver archivo actual</a>
+                        <br>
+                        <small class="text-muted">{{ valor_actual }}</small>
+                    </div>
+                    {% endif %}
+                    <input type="file"
+                           name="campo_{{ campo.id }}"
+                           class="form-control">
+                    {% if valor_actual %}
+                    <small class="text-muted">Deja vacío para mantener el archivo actual</small>
+                    {% endif %}
+                </div>
 
                 {% elif campo.tipo == 'relacion' %}
                 <select name="campo_{{ campo.id }}"
                         class="form-select"
                         {% if campo.obligatorio %}required{% endif %}>
                     <option value="">-- Selecciona --</option>
-                    {% with opciones=opciones_relacion|dict_key:campo.id %}
-                    {% if opciones %}
-                    {% for opt_id, opt_label in opciones %}
-                    <option value="{{ opt_id }}">{{ opt_label }}</option>
+                    {% for opt_id, opt_label in opciones_relacion|dict_key:campo.id|default:'' %}
+                    <option value="{{ opt_id }}" {% if valor_actual == opt_id|slugify %}selected{% endif %}>{{ opt_label }}</option>
                     {% endfor %}
-                    {% endif %}
-                    {% endwith %}
                 </select>
 
                 {% elif campo.tipo == 'calculado' %}
                 <div class="df-calculado-display">
                     <input type="text"
                            class="form-control"
-                           value="{{ campo.formula|default:'' }}"
+                           value="{{ valor_actual }}"
                            disabled
                            placeholder="Se calcula automáticamente">
-                    <small class="text-muted">Valor calculado: {{ campo.formula }}</small>
+                    <small class="text-muted">Fórmula: {{ campo.formula }}</small>
                 </div>
                 {% endif %}
+                {% endwith %}
             </div>
             {% endfor %}
 
             <div class="df-submit-area">
-                <a href="{% url 'dynamic_forms:listar_formularios' %}" class="btn btn-outline-secondary">Cancelar</a>
+                <a href="{% url 'dynamic_forms:ver_registros' formulario.id %}" class="btn btn-outline-secondary">Cancelar</a>
                 <button type="submit" class="btn btn-primary">
-                    <i class='fas fa-check'></i> Guardar registro
+                    <i class='fas fa-save'></i> Guardar cambios
                 </button>
             </div>
         </form>
     </div>
 </section>
-{% endif %}
 
 {% endblock %}

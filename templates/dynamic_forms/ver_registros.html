@@ -45,12 +45,13 @@
         <table class="df-table table-stagger">
             <thead>
                 <tr>
-                    <th>#</th>
-                    <th>Fecha</th>
-                    {% for campo in campos %}
-                    <th>{{ campo.nombre }}</th>
-                    {% endfor %}
-                    <th>Usuario</th>
+            <th>#</th>
+            <th>Fecha</th>
+            {% for campo in campos %}
+            <th>{{ campo.nombre }}</th>
+            {% endfor %}
+            <th>Usuario</th>
+            <th>Acciones</th>
                 </tr>
             </thead>
             <tbody>
@@ -68,6 +69,11 @@
                     </td>
                     {% endfor %}
                     <td>{{ registro.usuario.username|default:'' }}</td>
+                    <td class="text-nowrap">
+                        <a href="{% url 'dynamic_forms:editar_registro' formulario.id registro.id %}" class="btn btn-sm btn-outline-primary" title="Editar registro">
+                            <i class='fas fa-edit'></i>
+                        </a>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>

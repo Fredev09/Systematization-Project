@@ -1,6 +1,7 @@
 {% extends 'base/base.html' %}
 {% load static %}
 {% load formatos %}
+{% load dynamic_forms_extras %}
 
 {% block titulo %}Productos | {{ configuracion_tienda.nombre_tienda|default:'Tonjeo' }}{% endblock %}
 
@@ -147,9 +148,11 @@
                 <thead>
                     <tr>
                         <th>Producto</th>
-                        <th>Categoría</th>
-                        <th>Talla</th>
-                        <th>Color</th>
+                        {% for campo in campos_producto %}
+                            {% if campo.tipo not in 'imagen,archivo' and campo.nombre not in 'id,nombre,precio,stock,imagen,imagen_url,foto,descripcion_larga,observaciones,creado,actualizado,usuario,descripcion,stock_minimo' %}
+                            <th>{{ campo.nombre|capfirst }}</th>
+                            {% endif %}
+                        {% endfor %}
                         <th>Precio</th>
                         <th class="stock-column">Stock</th>
                         <th class="actions-column">Acciones</th>
@@ -186,25 +189,13 @@
                             </section>
                         </td>
 
-                        <td>
-                            {% if producto.categoria %}
-                                {{ producto.categoria.nombre }}
-                            {% else %}
-                                Sin categoría
+                        {% for campo in campos_producto %}
+                            {% if campo.tipo not in 'imagen,archivo' and campo.nombre not in 'id,nombre,precio,stock,imagen,imagen_url,foto,descripcion_larga,observaciones,creado,actualizado,usuario,descripcion,stock_minimo' %}
+                            <td>
+                                {{ producto.valores|dict_key:campo.nombre|default:"-" }}
+                            </td>
                             {% endif %}
-                        </td>
-
-                        <td>
-                            <span class="product-pill">
-                                {{ producto.talla }}
-                            </span>
-                        </td>
-
-                        <td>
-                            <span class="color-text">
-                                {{ producto.color }}
-                            </span>
-                        </td>
+                        {% endfor %}
 
                         <td class="price-cell">
                             {{ producto.precio|formato_pesos }}
@@ -240,7 +231,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="empty-row">
+                        <td colspan="99" class="empty-row">
                             No hay productos registrados.
                         </td>
                     </tr>

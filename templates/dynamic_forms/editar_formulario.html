@@ -93,6 +93,12 @@
                             <option value="fecha" {% if campo.tipo == 'fecha' %}selected{% endif %}>Fecha</option>
                             <option value="booleano" {% if campo.tipo == 'booleano' %}selected{% endif %}>Booleano</option>
                             <option value="lista" {% if campo.tipo == 'lista' %}selected{% endif %}>Lista desplegable</option>
+                            <option value="email" {% if campo.tipo == 'email' %}selected{% endif %}>Correo electrónico</option>
+                            <option value="url" {% if campo.tipo == 'url' %}selected{% endif %}>URL</option>
+                            <option value="telefono" {% if campo.tipo == 'telefono' %}selected{% endif %}>Teléfono</option>
+                            <option value="textarea" {% if campo.tipo == 'textarea' %}selected{% endif %}>Texto largo</option>
+                            <option value="imagen" {% if campo.tipo == 'imagen' %}selected{% endif %}>Imagen</option>
+                            <option value="archivo" {% if campo.tipo == 'archivo' %}selected{% endif %}>Archivo</option>
                         </select>
                     </div>
                     <div class="col-6 col-md-2">
@@ -193,8 +199,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     <option value="numero">Número</option>
                     <option value="fecha">Fecha</option>
                     <option value="booleano">Booleano</option>
-                    <option value="lista">Lista desplegable</option>
-                </select>
+                    <option value="lista">Lista desplegable</option>                            <option value="email">Correo electrónico</option>
+                            <option value="url">URL</option>
+                            <option value="telefono">Teléfono</option>
+                            <option value="textarea">Texto largo</option>
+                            <option value="imagen">Imagen</option>
+                            <option value="archivo">Archivo</option>
+                            <option value="relacion">Relación</option>
+                            <option value="calculado">Calculado</option>
+                        </select>
             </div>
             <div class="col-6 col-md-2">
                 <div class="form-check mt-2">
@@ -207,6 +220,17 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
             <div class="col-10 col-md-2 campo-opciones-container" style="display:none;">
                 <input type="text" name="campo_opciones" class="form-control form-control-sm" placeholder="Op1, Op2, Op3">
+            </div>
+            <div class="col-10 col-md-2 campo-relacion-container" style="display:none;">
+                <select name="campo_formulario_destino" class="form-select form-select-sm">
+                    <option value="">-- Selecciona formulario --</option>
+                    {% for f in formularios_disponibles %}
+                    <option value="{{ f.id }}">{{ f.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-10 col-md-2 campo-formula-container" style="display:none;">
+                <input type="text" name="campo_formula" class="form-control form-control-sm" placeholder="Ej: cantidad * precio">
             </div>
             <div class="col-2 col-md-1 d-flex align-items-center">
                 <button type="button" class="action-btn danger-btn eliminar-campo" title="Eliminar campo">

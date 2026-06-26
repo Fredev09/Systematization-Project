@@ -5,6 +5,7 @@ from .models import Campo, Formulario, Registro, ValorCampo
 
 class CampoInline(admin.TabularInline):
     model = Campo
+    fk_name = 'formulario'
     extra = 1
 
 
@@ -32,7 +33,7 @@ class FormularioAdmin(admin.ModelAdmin):
 
 @admin.register(Campo)
 class CampoAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'formulario', 'tipo', 'obligatorio', 'orden')
+    list_display = ('nombre', 'formulario', 'tipo', 'obligatorio', 'orden', 'formula')
     list_filter = ('tipo', 'obligatorio', 'formulario')
     search_fields = ('nombre',)
 

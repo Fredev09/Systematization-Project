@@ -1,6 +1,7 @@
 {% extends 'base/base.html' %}
 {% load static %}
 {% load formatos %}
+{% load dynamic_forms_extras %}
 
 {% block titulo %}Historial de inventario | {{ configuracion_tienda.nombre_tienda|default:'Tonjeo' }}{% endblock %}
 
@@ -227,11 +228,7 @@
                                 <section class="product-text">
                                     <strong>{{ movimiento.producto.nombre }}</strong>
                                     <small>
-                                        {% if movimiento.producto.categoria %}
-                                            {{ movimiento.producto.categoria.nombre }}
-                                        {% else %}
-                                            Sin categoría
-                                        {% endif %}
+                                        {{ movimiento.producto.valores|dict_key:"categoria"|default:"-" }}
                                     </small>
                                 </section>
                             </section>

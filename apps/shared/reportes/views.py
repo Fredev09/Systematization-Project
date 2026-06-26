@@ -18,7 +18,11 @@ from reportlab.lib.units import inch
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from config.permissions import GRUPO_ADMINISTRADOR, admin_required, es_administrador, rol_usuario
-from apps.legacy.productos.models import Categoria, MovimientoInventario, Producto
+from apps.legacy.productos.models import Categoria, Producto
+from apps.legacy.productos.views_dynamic import _movimientos_recientes_dinamicos, _stock_stats_completo
+from apps.legacy.productos.wrappers import DynamicProductWrapper
+from apps.platform.dynamic_forms.models import Registro
+from apps.platform.dynamic_forms.services_dynamic import DynamicService as DS
 from apps.legacy.ventas.models import Cliente, Venta
 
 
@@ -911,17 +915,19 @@ def exportar_reporte_ventas_pdf(request):
 @login_required(login_url='login')
 @admin_required
 def exportar_reporte_inventario_pdf(request):
-    datos = obtener_datos_reportes(request)
+    filtros = obtener_filtros_reportes(request)
     estilos = crear_estilos_pdf()
     elementos = []
 
-    agregar_encabezado_pdf(elementos, estilos, 'Reporte de inventario - Tonjeo', request, datos['filtros'])
+    agregar_encabezado_pdf(elementos, estilos, 'Reporte de inventario - Tonjeo', request, filtros)
 
-    productos = Producto.objects.select_related('categoria').all().order_by('nombre')
-    total_productos = productos.count()
-    productos_sin_stock = productos.filter(stock=0).count()
-    productos_stock_critico = productos.filter(stock__lte=5).count()
-    valor_inventario = sum((producto.precio or 0) * producto.stock for producto in productos)
+    # -- Resumen con estadísticas desde Dynamic Forms --
+    stats = _stock_stats_completo(stock_minimo=5)
+    total_productos = stats['total_productos']
+    productos_sin_stock = stats['sin_stock']
+    # El legacy usa stock__lte=5 (incluye 0): sin_stock + stock_bajo = stock_critico
+    productos_stock_critico = stats['sin_stock'] + stats['stock_bajo']
+    valor_inventario = stats['valor_total']
 
     elementos.append(Paragraph('Resumen de inventario', estilos['subtitulo']))
 
@@ -936,22 +942,29 @@ def exportar_reporte_inventario_pdf(request):
     elementos.append(tabla_pdf(resumen, [3.2 * inch, 4.8 * inch]))
     elementos.append(Spacer(1, 12))
 
+    # -- Inventario actual: productos desde Dynamic Forms --
     elementos.append(Paragraph('Inventario actual', estilos['subtitulo']))
+
+    formulario = DS.obtener_formulario('Productos')
+    registros = list(Registro.objects.filter(formulario=formulario))
+    valores_map = DS.cargar_valores_mapa(registros)
+    productos = [
+        DynamicProductWrapper(r, valores_map.get(r.id, {}))
+        for r in registros
+    ]
+    productos.sort(key=lambda p: p.nombre.lower())
 
     tabla_productos = [['Producto', 'Categoría', 'Color', 'Talla', 'Precio', 'Stock', 'Valor stock']]
 
     for producto in productos[:140]:
-        categoria = producto.categoria.nombre if producto.categoria else 'Sin categoría'
-        valor_stock = (producto.precio or 0) * producto.stock
-
         tabla_productos.append([
             producto.nombre,
-            categoria,
+            producto.categoria_nombre or 'Sin categoría',
             producto.color or '',
             producto.talla or '',
             formato_pesos_pdf(producto.precio),
             producto.stock,
-            formato_pesos_pdf(valor_stock),
+            formato_pesos_pdf(producto.valor_stock),
         ])
 
     if len(tabla_productos) == 1:
@@ -963,17 +976,15 @@ def exportar_reporte_inventario_pdf(request):
     ))
     elementos.append(Spacer(1, 12))
 
+    # -- Movimientos recientes desde Dynamic Forms --
     elementos.append(Paragraph('Movimientos recientes de inventario', estilos['subtitulo']))
 
-    movimientos = MovimientoInventario.objects.select_related(
-        'producto',
-        'producto__categoria'
-    ).order_by('-fecha')[:60]
+    movimientos = _movimientos_recientes_dinamicos(limite=60)
 
     tabla_movimientos = [['Fecha', 'Producto', 'Tipo', 'Cantidad', 'Stock antes', 'Stock nuevo', 'Motivo']]
 
     for movimiento in movimientos:
-        fecha = timezone.localtime(movimiento.fecha).strftime('%d/%m/%Y %I:%M %p')
+        fecha = timezone.localtime(movimiento.fecha).strftime('%d/%m/%Y %I:%M %p') if movimiento.fecha else ''
 
         tabla_movimientos.append([
             fecha,

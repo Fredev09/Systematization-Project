@@ -1,10 +1,57 @@
+import re
+
 from django.http import HttpResponse
 from django.utils import timezone
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
 
-def exportar_registros_excel(registros, campos, formulario_nombre):
+# ---------------------------------------------------------------------------
+# Evaluación de fórmulas para campos calculados
+# (movido aquí desde views.py para evitar dependencia service → view)
+# ---------------------------------------------------------------------------
+
+
+def _evaluar_formula(formula, valores_por_nombre):
+    """Evalúa una fórmula matemática usando valores de campos del mismo formulario.
+    Soporta: +, -, *, /, (, )
+    Ejemplos: cantidad * precio_unitario, subtotal - descuento
+    Los valores se pasan como dict {nombre_campo: valor_string}.
+    """
+    if not formula:
+        return ''
+
+    expr = formula.strip()
+
+    # Reemplazar nombres de campo por sus valores numéricos
+    for nombre, valor in valores_por_nombre.items():
+        try:
+            num_val = float(str(valor).replace(',', '.'))
+        except (ValueError, TypeError):
+            num_val = 0
+        # Reemplazar palabra completa (no parcial)
+        expr = re.sub(r'(?<![\w\d])' + re.escape(nombre) + r'(?![\w\d])',
+                      str(num_val), expr)
+
+    # Validar que solo queden números, operadores y paréntesis
+    expr_limpia = expr.replace(' ', '')
+    if not re.match(r'^[\d\+\-\*\/\(\)\.]+$', expr_limpia):
+        return 'Error: fórmula inválida'
+
+    try:
+        resultado = eval(expr_limpia, {'__builtins__': {}}, {})
+        if isinstance(resultado, (int, float)):
+            redondeado = round(resultado, 2)
+            # Si es un número entero, mostrarlo sin decimales
+            if isinstance(redondeado, float) and redondeado == int(redondeado):
+                return str(int(redondeado))
+            return str(redondeado)
+        return str(resultado)
+    except Exception:
+        return 'Error al calcular'
+
+
+def exportar_registros_excel(registros, campos, formulario_nombre, relacion_resolver=None):
     """
     Genera un archivo Excel con los registros de un formulario dinámico.
 
@@ -12,6 +59,8 @@ def exportar_registros_excel(registros, campos, formulario_nombre):
         registros: QuerySet de Registro
         campos: QuerySet de Campo ordenados
         formulario_nombre: Nombre del formulario para el título
+        relacion_resolver: Función opcional para resolver campos tipo 'relacion'
+                          (campos, valores_map) -> {registro_id: display_text}
 
     Returns:
         HttpResponse con el archivo Excel
@@ -60,6 +109,19 @@ def exportar_registros_excel(registros, campos, formulario_nombre):
         if vc.registro_id not in valores_map:
             valores_map[vc.registro_id] = {}
         valores_map[vc.registro_id][vc.campo_id] = vc.valor
+
+    # Resolver campos tipo 'relacion' si hay resolver
+    if relacion_resolver:
+        relacion_resuelto = relacion_resolver(campos, valores_map)
+        for reg_id, vals in valores_map.items():
+            for campo in campos:
+                if campo.tipo == 'relacion':
+                    raw = vals.get(campo.id, '')
+                    if raw and raw.isdigit():
+                        ref_id = int(raw)
+                        display = relacion_resuelto.get(ref_id)
+                        if display:
+                            vals[campo.id] = display
 
     # Datos
     campos_ids = [c.id for c in campos]
