@@ -26,21 +26,28 @@ These modules use Dynamic Forms for their primary data operations:
 | **Products — Categories** | Category management migrado a opciones dinámicas del campo `categoria` (tipo lista) en el formulario Productos. Vistas `agregar_categoria` y `crear_categoria` migradas a `views_dynamic.py`. Modelo `Categoria` legacy ya no tiene vistas activas. |
 | **Clients — State toggle** | `cambiar_estado_cliente` uses dynamic views but relies on the `activo` field convention (`'Sí'` / `'No'`) as a string. |
 
-## Legacy Modules
-
-These modules exist as Django models but are **not actively used** by the main URL configuration. All functional routes point to `views_dynamic.py` equivalents:
+## Removed Modules (eliminated in Fase 3)
 
 | Module | Files | Purpose |
 |--------|-------|---------|
-| `apps.legacy.productos.models.Producto` | `apps/legacy/productos/models.py:11-39` | Legacy product model (FK from MovimientoInventario + Venta) |
+| `apps.legacy.ventas.models.Venta` | Eliminado | Legacy sales model — table `ventas_venta` dropped (migration 0009) |
+| `apps.legacy.ventas.models.Cliente` | Eliminado | Legacy client model — table `ventas_cliente` dropped (migration 0009) |
+| `apps.legacy.ventas.admin` | Eliminado | VentaAdmin + ClienteAdmin |
+| `apps.legacy.ventas.views` | Eliminado | Legacy sales views (668 lines, ALL orphan) |
+| `apps.legacy.ventas.urls` | Eliminado | Not included in root urlconf |
+| `apps.legacy.ventas.tests` | Eliminado | VentaModelTests |
+
+**Files preserved**: `views_dynamic.py` (1107 lines, active), `hooks.py` (active), `templatetags/formatos.py` (active), `migrations/` (9 files, migration chain).
+
+## Legacy Modules (still present, pending removal)
+
+| Module | Files | Purpose |
+|--------|-------|---------|
+| `apps.legacy.productos.models.Producto` | `apps/legacy/productos/models.py:11-39` | Legacy product model (FK from MovimientoInventario) |
 | `apps.legacy.productos.models.Categoria` | `apps/legacy/productos/models.py:4-8` | Legacy category model (FK from Producto) |
 | `apps.legacy.productos.models.MovimientoInventario` | `apps/legacy/productos/models.py:42-76` | Legacy inventory movement model (FK to Producto) |
-| `apps.legacy.ventas.models.Venta` | `apps/legacy/ventas/models.py:28-88` | Legacy sales model with custom `save()` (FK to Producto + Cliente) |
-| `apps.legacy.ventas.models.Cliente` | `apps/legacy/ventas/models.py:8-25` | Legacy client model (FK from Venta) |
 | `apps.legacy.productos.admin` | `apps/legacy/productos/admin.py` | ProductoAdmin + MovimientoInventarioAdmin |
-| `apps.legacy.ventas.admin` | `apps/legacy/ventas/admin.py` | VentaAdmin + ClienteAdmin |
 | `apps.legacy.productos.views` | `apps/legacy/productos/views.py` | Legacy product views (676 lines, ALL orphan) |
-| `apps.legacy.ventas.views` | `apps/legacy/ventas/views.py` | Legacy sales views (668 lines, ALL orphan) |
 
 ## Audit Results — By Model
 
@@ -63,35 +70,6 @@ These modules exist as Django models but are **not actively used** by the main U
 
 **Conclusion**: Producto can be removed ONLY after Venta (FK PROTECT) and
 MovimientoInventario (FK CASCADE) are removed.
-
-### Venta (apps.legacy.ventas.models)
-
-| Category | Count | Details |
-|----------|-------|---------|
-| Active (model def) | 1 | `models.py:28` — class definition, FK fields, custom save() |
-| Active (admin) | 1 | `VentaAdmin` registered in admin.py |
-| Orphan (views) | ~15 | `ventas/views.py` — ALL `Venta.objects` queries (0 routed) |
-| Orphan (urls) | 6 | `ventas/urls.py` — entire file not in root urlconf |
-| Orphan (tests) | 7 | `ventas/tests.py:VentaModelTests` creates Venta objects |
-| Migration | 5 | 5 migration files reference Venta |
-| Dependent models | 0 | Venta is a leaf model (no model has FK to Venta) |
-
-**Conclusion**: Venta can be removed independently (no model depends on
-it). Its FKs to Producto and Cliente are the only blockers for removing
-THOSE models.
-
-### Cliente (apps.legacy.ventas.models)
-
-| Category | Count | Details |
-|----------|-------|---------|
-| Active (model def) | 1 | `models.py:8` — class definition, fields |
-| Active (admin) | 1 | `ClienteAdmin` registered in admin.py |
-| Orphan (views) | ~10 | `ventas/views.py` — all `Cliente.objects` queries (0 routed) |
-| Orphan (urls) | 4 | `ventas/urls.py` — client URL patterns not in root urlconf |
-| Migration | 4 | 4 migration files reference Cliente |
-| FK dependency | 1 | `Venta.cliente` (SET_NULL) — but Venta is orphan |
-
-**Conclusion**: Cliente can only be removed after Venta (FK) is removed.
 
 ### MovimientoInventario (apps.legacy.productos.models)
 
@@ -143,6 +121,6 @@ The Dynamic Forms EAV engine at `apps/platform/dynamic_forms/` is fully synchron
 | Categories | **100% migrated** | Dynamic options; modelo legacy inactivo |
 | Reports | **100% migrated** | All views on Dynamic Forms; legacy code removed |
 | Data Migration (products) | **100% migrated** | 6/6 products migrated; idempotent command |
-| Data Migration (Venta/Cliente) | **100% migrated** | 5/5 ventas, 1/1 cliente migrados; commands idempotentes |
-| Legacy model cleanup | **~5%** | Models still present; Phase 1 (orphan files) pending |
-| Legacy views/urls removal | **~0%** | 4 orphan view/url files pending Phase 1 deletion |
+| Data Migration (Venta/Cliente) | **100% migrated** | 5/5 ventas, 1/1 cliente migrados; commands adaptados a no-op |
+| Legacy model cleanup | **~50%** | Venta/Cliente eliminados (Fase 3); Producto/Categoria/MovInventario pendientes (Fase 4) |
+| Legacy views/urls removal | **~30%** | ventas/views.py + ventas/urls.py eliminados; productos/views.py + productos/urls.py pendientes |

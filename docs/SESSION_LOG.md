@@ -480,10 +480,62 @@ Ejecutar Fase 1 — eliminar los 10 archivos huérfanos y el import muerto.
 - Ninguno. La verificación de integridad confirmó 100% de coincidencia en todos los aspectos (cantidades, totales, usuarios, relaciones, duplicados).
 
 ### Próximo paso
-Ejecutar Fase 3 — eliminar modelos Venta/Cliente legacy, incluyendo:
-- `ventas/models.py` (Cliente, Venta)
-- `ventas/admin.py` (VentaAdmin, ClienteAdmin)
-- `ventas/tests.py`
-- 8 migraciones legacy de ventas
-- Crear migración de eliminación de tablas `ventas_venta` y `ventas_cliente`
-- Limpiar `config/settings/base.py`
+Ejecutar Fase 4 — eliminar modelos Producto/Categoria/MovimientoInventario legacy.
+
+---
+
+## [2026-06-26] Fase 3 completada — Eliminación de Venta y Cliente legacy
+
+### Trabajo realizado
+- Eliminación completa de modelos `Venta` y `Cliente` legacy de `apps/legacy/ventas/`.
+- Datos preservados en Dynamic Forms (6 productos, 5 ventas, 1 cliente — 100% íntegros).
+
+### Archivos modificados
+**Eliminados (código huérfano):**
+- `apps/legacy/ventas/models.py` — Clase `Cliente` (88→3 líneas, reemplazada por comment)
+- `apps/legacy/ventas/admin.py` — `VentaAdmin`, `ClienteAdmin` (17→3 líneas)
+- `apps/legacy/ventas/views.py` — 668 líneas de vistas legacy orphan (→3 líneas)
+- `apps/legacy/ventas/tests.py` — `VentaModelTests` (71→3 líneas)
+- `apps/legacy/ventas/urls.py` — 12 líneas de rutas no usadas (→3 líneas)
+- `config/urls.py:19` — Import muerto `productos_views` eliminado
+
+**Preservados (activos):**
+- `views_dynamic.py` — 1107 líneas activas, sin cambios
+- `hooks.py` — `post_crear_venta` hook, sin cambios
+- `templatetags/formatos.py` — Template tags, sin cambios
+- `migrations/` — 9 archivos (incluyendo la nueva migración 0009), preservados
+- `apps.py` — `VentasConfig`, preservado (app sigue en INSTALLED_APPS)
+
+**Migración de BD:**
+- `ventas/migrations/0009_remove_venta_cliente_remove_venta_producto_and_more.py` — Creada por `makemigrations`, aplicada por `migrate`
+- SQL generado: DROP TABLE `ventas_cliente` CASCADE; DROP TABLE `ventas_venta` CASCADE;
+- Tablas eliminadas: `ventas_venta`, `ventas_cliente` (con sus FK constraints)
+
+**Commands de migración modificados (eliminada dependencia de modelos legacy):**
+- `migrar_clientes_dynamic.py` — No-op informativo (migración ya completada)
+- `migrar_ventas_dynamic.py` — No-op informativo (migración ya completada)
+- `verificar_integridad_dynamic.py` — Solo verifica datos dinámicos (sin comparación legacy)
+
+### Validaciones
+- `python manage.py check` — 0 issues
+- `python manage.py makemigrations --check` — No pending changes
+- `python manage.py migrate --plan` — No pending operations
+- `python manage.py verificar_integridad_dynamic` — **TODO OK**: 6 productos, 5 ventas, 1 cliente, 0 relaciones rotas, 0 duplicados
+- `python manage.py test apps.platform.dynamic_forms` — 26/26 tests pasan (seed, hooks, validaciones)
+- Commands migrar_clientes_dynamic y migrar_ventas_dynamic: ejecutan sin errores
+
+### Decisiones importantes
+- **App preservada en INSTALLED_APPS**: `apps.legacy.ventas` permanece en INSTALLED_APPS porque contiene:
+  - `hooks.py` — hook `post_crear_venta` referenciado por el formulario Ventas
+  - `templatetags/formatos.py` — template tags usados por templates
+  - `views_dynamic.py` — vistas activas de ventas y clientes
+  - `migrations/` — historial de migraciones necesario para la cadena
+- **Sin eliminación de `config/settings/base.py`**: La app debe permanecer en INSTALLED_APPS mientras tenga archivos activos
+- **Commands preservados como no-op**: `migrar_clientes_dynamic` y `migrar_ventas_dynamic` se mantienen como referencia para rollback, informando que la migración ya se completó
+- **`verificar_integridad_dynamic` adaptado**: Ahora solo verifica la integridad interna de Dynamic Forms (conteos, relaciones, duplicados) sin depender de modelos legacy
+
+### Problemas encontrados
+- Ninguno. La migración y eliminación fueron limpias, sin efectos secundarios en el sistema en producción.
+
+### Próximo paso
+Ejecutar Fase 4 — eliminar modelos Producto/Categoria/MovimientoInventario legacy.

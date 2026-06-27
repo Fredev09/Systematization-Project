@@ -208,3 +208,27 @@
 **Implementation**: Save the original hook path, set `formulario.hook_post_crear = None`, run `DS.crear()`, then restore the hook within a `try/finally` block.
 
 **Current status**: Implemented in `migrar_ventas_dynamic`. Verified that stock levels remain correct after migration.
+
+---
+
+## Decision: App Preservation After Model Removal
+
+**Decision**: Keep `apps.legacy.ventas` in `INSTALLED_APPS` even after removing its models (`Venta`, `Cliente`) and dropping their database tables.
+
+**Reason**: The app still contains active, non-replaceable components:
+- `hooks.py` — `post_crear_venta` hook referenced by the dynamic Ventas form
+- `templatetags/formatos.py` — template tags (`formato_pesos`, etc.) used by templates
+- `views_dynamic.py` — 1107 lines of active dynamic views
+- `migrations/` — 9 migration files forming the migration chain
+
+Removing the app from `INSTALLED_APPS` would require moving all these components to a different app, which adds unnecessary risk and complexity.
+
+**Trade-off**: The app directory has no `models.py` with actual model classes, which is non-standard but functional in Django. A comment placeholder explains the change.
+
+**Alternative considered**: Migrate views/hooks/templatetags to `dynamic_forms` or a new `ventas` app under `apps/shared/`. Rejected because this would require:
+- Updating all template `{% load %}` statements referencing `formatos.py`
+- Updating the hook path in the database (`Formulario.hook_post_crear`)
+- Changing imports in `config/urls.py`
+- No functional benefit — the current structure works correctly
+
+**Current status**: Applied in Fase 3. `apps.legacy.ventas` remains in `INSTALLED_APPS` as a "thin" app with no models, preserving hooks, templatetags, and views.

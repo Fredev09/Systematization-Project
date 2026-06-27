@@ -1,11 +1,10 @@
 """
-Management command para verificar la integridad de los datos migrados.
+Management command para verificar la integridad de los datos en Dynamic Forms.
 
-Compara los datos legacy con los datos en Dynamic Forms para identificar:
-    - Diferencias en cantidad de registros
-    - Diferencias en totales monetarios
-    - Diferencias en cantidades vendidas
-    - Registros huérfanos (relaciones rotas)
+NOTA: Los modelos legacy (Venta, Cliente, Producto) fueron eliminados en Fase 3.
+Este comando ahora solo verifica la integridad de los datos dinámicos:
+    - Conteo de registros en Dynamic Forms
+    - Relaciones rotas (producto/cliente en ventas que no existen)
     - Duplicados
 
 Uso:
@@ -13,18 +12,11 @@ Uso:
 """
 
 import logging
-from collections import defaultdict
-from datetime import datetime
 from decimal import Decimal
 
-from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
 from django.db import models
-from django.db.models import Sum
 
-from apps.legacy.productos.models import Producto as ProductoLegacy
-from apps.legacy.ventas.models import Cliente as ClienteLegacy
-from apps.legacy.ventas.models import Venta as VentaLegacy
 from apps.platform.dynamic_forms.models import Campo, Formulario, Registro, ValorCampo
 from apps.platform.dynamic_forms.services_dynamic import DynamicService as DS
 
@@ -43,19 +35,25 @@ def _decimal(valor, default=0):
         return Decimal(str(default))
 
 
+def _entero(valor, default=0):
+    try:
+        return int(str(valor).strip())
+    except (ValueError, TypeError):
+        return default
+
+
 class Command(BaseCommand):
-    help = 'Verifica la integridad de los datos migrados a Dynamic Forms.'
+    help = 'Verifica la integridad de los datos en Dynamic Forms.'
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.MIGRATE_HEADING(
-            'Verificación de Integridad — Datos Migrados'
+            'Verificación de Integridad — Dynamic Forms'
         ))
         self.stdout.write('')
 
         self._verificar_productos()
         self._verificar_clientes()
         self._verificar_ventas()
-        self._verificar_usuarios_ventas()
         self._verificar_relaciones_rotas()
         self._verificar_duplicados()
 
@@ -72,219 +70,126 @@ class Command(BaseCommand):
     def _verificar_productos(self):
         self.stdout.write(self.style.MIGRATE_LABEL('[1] Verificando productos...'))
 
-        count_legacy = ProductoLegacy.objects.count()
-        self.stdout.write(f'  Productos legacy:           {count_legacy}')
-
-        # Contar productos dinámicos con SKU legacy
         try:
+            form_productos = Formulario.objects.get(nombre=FORM_PRODUCTOS)
+            total_productos = Registro.objects.filter(formulario=form_productos).count()
+            self.stdout.write(f'  Productos en Dynamic Forms: {total_productos}')
+
             campo_sku = Campo.objects.get(formulario__nombre=FORM_PRODUCTOS, nombre='sku')
-            count_dinamico = ValorCampo.objects.filter(
+            legacy_sku_count = ValorCampo.objects.filter(
                 campo=campo_sku, valor__startswith=SKU_PREFIX
             ).count()
-            self.stdout.write(f'  Productos dinámicos (SKU L.): {count_dinamico}')
+            self.stdout.write(f'  Productos migrados (SKU legacy): {legacy_sku_count}')
 
-            if count_legacy == count_dinamico:
-                self.stdout.write(self.style.SUCCESS('    ✓ Cantidad coincide'))
-            else:
-                diff = count_legacy - count_dinamico
-                self.stdout.write(self.style.ERROR(
-                    f'    ✗ DIFERENCIA: {diff} producto(s) sin migrar'
-                ))
-        except Campo.DoesNotExist:
-            self.stdout.write(self.style.WARNING('    ⚠ No se puede verificar (campo sku no existe)'))
+            if total_productos > 0:
+                self.stdout.write(self.style.SUCCESS('    ✓ Datos de productos presentes'))
+        except (Formulario.DoesNotExist, Campo.DoesNotExist) as e:
+            self.stdout.write(self.style.WARNING(f'    ⚠ {e}'))
 
         self.stdout.write('')
+
+    # ==================================================================
+    # CLIENTES
+    # ==================================================================
 
     def _verificar_clientes(self):
         self.stdout.write(self.style.MIGRATE_LABEL('[2] Verificando clientes...'))
 
-        count_legacy = ClienteLegacy.objects.count()
-        self.stdout.write(f'  Clientes legacy:            {count_legacy}')
-
         try:
-            campo_doc = Campo.objects.get(formulario__nombre=FORM_CLIENTES, nombre='documento')
-            count_dinamico = ValorCampo.objects.filter(campo=campo_doc).count()
-            self.stdout.write(f'  Clientes dinámicos:         {count_dinamico}')
+            form_clientes = Formulario.objects.get(nombre=FORM_CLIENTES)
+            total_clientes = Registro.objects.filter(formulario=form_clientes).count()
+            self.stdout.write(f'  Clientes en Dynamic Forms: {total_clientes}')
 
-            if count_legacy == count_dinamico:
-                self.stdout.write(self.style.SUCCESS('    ✓ Cantidad coincide'))
-            else:
-                diff = count_legacy - count_dinamico
-                self.stdout.write(self.style.ERROR(
-                    f'    ✗ DIFERENCIA: {diff} cliente(s) sin migrar'
-                ))
+            if total_clientes > 0:
+                # Mostrar algunos clientes de muestra
+                campo_doc = Campo.objects.get(formulario=form_clientes, nombre='documento')
+                docs = ValorCampo.objects.filter(campo=campo_doc).values_list('valor', flat=True)[:5]
+                if docs:
+                    self.stdout.write(f'  Documentos (muestra): {", ".join(docs)}')
 
-            # Verificar fechas de registro
-            legacy_documentos = {
-                c.documento: c.fecha_registro
-                for c in ClienteLegacy.objects.only('documento', 'fecha_registro')
-            }
-            fechas_incorrectas = 0
-            registros_cliente = Registro.objects.filter(
-                formulario__nombre=FORM_CLIENTES
-            ).only('id', 'fecha_creacion')
-            valores_map = DS.cargar_valores_mapa(registros_cliente)
-            for r in registros_cliente:
-                vals = valores_map.get(r.id, {})
-                doc = vals.get('documento', '')
-                if doc in legacy_documentos:
-                    fecha_legacy = legacy_documentos[doc]
-                    if isinstance(fecha_legacy, datetime):
-                        if abs((r.fecha_creacion - fecha_legacy).total_seconds()) > 1:
-                            fechas_incorrectas += 1
-            if fechas_incorrectas > 0:
-                self.stdout.write(self.style.WARNING(
-                    f'    ⚠ {fechas_incorrectas} cliente(s) con fecha_creacion incorrecta'
-                ))
-            else:
-                self.stdout.write(self.style.SUCCESS('    ✓ Todas las fechas de registro coinciden'))
-
-        except Campo.DoesNotExist:
-            self.stdout.write(self.style.WARNING('    ⚠ No se puede verificar (campo documento no existe)'))
+            if total_clientes > 0:
+                self.stdout.write(self.style.SUCCESS('    ✓ Datos de clientes presentes'))
+        except (Formulario.DoesNotExist, Campo.DoesNotExist) as e:
+            self.stdout.write(self.style.WARNING(f'    ⚠ {e}'))
 
         self.stdout.write('')
+
+    # ==================================================================
+    # VENTAS
+    # ==================================================================
 
     def _verificar_ventas(self):
         self.stdout.write(self.style.MIGRATE_LABEL('[3] Verificando ventas...'))
 
-        count_legacy = VentaLegacy.objects.count()
-        self.stdout.write(f'  Ventas legacy:              {count_legacy}')
-
         try:
-            campo_id_legacy = Campo.objects.get(formulario__nombre=FORM_VENTAS, nombre='id_legacy')
-            count_dinamico = ValorCampo.objects.filter(campo=campo_id_legacy).count()
-            self.stdout.write(f'  Ventas dinámicas:           {count_dinamico}')
+            form_ventas = Formulario.objects.get(nombre=FORM_VENTAS)
+            total_ventas = Registro.objects.filter(formulario=form_ventas).count()
+            self.stdout.write(f'  Ventas en Dynamic Forms:    {total_ventas}')
 
-            if count_legacy == count_dinamico:
-                self.stdout.write(self.style.SUCCESS('    ✓ Cantidad coincide'))
-            else:
-                diff = count_legacy - count_dinamico
-                self.stdout.write(self.style.ERROR(
-                    f'    ✗ DIFERENCIA: {diff} venta(s) sin migrar'
-                ))
+            campo_id_legacy = Campo.objects.filter(
+                formulario=form_ventas, nombre='id_legacy'
+            ).first()
+            if campo_id_legacy:
+                migradas = ValorCampo.objects.filter(campo=campo_id_legacy).count()
+                self.stdout.write(f'  Ventas con id_legacy:       {migradas}')
 
-            # Verificar totales monetarios
-            total_legacy = VentaLegacy.objects.aggregate(
-                total=Sum('total')
-            )['total'] or Decimal('0')
-            self.stdout.write(f'  Total monetario legacy:     ${total_legacy:,.2f}')
-
-            # Sumar totales de ventas dinámicas
+            # Sumar totales monetarios
             campo_total = Campo.objects.filter(
-                formulario__nombre=FORM_VENTAS, nombre='total'
+                formulario=form_ventas, nombre='total'
             ).first()
-            total_dinamico = Decimal('0')
             if campo_total:
-                valores_total = ValorCampo.objects.filter(
-                    campo=campo_total,
-                    registro__in=Registro.objects.filter(
-                        formulario__nombre=FORM_VENTAS,
-                        valores__campo=campo_id_legacy,
-                    ).distinct()
-                )
-                for vc_valor in valores_total:
-                    total_dinamico += _decimal(vc_valor.valor, 0)
-            self.stdout.write(f'  Total monetario dinámico:   ${total_dinamico:,.2f}')
+                total_dinamico = Decimal('0')
+                for vc in ValorCampo.objects.filter(campo=campo_total):
+                    total_dinamico += _decimal(vc.valor, 0)
+                self.stdout.write(f'  Total monetario:            ${total_dinamico:,.2f}')
 
-            diff_total = abs(total_legacy - total_dinamico)
-            if diff_total < Decimal('0.01'):
-                self.stdout.write(self.style.SUCCESS('    ✓ Totales monetarios coinciden'))
-            else:
-                self.stdout.write(self.style.ERROR(
-                    f'    ✗ DIFERENCIA: ${diff_total:,.2f}'
-                ))
-
-            # Verificar cantidades vendidas
-            cant_legacy = VentaLegacy.objects.aggregate(
-                total_cant=Sum('cantidad')
-            )['total_cant'] or 0
-            self.stdout.write(f'  Cantidades legacy:          {cant_legacy}')
-
-            campo_cant = Campo.objects.filter(
-                formulario__nombre=FORM_VENTAS, nombre='cantidad'
-            ).first()
-            cant_dinamico = 0
-            if campo_cant:
-                for vc in ValorCampo.objects.filter(
-                    campo=campo_cant,
-                    registro__in=Registro.objects.filter(
-                        formulario__nombre=FORM_VENTAS,
-                        valores__campo=campo_id_legacy,
-                    ).distinct()
-                ):
-                    cant_dinamico += _entero(vc.valor, 0)
-            self.stdout.write(f'  Cantidades dinámicas:       {cant_dinamico}')
-
-            if cant_legacy == cant_dinamico:
-                self.stdout.write(self.style.SUCCESS('    ✓ Cantidades vendidas coinciden'))
-            else:
-                diff_cant = cant_legacy - cant_dinamico
-                self.stdout.write(self.style.ERROR(
-                    f'    ✗ DIFERENCIA: {diff_cant} unidad(es)'
-                ))
-
-        except Campo.DoesNotExist:
-            self.stdout.write(self.style.WARNING('    ⚠ No se puede verificar (campo id_legacy no existe)'))
-
-        self.stdout.write('')
-
-    def _verificar_usuarios_ventas(self):
-        self.stdout.write(self.style.MIGRATE_LABEL('[4] Verificando usuarios (vendedores) en ventas...'))
-
-        # Ventas legacy con su vendedor
-        legacy_vendedores = {
-            v.id: v.vendedor_id
-            for v in VentaLegacy.objects.only('id', 'vendedor_id')
-        }
-
-        # Ventas dinámicas con su usuario
-        try:
-            campo_id_legacy = Campo.objects.get(formulario__nombre=FORM_VENTAS, nombre='id_legacy')
-            vcs_id = ValorCampo.objects.filter(campo=campo_id_legacy).select_related('registro')
-            dinamic_usuarios = {}
-            for vc in vcs_id:
-                dinamic_usuarios[vc.valor] = vc.registro.usuario_id
-
-            errores = 0
-            for legacy_id, vendedor_id in legacy_vendedores.items():
-                str_id = str(legacy_id)
-                if str_id in dinamic_usuarios:
-                    if dinamic_usuarios[str_id] != vendedor_id:
-                        errores += 1
-                        self.stdout.write(self.style.WARNING(
-                            f'    ⚠ Venta #{legacy_id}: vendedor legacy={vendedor_id} != dinámico={dinamic_usuarios[str_id]}'
-                        ))
-
-            if errores == 0:
-                self.stdout.write(self.style.SUCCESS('    ✓ Todos los vendedores coinciden'))
-            else:
+            # Verificar vendedores asignados
+            ventas_sin_usuario = Registro.objects.filter(
+                formulario=form_ventas, usuario__isnull=True
+            ).count()
+            if ventas_sin_usuario > 0:
                 self.stdout.write(self.style.WARNING(
-                    f'    ⚠ {errores} venta(s) con vendedor incorrecto'
+                    f'    ⚠ {ventas_sin_usuario} venta(s) sin vendedor asignado'
                 ))
-        except Campo.DoesNotExist:
-            self.stdout.write(self.style.WARNING('    ⚠ No se puede verificar (campo id_legacy no existe)'))
+
+            if total_ventas > 0:
+                self.stdout.write(self.style.SUCCESS('    ✓ Datos de ventas presentes'))
+
+                # Calcular total de cantidades vendidas
+                campo_cant = Campo.objects.filter(
+                    formulario=form_ventas, nombre='cantidad'
+                ).first()
+                if campo_cant:
+                    total_cant = sum(
+                        _entero(vc.valor, 0)
+                        for vc in ValorCampo.objects.filter(campo=campo_cant)
+                    )
+                    self.stdout.write(f'  Unidades vendidas:          {total_cant}')
+
+        except Formulario.DoesNotExist as e:
+            self.stdout.write(self.style.WARNING(f'    ⚠ {e}'))
 
         self.stdout.write('')
+
+    # ==================================================================
+    # RELACIONES ROTAS
+    # ==================================================================
 
     def _verificar_relaciones_rotas(self):
-        self.stdout.write(self.style.MIGRATE_LABEL('[5] Verificando relaciones rotas...'))
+        self.stdout.write(self.style.MIGRATE_LABEL('[4] Verificando relaciones rotas...'))
 
-        # Ventas dinámicas: verificar que producto y cliente existan
         try:
             formulario = Formulario.objects.get(nombre=FORM_VENTAS)
             campo_producto = formulario.campos.filter(nombre='producto').first()
-            campo_cliente = formulario.campos.filter(nombre='cliente').first()
-            campo_id_legacy = formulario.campos.filter(nombre='id_legacy').first()
 
-            if not campo_producto or not campo_id_legacy:
-                self.stdout.write(self.style.WARNING('    ⚠ No se puede verificar relaciones'))
+            if not campo_producto:
+                self.stdout.write(self.style.WARNING('    ⚠ Campo "producto" no encontrado en Ventas'))
                 self.stdout.write('')
                 return
 
             # Productos rotos
             vcs_producto = ValorCampo.objects.filter(campo=campo_producto).select_related('registro')
             productos_rotos = 0
-            clientes_rotos = 0
 
             for vc in vcs_producto:
                 prod_id = vc.valor.strip()
@@ -306,6 +211,8 @@ class Command(BaseCommand):
                 ))
 
             # Clientes rotos
+            campo_cliente = formulario.campos.filter(nombre='cliente').first()
+            clientes_rotos = 0
             if campo_cliente:
                 vcs_cliente = ValorCampo.objects.filter(campo=campo_cliente).select_related('registro')
                 for vc in vcs_cliente:
@@ -332,8 +239,12 @@ class Command(BaseCommand):
 
         self.stdout.write('')
 
+    # ==================================================================
+    # DUPLICADOS
+    # ==================================================================
+
     def _verificar_duplicados(self):
-        self.stdout.write(self.style.MIGRATE_LABEL('[6] Verificando duplicados...'))
+        self.stdout.write(self.style.MIGRATE_LABEL('[5] Verificando duplicados...'))
 
         # Duplicados en documentos de Clientes
         try:
@@ -390,10 +301,3 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING('    ⚠ No se puede verificar (campo sku no existe)'))
 
         self.stdout.write('')
-
-
-def _entero(valor, default=0):
-    try:
-        return int(str(valor).strip())
-    except (ValueError, TypeError):
-        return default

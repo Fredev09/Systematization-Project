@@ -22,7 +22,7 @@ código activo los referencia. Rollback: `git checkout`.
 | 1g | Eliminar `templates/productos/editar_producto.html` (orphan) | Pendiente |
 | 1h | Eliminar `templates/productos/eliminar_producto.html` (orphan) | Pendiente |
 | 1i | Eliminar `templates/formularios/agregar_categoria.html` (orphan) | Pendiente |
-| 1j | Eliminar import muerto `productos_views` en `config/urls.py:19` | Pendiente |
+| 1j | Eliminar import muerto `productos_views` en `config/urls.py:19` | ✅ Completado (Fase 3) |
 
 Validación: `python manage.py check` + `makemigrations --check`.
 
@@ -48,23 +48,20 @@ funcionales de ventas (nueva venta, historial, exportar).
 
 ---
 
-## Fase 3 — Eliminar Venta y Cliente (RIESGO: MEDIO)
-
-Después de migrar datos y verificar que la producción funciona con
-Dynamic Forms.
+## Fase 3 — Eliminar Venta y Cliente (RIESGO: MEDIO) — ✅ COMPLETADO
 
 | # | Tarea | Estado |
 |---|-------|--------|
-| 3a | Eliminar modelos Venta y Cliente de `ventas/models.py` | Pendiente |
-| 3b | Eliminar `apps/legacy/ventas/admin.py` (VentaAdmin, ClienteAdmin) | Pendiente |
-| 3c | Eliminar `apps/legacy/ventas/tests.py` | Pendiente |
-| 3d | Eliminar migraciones legacy de ventas (8 archivos en `ventas/migrations/`) | Pendiente |
-| 3e | Crear migración que elimine tablas `ventas_venta` y `ventas_cliente` | Pendiente |
-| 3f | Limpiar `config/settings/base.py` — eliminar `apps.legacy.ventas` de INSTALLED_APPS | Pendiente |
+| 3a | Eliminar modelos Venta y Cliente de `ventas/models.py` | ✅ Completado |
+| 3b | Eliminar `apps/legacy/ventas/admin.py` (VentaAdmin, ClienteAdmin) | ✅ Completado |
+| 3c | Eliminar `apps/legacy/ventas/tests.py` | ✅ Completado |
+| 3d | Eliminar migraciones legacy de ventas (8 archivos en `ventas/migrations/`) | ❌ No procede (preservadas para cadena de migraciones) |
+| 3e | Crear migración que elimine tablas `ventas_venta` y `ventas_cliente` | ✅ Completado (migración 0009) |
+| 3f | Limpiar `config/settings/base.py` — eliminar `apps.legacy.ventas` de INSTALLED_APPS | ❌ No procede (app contiene hooks, views_dynamic, templatetags activos) |
 
-Rollback: restaurar modelos y migraciones desde git + re-ejecutar
-migración de datos. Validación: `check`, `migrate`, pruebas
-funcionales de ventas y clientes.
+Rollback: `git checkout apps/legacy/ventas/models.py` + revertir migración 0009.
+Validación: `check` (0 issues), `verificar_integridad_dynamic` (TODO OK),
+`test apps.platform.dynamic_forms` (26/26).
 
 ---
 

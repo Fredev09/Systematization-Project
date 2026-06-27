@@ -16,7 +16,6 @@ from apps.legacy.productos.views_dynamic import (
     inventario,
     listar_productos,
 )
-from apps.legacy.productos import views as productos_views
 from apps.legacy.ventas.views_dynamic import (
     cambiar_estado_cliente,
     clientes,
