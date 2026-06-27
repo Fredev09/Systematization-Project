@@ -31,34 +31,19 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 
 from apps.platform.dynamic_forms.models import Campo, Formulario, Registro, ValorCampo
-from apps.platform.dynamic_forms.services_dynamic import DynamicService as DS, ValidacionError
+from apps.platform.dynamic_forms.services_dynamic import (
+    DynamicService as DS,
+    ValidacionError,
+    FORM_MOVIMIENTOS_INVENTARIO,
+    FORM_PRODUCTOS,
+)
 from .wrappers import DynamicMovimientoInventarioWrapper, DynamicProductWrapper
-
-
-# ======================================================================
-# CONSTANTES
-# ======================================================================
-
-FORM_PRODUCTOS = 'Productos'
-FORM_MOVIMIENTOS_INVENTARIO = 'MovimientosInventario'
 
 
 # ======================================================================
 # HELPERS
 # ======================================================================
 
-
-
-def _cargar_productos(registros):
-    """
-    Convierte un QuerySet de Registro del formulario Productos
-    en una lista de DynamicProductWrapper con valores precargados.
-    """
-    valores_map = DS.cargar_valores_mapa(registros)
-    return [
-        DynamicProductWrapper(r, valores_map.get(r.id, {}))
-        for r in registros
-    ]
 
 
 def _stock_stats():

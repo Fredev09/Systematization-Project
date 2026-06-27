@@ -20,12 +20,12 @@ import logging
 
 from django.core.management.base import BaseCommand
 
-from apps.platform.dynamic_forms.models import Campo, Formulario, ValorCampo
+from apps.platform.dynamic_forms.services_dynamic import (
+    FORM_MOVIMIENTOS_INVENTARIO,
+    FORM_PRODUCTOS,
+)
 
 logger = logging.getLogger(__name__)
-
-FORM_PRODUCTOS = 'Productos'
-FORM_MOVIMIENTOS = 'MovimientosInventario'
 SKU_PREFIX = 'LEGACY-'
 
 

@@ -18,13 +18,14 @@ from django.core.management.base import BaseCommand
 from django.db import models
 
 from apps.platform.dynamic_forms.models import Campo, Formulario, Registro, ValorCampo
-from apps.platform.dynamic_forms.services_dynamic import DynamicService as DS
+from apps.platform.dynamic_forms.services_dynamic import (
+    DynamicService as DS,
+    FORM_CLIENTES,
+    FORM_PRODUCTOS,
+    FORM_VENTAS,
+)
 
 logger = logging.getLogger(__name__)
-
-FORM_PRODUCTOS = 'Productos'
-FORM_VENTAS = 'Ventas'
-FORM_CLIENTES = 'Clientes'
 SKU_PREFIX = 'LEGACY-'
 
 

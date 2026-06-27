@@ -234,3 +234,13 @@ Removing the app from `INSTALLED_APPS` would require moving all these components
 **Current status**: Applied in Fase 3 (ventas) and Fase 4 (productos). Both `apps.legacy.ventas` and `apps.legacy.productos` remain in `INSTALLED_APPS` as thin apps with no models, preserving hooks, templatetags, views_dynamic, and wrappers.
 
 **Productos specific**: `apps.legacy.productos` preserves `views_dynamic.py` (dynamic views), `wrappers.py` (DynamicProductWrapper, DynamicMovimientoInventarioWrapper, etc.), and `migrations/` (migration chain). Unlike ventas, it does not have hooks or templatetags — it only needs views and wrappers.
+
+---
+
+## Decision: Single Source of Truth for Form Name Constants
+
+**Decision**: All form-level string constants (`FORM_PRODUCTOS`, `FORM_VENTAS`, `FORM_CLIENTES`, `FORM_MOVIMIENTOS_INVENTARIO`) are defined exclusively in `services_dynamic.py`. Other files import from there.
+
+**Reason**: Before Phase 5, these constants were duplicated in 7 files (both `views_dynamic.py` files, 4 management commands, and `services_dynamic.py`). Any change to a form name required updating all 7 locations, which was error-prone. Centralizing them in `services_dynamic.py` eliminates the maintenance burden.
+
+**Current status**: Implemented in Phase 5. All 6 consumer files now import from the canonical source in `services_dynamic.py`.

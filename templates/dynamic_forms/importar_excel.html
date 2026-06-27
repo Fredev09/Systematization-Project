@@ -1,0 +1,391 @@
+{% extends 'base/base.html' %}
+{% load static %}
+{% load dynamic_forms_extras %}
+
+{% block titulo %}Importar Excel - {{ formulario.nombre }} - {{ block.super }}{% endblock %}
+
+{% block estilos %}
+<link rel="stylesheet" href="{% static 'css/dynamic_forms/dynamic_forms.css' %}">
+<style>
+.df-wizard-step { display: none; }
+.df-wizard-step.active { display: block; }
+
+.df-import-progress {
+    display: flex; align-items: center; gap: 1rem;
+    justify-content: center; margin-bottom: 2rem;
+}
+.df-import-progress .step {
+    display: flex; align-items: center; gap: .5rem;
+    padding: .5rem 1rem; border-radius: 2rem;
+    background: var(--bg-card,#1e293b); color: #94a3b8;
+    font-size: .875rem;
+}
+.df-import-progress .step.active {
+    background: var(--accent,#d41473); color: #fff;
+}
+.df-import-progress .step.completed {
+    background: #166534; color: #fff;
+}
+.df-import-progress .step-num {
+    width: 24px; height: 24px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: .75rem;
+    background: rgba(255,255,255,.2);
+}
+
+.df-mapping-grid {
+    display: grid; gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+.df-mapping-card {
+    background: var(--bg-card,#1e293b); border-radius: .625rem;
+    padding: 1rem; border: 1px solid var(--border,#334155);
+}
+.df-mapping-card label {
+    display: block; font-size: .75rem;
+    color: #94a3b8; margin-bottom: .25rem;
+}
+.df-mapping-card select {
+    width: 100%;
+}
+.df-mapping-card .excel-col {
+    font-weight: 600; color: var(--accent,#d41473);
+}
+
+.df-preview-table {
+    font-size: .8125rem;
+}
+.df-preview-table .row-valid td { background: rgba(22,101,52,.15); }
+.df-preview-table .row-error td { background: rgba(220,38,38,.15); }
+.df-preview-table .error-badge {
+    color: #ef4444; font-size: .75rem; cursor: help;
+}
+
+.df-result-stats {
+    display: grid; gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    margin-bottom: 1.5rem;
+}
+.df-result-stat {
+    background: var(--bg-card,#1e293b); border-radius: .625rem;
+    padding: 1.25rem; text-align: center;
+    border: 1px solid var(--border,#334155);
+}
+.df-result-stat .stat-value {
+    font-size: 2rem; font-weight: 700;
+}
+.df-result-stat .stat-label {
+    font-size: .8125rem; color: #94a3b8; margin-top: .25rem;
+}
+.df-result-stat.stat-success .stat-value { color: #22c55e; }
+.df-result-stat.stat-error .stat-value { color: #ef4444; }
+.df-result-stat.stat-total .stat-value { color: #3b82f6; }
+</style>
+{% endblock %}
+
+{% block topbar_info %}
+<section class="topbar-icon">
+    <i class='fas fa-file-import'></i>
+</section>
+<section>
+    <strong>Importar Excel</strong>
+    <span>{{ formulario.nombre }}</span>
+</section>
+{% endblock %}
+
+{% block contenido %}
+
+<section class="page-header">
+    <header>
+        <p>Formularios</p>
+        <h1>Importar registros desde Excel</h1>
+        <p class="df-description-text">{{ formulario.nombre }} — Sube un archivo .xlsx para importar datos masivamente</p>
+    </header>
+    <nav class="header-actions">
+        <a href="{% url 'dynamic_forms:ver_registros' formulario.id %}" class="btn btn-outline-secondary">
+            <i class='fas fa-arrow-left'></i> Volver a registros
+        </a>
+    </nav>
+</section>
+
+<section class="panel-card">
+    {% if paso == 'subir' %}
+    {# --- PASO 1: SUBIR ARCHIVO --- #}
+    <div class="df-import-progress">
+        <div class="step active"><span class="step-num">1</span> Subir</div>
+        <i class="fas fa-chevron-right" style="color:#475569"></i>
+        <div class="step"><span class="step-num">2</span> Mapeo</div>
+        <i class="fas fa-chevron-right" style="color:#475569"></i>
+        <div class="step"><span class="step-num">3</span> Vista previa</div>
+        <i class="fas fa-chevron-right" style="color:#475569"></i>
+        <div class="step"><span class="step-num">4</span> Resultado</div>
+    </div>
+
+    <div class="card-body">
+        <div class="df-empty-state" style="margin-bottom:2rem">
+            <i class="fas fa-file-excel" style="font-size:3rem;color:#22c55e"></i>
+            <h4>Sube tu archivo Excel</h4>
+            <p>El archivo debe tener la primera fila con los nombres de columna.
+            Formatos aceptados: <strong>.xlsx</strong></p>
+        </div>
+
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="paso" value="subir">
+
+            <div class="mb-4">
+                <label class="form-label">Archivo Excel (.xlsx)</label>
+                <input type="file" name="archivo_excel" class="form-control"
+                       accept=".xlsx" required>
+            </div>
+
+            <div class="df-submit-area">
+                <a href="{% url 'dynamic_forms:ver_registros' formulario.id %}"
+                   class="btn btn-outline-secondary">Cancelar</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-upload"></i> Subir y analizar
+                </button>
+            </div>
+        </form>
+    </div>
+
+    {% elif paso == 'mapeo' %}
+    {# --- PASO 2: MAPEO DE COLUMNAS --- #}
+    <div class="df-import-progress">
+        <div class="step completed"><span class="step-num">✓</span> Subir</div>
+        <i class="fas fa-chevron-right" style="color:#475569"></i>
+        <div class="step active"><span class="step-num">2</span> Mapeo</div>
+        <i class="fas fa-chevron-right" style="color:#475569"></i>
+        <div class="step"><span class="step-num">3</span> Vista previa</div>
+        <i class="fas fa-chevron-right" style="color:#475569"></i>
+        <div class="step"><span class="step-num">4</span> Resultado</div>
+    </div>
+
+    <div class="card-body">
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i>
+            <strong>{{ total_filas }} fila{{ total_filas|pluralize:"s" }}</strong> detectada{{ total_filas|pluralize:"s" }}.
+            Asigna cada columna del Excel a un campo del formulario.
+            {% if sin_mapear %}
+            <br><strong>Campos sin mapear:</strong>
+            {% for c in sin_mapear %}{{ c }}{% if not forloop.last %}, {% endif %}{% endfor %}
+            {% endif %}
+        </div>
+
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="paso" value="confirmar">
+
+            <div class="df-mapping-grid">
+                {% for col_idx, col_name in encabezados_con_idx %}
+                {% with mapeo_idx|dict_key:col_idx as campo_mapeado %}
+                <div class="df-mapping-card">
+                    <label>Columna en Excel</label>
+                    <div class="excel-col">
+                        <i class="fas fa-columns"></i>
+                        {{ col_name }}
+                    </div>
+                    <label class="mt-2">Campo del formulario</label>
+                    <select name="mapeo_{{ col_idx }}" class="form-select">
+                        <option value="">— No importar —</option>
+                        {% for campo in campos_activos %}
+                        {% if campo.tipo != 'calculado' and campo.tipo != 'imagen' and campo.tipo != 'archivo' %}
+                        <option value="{{ campo.nombre }}"
+                                {% if campo.nombre == campo_mapeado %}selected{% endif %}>
+                            {{ campo.nombre }}
+                            {% if campo.obligatorio %} *{% endif %}
+                            ({{ campo.get_tipo_display }})
+                        </option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endwith %}
+                {% endfor %}
+            </div>
+
+            <div class="df-submit-area mt-4">
+                <a href="{% url 'dynamic_forms:importar_excel' formulario.id %}"
+                   class="btn btn-outline-secondary">Volver a empezar</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-eye"></i> Validar y previsualizar
+                </button>
+            </div>
+        </form>
+    </div>
+
+    {% elif paso == 'preview' %}
+    {# --- PASO 3: VISTA PREVIA DE VALIDACIÓN --- #}
+    <div class="df-import-progress">
+        <div class="step completed"><span class="step-num">✓</span> Subir</div>
+        <i class="fas fa-chevron-right" style="color:#475569"></i>
+        <div class="step completed"><span class="step-num">✓</span> Mapeo</div>
+        <i class="fas fa-chevron-right" style="color:#475569"></i>
+        <div class="step active"><span class="step-num">3</span> Vista previa</div>
+        <i class="fas fa-chevron-right" style="color:#475569"></i>
+        <div class="step"><span class="step-num">4</span> Resultado</div>
+    </div>
+
+    <div class="df-result-stats">
+        <div class="df-result-stat stat-total">
+            <div class="stat-value">{{ total_filas }}</div>
+            <div class="stat-label">Total de filas</div>
+        </div>
+        <div class="df-result-stat stat-success">
+            <div class="stat-value">{{ validas|length }}</div>
+            <div class="stat-label">Válidas</div>
+        </div>
+        <div class="df-result-stat stat-error">
+            <div class="stat-value">{{ con_errores|length }}</div>
+            <div class="stat-label">Con errores</div>
+        </div>
+    </div>
+
+    {% if con_errores %}
+    <div class="alert alert-danger">
+        <i class="fas fa-exclamation-triangle"></i>
+        <strong>Filas con errores:</strong> Se importarán solo las filas válidas.
+    </div>
+    {% endif %}
+
+    {% if preview %}
+    {% with preview|first as first_row %}
+    {% with first_row.valores.keys as campo_nombres %}
+    <div class="df-table-wrapper" style="max-height:400px;overflow-y:auto">
+        <table class="df-table df-preview-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    {% for nom_campo in campo_nombres %}
+                    <th>{{ nom_campo }}</th>
+                    {% endfor %}
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in preview %}
+                <tr class="{% if row.valida %}row-valid{% else %}row-error{% endif %}">
+                    <td>{{ forloop.counter }}</td>
+                    {% for nom_campo in campo_nombres %}
+                    <td>{{ row.valores|dict_key:nom_campo|default:'' }}</td>
+                    {% endfor %}
+                    <td>
+                        {% if row.valida %}
+                        <span class="text-success"><i class="fas fa-check-circle"></i> Válida</span>
+                        {% else %}
+                        <span class="error-badge" title="{{ row.errores|join:'; ' }}">
+                            <i class="fas fa-exclamation-circle"></i>
+                            {{ row.errores|length }} error{{ row.errores|pluralize:"es" }}
+                        </span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% if not row.valida %}
+                <tr class="row-error">
+                    <td colspan="{{ campo_nombres|length|add:2 }}" style="padding:.25rem 1rem">
+                        <small class="text-danger">
+                            {% for error in row.errores %}&bull; {{ error }}<br>{% endfor %}
+                        </small>
+                    </td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endwith %}
+    {% endwith %}
+    {% endif %}
+
+    <form method="post" class="mt-4">
+        {% csrf_token %}
+        <input type="hidden" name="paso" value="importar">
+
+        <div class="df-submit-area">
+            <a href="{% url 'dynamic_forms:importar_excel' formulario.id %}"
+               class="btn btn-outline-secondary">
+                <i class="fas fa-undo"></i> Volver a empezar
+            </a>
+            {% if validas %}
+            <button type="submit" class="btn btn-primary btn-lg"
+                    onclick="return confirm('¿Confirmas la importación de {{ validas|length }} fila{{ validas|length|pluralize:"s" }}? Esta acción no se puede deshacer fácilmente.');">
+                <i class="fas fa-check-double"></i> Importar {{ validas|length }} fila{{ validas|length|pluralize:"s" }}
+            </button>
+            {% else %}
+            <button type="submit" class="btn btn-primary btn-lg" disabled>
+                <i class="fas fa-check-double"></i> Sin filas válidas
+            </button>
+            {% endif %}
+        </div>
+    </form>
+
+    {% elif paso == 'resultado' %}
+    {# --- PASO 4: RESULTADO DE IMPORTACIÓN --- #}
+    <div class="df-import-progress">
+        <div class="step completed"><span class="step-num">✓</span> Subir</div>
+        <i class="fas fa-chevron-right" style="color:#475569"></i>
+        <div class="step completed"><span class="step-num">✓</span> Mapeo</div>
+        <i class="fas fa-chevron-right" style="color:#475569"></i>
+        <div class="step completed"><span class="step-num">✓</span> Vista previa</div>
+        <i class="fas fa-chevron-right" style="color:#475569"></i>
+        <div class="step active"><span class="step-num">4</span> Resultado</div>
+    </div>
+
+    <div class="df-result-stats">
+        <div class="df-result-stat stat-total">
+            <div class="stat-value">{{ resultado.total }}</div>
+            <div class="stat-label">Procesadas</div>
+        </div>
+        <div class="df-result-stat stat-success">
+            <div class="stat-value">{{ resultado.creados }}</div>
+            <div class="stat-label">Importados</div>
+        </div>
+        <div class="df-result-stat stat-error">
+            <div class="stat-value">{{ resultado.errores|length }}</div>
+            <div class="stat-label">Fallos</div>
+        </div>
+    </div>
+
+    {% if resultado.creados > 0 %}
+    <div class="alert alert-success">
+        <i class="fas fa-check-circle"></i>
+        <strong>{{ resultado.creados }} registro{{ resultado.creados|pluralize:"s" }} importado{{ resultado.creados|pluralize:"s" }} correctamente.</strong>
+        Los hooks y fórmulas se ejecutaron automáticamente.
+    </div>
+    {% endif %}
+
+    {% if resultado.errores %}
+    <div class="alert alert-danger">
+        <i class="fas fa-exclamation-triangle"></i>
+        <strong>{{ resultado.errores|length }} fila{{ resultado.errores|length|pluralize:"s" }} con errores:</strong>
+    </div>
+    <div class="df-table-wrapper" style="max-height:300px;overflow-y:auto">
+        <table class="df-table df-preview-table">
+            <thead>
+                <tr><th># Fila</th><th>Error</th></tr>
+            </thead>
+            <tbody>
+                {% for err in resultado.errores %}
+                <tr class="row-error">
+                    <td>{{ err.fila_idx|add:1 }}</td>
+                    <td><span class="text-danger">{{ err.error }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <div class="df-submit-area mt-4">
+        <a href="{% url 'dynamic_forms:ver_registros' formulario.id %}" class="btn btn-primary">
+            <i class="fas fa-table"></i> Ver registros
+        </a>
+        <a href="{% url 'dynamic_forms:importar_excel' formulario.id %}" class="btn btn-outline-secondary">
+            <i class="fas fa-upload"></i> Importar otro archivo
+        </a>
+    </div>
+
+    {% endif %}
+</section>
+
+{% endblock %}

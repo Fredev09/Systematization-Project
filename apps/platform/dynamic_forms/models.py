@@ -156,6 +156,9 @@ class ValorCampo(models.Model):
 
     class Meta:
         unique_together = ['registro', 'campo']
+        indexes = [
+            models.Index(fields=['campo', 'valor'], name='idx_valorcampo_campo_valor'),
+        ]
 
     def __str__(self):
         return f"{self.campo.nombre}: {self.valor[:50]}"

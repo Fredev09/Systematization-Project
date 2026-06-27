@@ -28,10 +28,13 @@ from django.utils.dateparse import parse_date
 
 from config.pagination import OPCIONES_POR_PAGINA, obtener_por_pagina, parametros_sin_pagina
 from config.permissions import GRUPO_ADMINISTRADOR, admin_required, es_administrador, rol_usuario
-from apps.platform.dynamic_forms.models import Campo, Formulario, Registro
+from apps.platform.dynamic_forms.models import Campo, Registro
 from apps.platform.dynamic_forms.services_dynamic import (
     DynamicService as DS,
     ValidacionError,
+    FORM_CLIENTES,
+    FORM_PRODUCTOS,
+    FORM_VENTAS,
 )
 from apps.legacy.productos.wrappers import (
     DynamicClienteWrapper,
@@ -40,15 +43,6 @@ from apps.legacy.productos.wrappers import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-# ======================================================================
-# CONSTANTES
-# ======================================================================
-
-FORM_PRODUCTOS = 'Productos'
-FORM_CLIENTES = 'Clientes'
-FORM_VENTAS = 'Ventas'
 
 
 # ======================================================================

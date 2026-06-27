@@ -1,4 +1,4 @@
-from datetime import datetime, time, timedelta
+from datetime import datetime
 from decimal import Decimal
 from math import floor, log10
 
@@ -24,20 +24,6 @@ from apps.legacy.productos.wrappers import DynamicProductWrapper
 from apps.platform.dynamic_forms.models import Registro
 from apps.platform.dynamic_forms.services_dynamic import DynamicService as DS
 from apps.legacy.ventas.views_dynamic import _envolver_ventas
-
-
-def rango_dia(fecha):
-    zona = timezone.get_current_timezone()
-    inicio = datetime.combine(fecha, time.min)
-    fin = inicio + timedelta(days=1)
-
-    if timezone.is_naive(inicio):
-        inicio = timezone.make_aware(inicio, zona)
-
-    if timezone.is_naive(fin):
-        fin = timezone.make_aware(fin, zona)
-
-    return inicio, fin
 
 
 def rango_mes(fecha):

@@ -191,6 +191,21 @@ class Command(BaseCommand):
         ))
 
         self.stdout.write('')
+
+        # Asignar hook post_crear al formulario Ventas
+        try:
+            form_ventas = Formulario.objects.get(nombre='Ventas')
+            hook_path = 'apps.legacy.ventas.hooks.post_crear_venta'
+            if form_ventas.hook_post_crear != hook_path:
+                form_ventas.hook_post_crear = hook_path
+                form_ventas.save(update_fields=['hook_post_crear'])
+                self.stdout.write(self.style.SUCCESS(f'Hook post_crear asignado a "Ventas": {hook_path}'))
+            else:
+                self.stdout.write(f'  [OK] Hook post_crear ya asignado a "Ventas"')
+        except Formulario.DoesNotExist:
+            self.stdout.write(self.style.WARNING('  [WARN] Formulario "Ventas" no encontrado para asignar hook.'))
+
+        self.stdout.write('')
         self.stdout.write(self.style.MIGRATE_LABEL('Resumen de formularios base:'))
         for f in FORMULARIOS_BASE:
             self.stdout.write(f'    - {f["nombre"]} ({len(f["campos"])} campos)')

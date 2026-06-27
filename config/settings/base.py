@@ -22,12 +22,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config(
-    'SECRET_KEY',
-    default='django-insecure-@zfyov-&690&znb7cr*7#dh-t0oj!j=7^3f#d-pngihvcjmqlm'
-)
+SECRET_KEY = config('SECRET_KEY')
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
 
 
 CLOUDINARY_URL = config('CLOUDINARY_URL', default='')

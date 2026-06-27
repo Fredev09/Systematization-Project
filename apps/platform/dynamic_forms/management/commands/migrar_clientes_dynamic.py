@@ -20,11 +20,9 @@ import logging
 
 from django.core.management.base import BaseCommand
 
-from apps.platform.dynamic_forms.models import Campo, Formulario, ValorCampo
+from apps.platform.dynamic_forms.services_dynamic import FORM_CLIENTES
 
 logger = logging.getLogger(__name__)
-
-FORM_CLIENTES = 'Clientes'
 
 
 class Command(BaseCommand):

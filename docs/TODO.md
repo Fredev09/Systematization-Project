@@ -81,16 +81,49 @@ Validación: `check` (0 issues), `verificar_integridad_dynamic` (TODO OK).
 
 ---
 
-## Fase 5 — Limpieza final (RIESGO: BAJO)
+## Fase 5 — Limpieza final (RIESGO: BAJO) — ✅ COMPLETADO
 
 | # | Tarea | Estado |
 |---|-------|--------|
-| 5a | Eliminar `migrar_productos_dynamic.py` (command de migración) | Pendiente |
+| 5a | Eliminar `migrar_productos_dynamic.py` (command de migración) | ❌ No procede (preservado como no-op para rollback de referencia) |
 | 5b | Squash migraciones de dynamic_forms (opcional) | Pendiente |
-| 5c | Actualizar documentación de arquitectura | Pendiente |
+| 5c | Actualizar documentación de arquitectura | ✅ Completado |
 | 5d | Verificar que ningún template importa modelos legacy | ✅ Completado (auditoría Fase 4: todos seguros) |
 
+**Adicional (auditoría Fase 5):**
+- ✅ Fix broken import `backend.permissions` → `config.permissions` en `usuarios/tests.py`
+- ✅ Removed orphan `_cargar_productos()` en `productos/views_dynamic.py`
+- ✅ Removed orphan `usuarios()` view en `config/views.py` (no enrutada)
+- ✅ Removed orphan `rango_dia()` en `reportes/views.py`
+- ✅ Removed unused import `json` en `dynamic_forms/views.py`
+- ✅ Removed unused import `datetime` en `services_dynamic.py`
+- ✅ Removed unused classes `CampoFormSetBase` y `RegistroEditForm` en `forms.py`
+- ✅ Consolidated duplicate form name constants (7 archivos → import desde `services_dynamic.py`)
+- ✅ N+1 query audit (0 issues encontrados en reportes)
+
+Rollback: `git checkout` de archivos individuales.
+Validación: `check` (0 issues), `makemigrations --check` (sin cambios).
+
 Validación: `check`, limpieza de `__pycache__`, `makemigrations --check`.
+
+---
+
+## Fase 6 — Corrección de hallazgos de auditoría (Críticos y Altos) — ✅ COMPLETADO
+
+| # | Hallazgo | Resultado | Estado |
+|---|----------|-----------|--------|
+| C1 | Template `agregar_categoria.html` eliminado → 500 error | Template recreado | ✅ Corregido |
+| C2 | SECRET_KEY hardcodeada | Default eliminado | ✅ Corregido |
+| C3 | Seed sin hook → stock no descuenta | Hook auto-asignado | ✅ Corregido |
+| A1/A2 | Permisos en vistas de ventas | **Falso positivo** — accesible intencionalmente por vendedores | 📌 Documentado |
+| A3 | Paginación carga todo en memoria | **Limitación EAV** — no optimizable sin desnormalización | 📌 Documentado |
+| A4 | Falta índice compuesto en ValorCampo | Migración 0006 creada y aplicada | ✅ Corregido |
+| A5 | ALLOWED_HOSTS = ['*'] | Cambiado a variable de entorno | ✅ Corregido |
+| A6-A8 | Refactor de funciones grandes | No procede (refactor grande, fuera del alcance) | ⏳ Pendiente |
+| A9 | JS huérfanos (agregar/editar producto) | Archivos eliminados | ✅ Corregido |
+| A10 | Imágenes rotas en index.html | Template index.html está huérfano (A11) — pospuesto | ⏳ Pendiente |
+| A11 | Template index.html huérfano | No afecta operación — pospuesto | ⏳ Pendiente |
+| M6-M8 | Imports sin usar | Limpiados | ✅ Corregido |
 
 ---
 
@@ -101,8 +134,9 @@ Validación: `check`, limpieza de `__pycache__`, `makemigrations --check`.
 | R1 | Migrar generación de gráficos SVG (línea, donut, barras) a Dynamic Forms | Media | Pendiente |
 | R2 | Integridad referencial: validación que impida eliminar Registro referenciado | Alta | Pendiente |
 | R3 | Límites de seguridad en queries (máx. 1000 en top() y buscar()) | Alta | Pendiente |
-| R4 | Índices compuestos en ValorCampo(campo_id, valor) | Media | Pendiente |
+| R4 | Índices compuestos en ValorCampo(campo_id, valor) | Media | ✅ Completado (Fase 6) |
 | R5 | Caché de dashboard (5 min) | Media | Pendiente |
 | R6 | Evaluar modelo híbrido para Ventas | Media | Pendiente |
 | R7 | Profiling con Django Debug Toolbar | Media | Pendiente |
 | R8 | Documentación de límites EAV | Baja | Pendiente |
+| R9 | Importación Excel para Dynamic Forms | Alta | ✅ Completado |

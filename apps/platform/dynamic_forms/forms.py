@@ -62,21 +62,3 @@ class CampoForm(forms.ModelForm):
         }
 
 
-class CampoFormSetBase(forms.BaseFormSet):
-    def clean(self):
-        if any(self.errors):
-            return
-        nombres = []
-        for form in self.forms:
-            nombre = form.cleaned_data.get('nombre')
-            if nombre:
-                if nombre in nombres:
-                    raise forms.ValidationError(
-                        f'El campo "{nombre}" está repetido.'
-                    )
-                nombres.append(nombre)
-
-
-class RegistroEditForm(forms.Form):
-    """Formulario dinámico para editar registros existentes."""
-    pass  # Los campos se agregan dinámicamente en la vista

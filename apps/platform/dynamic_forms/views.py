@@ -1,4 +1,3 @@
-import json
 import logging
 from collections import defaultdict
 
@@ -12,7 +11,14 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from config.pagination import OPCIONES_POR_PAGINA, obtener_por_pagina, parametros_sin_pagina
 from config.permissions import admin_required, es_administrador, rol_usuario
-from .forms import CampoForm, FormularioForm
+from .forms import FormularioForm
+from .import_service import (
+    construir_mapeo_completo,
+    detectar_columnas,
+    importar,
+    leer_excel,
+    previsualizar,
+)
 from .models import Campo, Formulario, Registro, ValorCampo
 from .services import _evaluar_formula, exportar_registros_excel
 from .services_dynamic import _guardar_archivo_subido
@@ -807,6 +813,183 @@ def editar_registro(request, formulario_id, registro_id):
         'campos': campos,
         'valores_actuales': valores_actuales,
         'opciones_relacion': opciones_relacion,
+        'es_admin': es_administrador(request.user),
+        'rol_usuario': rol_usuario(request.user),
+    })
+
+
+@login_required(login_url='login')
+@admin_required
+def importar_excel(request, formulario_id):
+    """
+    Vista multi-paso para importar registros desde Excel.
+
+    Paso 1: GET → formulario de subida
+    Paso 2: POST (subir) → parsear Excel, detectar mapeo, mostrar preview
+    Paso 3: POST (confirmar) → validar filas, mostrar resumen de validación
+    Paso 4: POST (importar) → ejecutar importación
+    """
+    formulario = get_object_or_404(
+        Formulario.objects.prefetch_related('campos'),
+        id=formulario_id
+    )
+    campos_activos = formulario.campos.filter(activo=True).order_by('orden')
+
+    paso = request.POST.get('paso', 'subir')
+
+    # --- Paso 4: Ejecutar importación ---
+    if paso == 'importar':
+        import_data = request.session.pop('import_data', None)
+        mapping_data = request.session.pop('mapping_data', None)
+        if not import_data or not mapping_data:
+            messages.error(request, 'La sesión de importación ha expirado. Sube el archivo nuevamente.')
+            return redirect('dynamic_forms:importar_excel', formulario_id=formulario.id)
+
+        encabezados = import_data['encabezados']
+        filas = import_data['filas']
+        mapeo_idx = {int(k): v for k, v in mapping_data.items()}
+
+        preview = previsualizar(formulario, encabezados, filas, mapeo_idx)
+        filas_validas = [r for r in preview if r['valida']]
+
+        if not filas_validas:
+            messages.warning(request, 'No hay filas válidas para importar.')
+            return redirect('dynamic_forms:importar_excel', formulario_id=formulario.id)
+
+        resultado = importar(formulario, filas_validas, usuario=request.user)
+
+        return render(request, 'dynamic_forms/importar_excel.html', {
+            'formulario': formulario,
+            'paso': 'resultado',
+            'resultado': resultado,
+            'es_admin': es_administrador(request.user),
+            'rol_usuario': rol_usuario(request.user),
+        })
+
+    # --- Paso 3: Previsualizar validación (confirmar mapeo) ---
+    if paso == 'confirmar':
+        import_data = request.session.get('import_data')
+        if not import_data:
+            messages.error(request, 'La sesión de importación ha expirado. Sube el archivo nuevamente.')
+            return redirect('dynamic_forms:importar_excel', formulario_id=formulario.id)
+
+        encabezados = import_data['encabezados']
+        filas = import_data['filas']
+
+        # Recoger mapeo del formulario
+        mapeo_usuario = {}
+        for key, value in request.POST.items():
+            if key.startswith('mapeo_'):
+                col_idx = key.replace('mapeo_', '')
+                if col_idx.isdigit() and value:
+                    mapeo_usuario[int(col_idx)] = value
+
+        mapeo_idx, sin_mapear = construir_mapeo_completo(encabezados, formulario, mapeo_usuario)
+
+        # Validar que campos obligatorios estén mapeados
+        errores_mapeo = []
+        for campo in campos_activos:
+            if campo.obligatorio and campo.tipo not in ('calculado', 'imagen', 'archivo'):
+                if campo.nombre not in mapeo_idx.values():
+                    errores_mapeo.append(
+                        f'El campo obligatorio "{campo.nombre}" no está mapeado a ninguna columna.'
+                    )
+
+        if errores_mapeo:
+            for err in errores_mapeo:
+                messages.error(request, err)
+            encabezados_con_idx = [(idx, nombre) for idx, nombre in enumerate(encabezados)]
+            return render(request, 'dynamic_forms/importar_excel.html', {
+                'formulario': formulario,
+                'paso': 'mapeo',
+                'encabezados': encabezados,
+                'encabezados_con_idx': encabezados_con_idx,
+                'campos_activos': campos_activos,
+                'mapeo_idx': mapeo_idx,
+                'total_filas': len(filas),
+                'es_admin': es_administrador(request.user),
+                'rol_usuario': rol_usuario(request.user),
+            })
+
+        # Previsualizar validación
+        preview = previsualizar(formulario, encabezados, filas, mapeo_idx)
+        validas = [r for r in preview if r['valida']]
+        con_errores = [r for r in preview if not r['valida']]
+
+        request.session['import_data'] = import_data
+        request.session['mapping_data'] = {str(k): v for k, v in mapeo_idx.items()}
+
+        return render(request, 'dynamic_forms/importar_excel.html', {
+            'formulario': formulario,
+            'paso': 'preview',
+            'preview': preview,
+            'validas': validas,
+            'con_errores': con_errores,
+            'total_filas': len(filas),
+            'es_admin': es_administrador(request.user),
+            'rol_usuario': rol_usuario(request.user),
+        })
+
+    # --- Paso 1: Mostrar formulario de subida ---
+    if request.method == 'POST' and paso == 'subir':
+        archivo = request.FILES.get('archivo_excel')
+        if not archivo:
+            messages.error(request, 'Debes seleccionar un archivo Excel.')
+            return render(request, 'dynamic_forms/importar_excel.html', {
+                'formulario': formulario,
+                'paso': 'subir',
+                'es_admin': es_administrador(request.user),
+                'rol_usuario': rol_usuario(request.user),
+            })
+
+        if not archivo.name.endswith('.xlsx'):
+            messages.error(request, 'Solo se aceptan archivos .xlsx.')
+            return render(request, 'dynamic_forms/importar_excel.html', {
+                'formulario': formulario,
+                'paso': 'subir',
+                'es_admin': es_administrador(request.user),
+                'rol_usuario': rol_usuario(request.user),
+            })
+
+        # Leer archivo
+        try:
+            encabezados, filas = leer_excel(archivo)
+        except ValueError as e:
+            messages.error(request, str(e))
+            return render(request, 'dynamic_forms/importar_excel.html', {
+                'formulario': formulario,
+                'paso': 'subir',
+                'es_admin': es_administrador(request.user),
+                'rol_usuario': rol_usuario(request.user),
+            })
+
+        # Detectar mapeo automático
+        mapeo_idx, sin_mapear = construir_mapeo_completo(encabezados, formulario)
+
+        # Guardar datos en sesión
+        request.session['import_data'] = {
+            'encabezados': encabezados,
+            'filas': filas,
+        }
+
+        encabezados_con_idx = [(idx, nombre) for idx, nombre in enumerate(encabezados)]
+
+        return render(request, 'dynamic_forms/importar_excel.html', {
+            'formulario': formulario,
+            'paso': 'mapeo',
+            'encabezados': encabezados,
+            'encabezados_con_idx': encabezados_con_idx,
+            'campos_activos': campos_activos,
+            'mapeo_idx': mapeo_idx,
+            'sin_mapear': sin_mapear,
+            'total_filas': len(filas),
+            'es_admin': es_administrador(request.user),
+            'rol_usuario': rol_usuario(request.user),
+        })
+
+    return render(request, 'dynamic_forms/importar_excel.html', {
+        'formulario': formulario,
+        'paso': 'subir',
         'es_admin': es_administrador(request.user),
         'rol_usuario': rol_usuario(request.user),
     })

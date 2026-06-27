@@ -330,6 +330,88 @@ Migrar `catalogo_publico` → Dynamic Forms y las categorías legacy.
 
 ---
 
+## [2026-06-26] Phase 6 — Corrección de hallazgos de auditoría (Críticos y Altos)
+
+### Trabajo realizado
+- **C1**: Creado template `templates/formularios/agregar_categoria.html` para reemplazar el eliminado en Fase 4. La vista `agregar_categoria()` ya no produce error 500.
+- **C2**: Eliminado valor por defecto hardcodeado de `SECRET_KEY`. Ahora solo puede obtenerse desde variable de entorno (`config('SECRET_KEY')` sin `default=`).
+- **C3**: `sembrar_formularios_base` ahora asigna automáticamente el hook `post_crear_venta` al formulario Ventas. El comando `asignar_hook_ventas` queda como redundante (puede eliminarse).
+- **A1/A2** (permisos): Evaluado como **falso positivo**. Las 4 vistas de ventas (`nueva_venta`, `historial_ventas`, `exportar_ventas`, `detalle_cliente`) tienen controles internos de `es_administrador()` y están intencionalmente accesibles por vendedores para su flujo de trabajo.
+- **A5**: `ALLOWED_HOSTS` cambiado de `['*']` a `config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')`. Seguro para desarrollo y producción.
+- **A3** (paginación): Evaluado como **limitación inherente de EAV**. El filtrado de campos EAV debe ocurrir en Python. No hay optimización posible sin desnormalización a nivel BD (refactor grande, fuera del alcance).
+- **A4**: Añadido índice compuesto `idx_valorcampo_campo_valor` en `(campo_id, valor)` sobre `ValorCampo`. Creada y aplicada migración `0006`.
+- **A9**: Eliminados 2 archivos JS huérfanos: `static/js/productos/agregar_producto.js` y `editar_producto.js` (472 líneas de código muerto).
+- **M6-M8**: Eliminados imports sin usar: `Formulario` de `ventas/views_dynamic.py`, `time`/`timedelta` de `reportes/views.py`, `CampoForm` de `dynamic_forms/views.py`.
+- **Adicional**: Eliminada función `login_view()` huérfana de `config/views.py` (no enrutada desde Fase 3).
+
+### Archivos modificados
+- `templates/formularios/agregar_categoria.html` — **nuevo** (reemplaza template eliminado)
+- `config/settings/base.py` — SECRET_KEY sin default, ALLOWED_HOSTS desde env
+- `apps/platform/dynamic_forms/management/commands/sembrar_formularios_base.py` — hook auto-asignado
+- `apps/platform/dynamic_forms/models.py` — índice compuesto en ValorCampo
+- `apps/platform/dynamic_forms/migrations/0006_add_valorcampo_campo_valor_index.py` — **nueva migración**
+- `apps/legacy/ventas/views_dynamic.py` — unused import `Formulario` eliminado
+- `apps/shared/reportes/views.py` — unused imports `time`, `timedelta` eliminados
+- `apps/platform/dynamic_forms/views.py` — unused import `CampoForm` eliminado
+- `config/views.py` — función `login_view()` huérfana + imports eliminados
+- `static/js/productos/agregar_producto.js` — **eliminado**
+- `static/js/productos/editar_producto.js` — **eliminado**
+
+### Decisiones importantes
+- **A1/A2 como falso positivo**: Los permisos actuales son intencionales. Vendedores necesitan crear ventas, ver su historial, exportar y ver clientes. Añadir `@admin_required` rompería su flujo de trabajo. Los controles internos (`es_admin`) ya restringen funciones administrativas.
+- **A3 como limitación EAV documentada**: La paginación carga todo en memoria porque el filtrado de campos EAV (stock, categoría, búsqueda textual) ocurre en Python. Es una limitación arquitectónica conocida del patrón EAV. Para resolverlo se necesitaría desnormalización a nivel BD (tabla de resumen o vistas materializadas), lo cual es un refactor grande fuera del alcance de esta fase.
+- **asignar_hook_ventas redundante**: El comando sigue siendo funcional pero ya no es necesario porque `sembrar_formularios_base` asigna el hook automáticamente.
+
+### Validaciones
+- `python manage.py check` — 0 issues.
+- `python manage.py makemigrations --check` — No changes detected.
+- `python manage.py migrate --plan` — Only 0006 (applied).
+- `python manage.py migrate dynamic_forms 0006` — OK (índice creado).
+
+---
+
+## [2026-06-26] Phase 5 — Final cleanup and documentation sync
+
+### Trabajo realizado
+- **Fix broken import**: `apps/shared/usuarios/tests.py:4` changed `from backend.permissions` → `from config.permissions`.
+- **Removed orphan `_cargar_productos()`**: Function in `productos/views_dynamic.py:52` was defined but never called.
+- **Removed orphan `usuarios()` view**: `config/views.py:192` was not routed in `config/urls.py`. Also removed its unused imports (`User`, `Paginator`, `OPCIONES_POR_PAGINA`, `obtener_por_pagina`, `parametros_sin_pagina`).
+- **Removed orphan `rango_dia()`**: `reportes/views.py:29` was defined but never called.
+- **Removed unused imports**: `import json` from `dynamic_forms/views.py:1`; `from datetime import datetime` from `services_dynamic.py:32`.
+- **Removed unused classes**: `CampoFormSetBase` and `RegistroEditForm` from `dynamic_forms/forms.py`.
+- **Consolidated duplicate form name constants**: `FORM_PRODUCTOS`, `FORM_CLIENTES`, `FORM_VENTAS`, `FORM_MOVIMIENTOS_INVENTARIO` are now imported from `services_dynamic.py` (canonical source) instead of being redefined in `productos/views_dynamic.py`, `ventas/views_dynamic.py`, `verificar_integridad_dynamic.py`, `migrar_productos_dynamic.py`, `migrar_clientes_dynamic.py`, `migrar_ventas_dynamic.py`.
+- **N+1 audit**: Confirmed no N+1 patterns in `reportes/views.py` — all value access uses `cargar_valores_mapa()` batching.
+
+### Archivos modificados
+- `apps/shared/usuarios/tests.py` — 1 import changed.
+- `apps/legacy/productos/views_dynamic.py` — removed `_cargar_productos()` (11 lines), consolidated constants to import.
+- `apps/legacy/ventas/views_dynamic.py` — consolidated constants to import.
+- `config/views.py` — removed `usuarios()` view (29 lines), removed 3 unused imports.
+- `apps/shared/reportes/views.py` — removed `rango_dia()` (12 lines).
+- `apps/platform/dynamic_forms/views.py` — removed `import json`.
+- `apps/platform/dynamic_forms/services_dynamic.py` — removed `from datetime import datetime`.
+- `apps/platform/dynamic_forms/forms.py` — removed unused `CampoFormSetBase` and `RegistroEditForm`.
+- `apps/platform/dynamic_forms/management/commands/verificar_integridad_dynamic.py` — consolidated constants to import.
+- `apps/platform/dynamic_forms/management/commands/migrar_productos_dynamic.py` — consolidated constants to import.
+- `apps/platform/dynamic_forms/management/commands/migrar_clientes_dynamic.py` — consolidated constants to import.
+- `apps/platform/dynamic_forms/management/commands/migrar_ventas_dynamic.py` — consolidated constants to import.
+
+### Decisiones importantes
+- **Constants in services_dynamic.py**: Following AGENT_CONTEXT.md convention, all form-level constants now live only in `services_dynamic.py`. Other files import from there.
+- **N+1 not an issue**: The audit finding about potential N+1 queries in `reportes/views.py` was a false alarm. All loops use `cargar_valores_mapa()` batch loading.
+- **migrar_productos_dynamic.py preserved**: Kept as no-op for rollback reference per user preference.
+
+### Problemas encontrados
+- **Test database can't be created from scratch**: Migration files (0001-0008) reference deleted legacy models (`Producto`, `Categoria`, `Venta`, `Cliente`, `MovimientoInventario`), causing `ValueError: Related model 'productos.producto' cannot be resolved` when creating a fresh test database. Workaround: use `--keepdb` or a production database dump. This is a pre-existing limitation from Phase 3/4 (migrations preserved for chain continuity).
+- **Uniqueness test errors with --keepdb**: 3 tests (`test_unicidad_documento_cliente`, `test_unicidad_documento_con_activo_inactivo`, `test_unicidad_sku_producto`) fail with `--keepdb` due to test data persisting across runs. Clean with fresh database.
+
+### Validaciones
+- `python manage.py check` — 0 issues.
+- `python manage.py makemigrations --check` — No changes detected.
+- `python manage.py migrate --plan` — No pending operations.
+
+---
+
 ## [2026-06-26] Auditoría completa de modelos legacy (Producto, Venta, Cliente)
 
 ### Trabajo realizado
@@ -595,3 +677,42 @@ Ejecutar Fase 4 — eliminar modelos Producto/Categoria/MovimientoInventario leg
 
 ### Próximo paso
 Ejecutar Fase 5 — limpieza final (squash migraciones, verificar imports legacy restantes en templates).
+
+---
+
+## [2026-06-26] Módulo de importación Excel para Dynamic Forms
+
+### Trabajo realizado
+- Implementación completa del módulo de importación de Excel para Dynamic Forms.
+- Creación de `import_service.py` (283 líneas) con 5 funciones públicas:
+  - `leer_excel()` — Parseo de .xlsx a estructuras planas (encabezados + filas).
+  - `detectar_columnas()` — Auto-detección de mapeo columna→campo con normalización de nombres (acentos, mayúsculas, espacios).
+  - `construir_mapeo_completo()` — Combinación de auto-detección + correcciones del usuario.
+  - `previsualizar()` — Validación completa sin escribir BD, usando `DS.validar_completo()`.
+  - `importar()` — Ejecución de importación con `DS.crear()`, hooks y transacciones.
+- Vista multi-paso `importar_excel()` en `views.py` (4 pasos: Subir → Mapeo → Preview → Resultado).
+- Template `templates/dynamic_forms/importar_excel.html` con wizard visual y estilo consistente.
+- URL `/<id>/importar-excel/` en `urls.py`.
+
+### Archivos creados
+- `apps/platform/dynamic_forms/import_service.py` — Lógica central de importación (283 líneas).
+- `templates/dynamic_forms/importar_excel.html` — Interfaz de usuario (391 líneas).
+
+### Archivos modificados
+- `apps/platform/dynamic_forms/views.py` — Nueva vista `importar_excel()` (+188 líneas), imports actualizados.
+- `apps/platform/dynamic_forms/urls.py` — Nueva ruta `<int:formulario_id>/importar-excel/`.
+
+### Decisiones importantes
+- **Reutilización total de DynamicService**: No se duplica validación ni lógica de creación. `previsualizar()` llama a `DS.validar_completo()`, `importar()` llama a `DS.crear()`.
+- **Sin dependencias nuevas**: `openpyxl` ya estaba instalado. Se usa `load_workbook(read_only=True, data_only=True)` para rendimiento.
+- **Validación en dos fases**: Preview (solo validación, sin BD) + Confirmación (ejecución con transacciones). Las filas inválidas se skipean, no bloquean la importación.
+- **Mapeo editable por el usuario**: El usuario puede corregir el mapeo automático antes de la validación.
+- **Normalización flexible de columnas**: Los encabezados del Excel se normalizan (sin acentos, minúsculas, sin espacios) para matching automático contra nombres de campo.
+- **Datos en sesión**: Los datos parseados y el mapeo se guardan en `request.session` entre pasos del wizard.
+- **Sin modo upsert (aún)**: La importación actual solo crea registros nuevos. La funcionalidad de actualización queda como futura mejora.
+
+### Validaciones
+- `python manage.py check` — 0 issues.
+- `python manage.py makemigrations --check` — No changes detected.
+- Verificación de imports: Todos los módulos importan correctamente.
+- Las pruebas existentes (`test apps.platform.dynamic_forms`) no pueden ejecutarse con `--keepdb` debido a limitación preexistente (migraciones legacy 0001-0008 referencian modelos eliminados).

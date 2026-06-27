@@ -1,7 +1,7 @@
 from django.contrib.auth.models import Group, User
 from django.test import TestCase
 
-from backend.permissions import GRUPO_VENDEDOR, asegurar_grupos_base
+from config.permissions import GRUPO_VENDEDOR, asegurar_grupos_base
 from .forms import VendedorForm
 
 

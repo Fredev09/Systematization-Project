@@ -78,6 +78,7 @@ The Dynamic Forms EAV engine at `apps/platform/dynamic_forms/` is fully synchron
 
 **Migrations applied:**
 - `0001_initial` to `0005_fix_schema_discrepancies` — all applied, DB matches Python models.
+- `0006_add_valorcampo_campo_valor_index` — composite index on `(campo_id, valor)` for EAV queries.
 
 ## Completion Estimates
 
@@ -93,3 +94,4 @@ The Dynamic Forms EAV engine at `apps/platform/dynamic_forms/` is fully synchron
 | Data Migration (Venta/Cliente) | **100% migrated** | 5/5 ventas, 1/1 cliente migrados; commands adaptados a no-op |
 | Legacy model cleanup | **100%** | All 5 legacy models eliminated (Fase 3 + Fase 4) |
 | Legacy views/urls removal | **100%** | All orphan view/url files eliminated (Fase 3 + Fase 4) |
+| Code cleanup (Phase 5) | **100%** | Orphan code, unused imports, duplicate constants, N+1 audit — all clean |
