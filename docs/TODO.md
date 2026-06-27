@@ -13,15 +13,15 @@ código activo los referencia. Rollback: `git checkout`.
 
 | # | Tarea | Estado |
 |---|-------|--------|
-| 1a | Eliminar `apps/legacy/productos/urls.py` (no incluido en urlconf raíz) | Pendiente |
-| 1b | Eliminar `apps/legacy/ventas/urls.py` (no incluido en urlconf raíz) | Pendiente |
-| 1c | Eliminar `apps/legacy/productos/views.py` (0 vistas con ruta activa) | Pendiente |
-| 1d | Eliminar `apps/legacy/ventas/views.py` (0 vistas con ruta activa) | Pendiente |
-| 1e | Eliminar `apps/legacy/productos/forms.py` (solo usado por orphan views) | Pendiente |
-| 1f | Eliminar `templates/productos/agregar_producto.html` (orphan) | Pendiente |
-| 1g | Eliminar `templates/productos/editar_producto.html` (orphan) | Pendiente |
-| 1h | Eliminar `templates/productos/eliminar_producto.html` (orphan) | Pendiente |
-| 1i | Eliminar `templates/formularios/agregar_categoria.html` (orphan) | Pendiente |
+| 1a | Eliminar `apps/legacy/productos/urls.py` (no incluido en urlconf raíz) | ✅ Completado (Fase 4) |
+| 1b | Eliminar `apps/legacy/ventas/urls.py` (no incluido en urlconf raíz) | ✅ Completado (Fase 3) |
+| 1c | Eliminar `apps/legacy/productos/views.py` (0 vistas con ruta activa) | ✅ Completado (Fase 4) |
+| 1d | Eliminar `apps/legacy/ventas/views.py` (0 vistas con ruta activa) | ✅ Completado (Fase 3) |
+| 1e | Eliminar `apps/legacy/productos/forms.py` (solo usado por orphan views) | ✅ Completado (Fase 4) |
+| 1f | Eliminar `templates/productos/agregar_producto.html` (orphan) | ✅ Completado (Fase 4) |
+| 1g | Eliminar `templates/productos/editar_producto.html` (orphan) | ✅ Completado (Fase 4) |
+| 1h | Eliminar `templates/productos/eliminar_producto.html` (orphan) | ✅ Completado (Fase 4) |
+| 1i | Eliminar `templates/formularios/agregar_categoria.html` (orphan) | ✅ Completado (Fase 4) |
 | 1j | Eliminar import muerto `productos_views` en `config/urls.py:19` | ✅ Completado (Fase 3) |
 
 Validación: `python manage.py check` + `makemigrations --check`.
@@ -65,21 +65,19 @@ Validación: `check` (0 issues), `verificar_integridad_dynamic` (TODO OK),
 
 ---
 
-## Fase 4 — Eliminar Producto/Categoria/MovimientoInventario (RIESGO: MEDIO)
-
-Después de eliminar Venta/Cliente (que tienen FK a Producto).
+## Fase 4 — Eliminar Producto/Categoria/MovimientoInventario (RIESGO: MEDIO) — ✅ COMPLETADO
 
 | # | Tarea | Estado |
 |---|-------|--------|
-| 4a | Eliminar modelos de `productos/models.py` (Categoria, Producto, MovimientoInventario) | Pendiente |
-| 4b | Eliminar `apps/legacy/productos/admin.py` | Pendiente |
-| 4c | Eliminar `apps/legacy/productos/tests.py` | Pendiente |
-| 4d | Eliminar migraciones legacy de productos (8 archivos en `productos/migrations/`) | Pendiente |
-| 4e | Crear migración que elimine tablas `productos_producto`, `productos_categoria`, `productos_movimientoinventario` | Pendiente |
-| 4f | Limpiar `config/settings/base.py` — eliminar `apps.legacy.productos` de INSTALLED_APPS | Pendiente |
+| 4a | Eliminar modelos de `productos/models.py` (Categoria, Producto, MovimientoInventario) | ✅ Completado |
+| 4b | Eliminar `apps/legacy/productos/admin.py` | ✅ Completado |
+| 4c | Eliminar `apps/legacy/productos/tests.py` | ✅ Completado |
+| 4d | Eliminar migraciones legacy de productos (8 archivos en `productos/migrations/`) | ❌ No procede (preservadas para cadena de migraciones) |
+| 4e | Crear migración que elimine tablas `productos_producto`, `productos_categoria`, `productos_movimientoinventario` | ✅ Completado (migración 0009) |
+| 4f | Limpiar `config/settings/base.py` — eliminar `apps.legacy.productos` de INSTALLED_APPS | ❌ No procede (app contiene wrappers, views_dynamic activos) |
 
-Rollback: mismo mecanismo que Fase 3. Validación: `check`, `migrate`,
-pruebas funcionales de productos e inventario.
+Rollback: `git checkout apps/legacy/productos/models.py` + revertir migración 0009.
+Validación: `check` (0 issues), `verificar_integridad_dynamic` (TODO OK).
 
 ---
 
@@ -90,7 +88,7 @@ pruebas funcionales de productos e inventario.
 | 5a | Eliminar `migrar_productos_dynamic.py` (command de migración) | Pendiente |
 | 5b | Squash migraciones de dynamic_forms (opcional) | Pendiente |
 | 5c | Actualizar documentación de arquitectura | Pendiente |
-| 5d | Verificar que ningún template importa modelos legacy | Pendiente |
+| 5d | Verificar que ningún template importa modelos legacy | ✅ Completado (auditoría Fase 4: todos seguros) |
 
 Validación: `check`, limpieza de `__pycache__`, `makemigrations --check`.
 

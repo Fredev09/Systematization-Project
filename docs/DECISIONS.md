@@ -231,4 +231,6 @@ Removing the app from `INSTALLED_APPS` would require moving all these components
 - Changing imports in `config/urls.py`
 - No functional benefit — the current structure works correctly
 
-**Current status**: Applied in Fase 3. `apps.legacy.ventas` remains in `INSTALLED_APPS` as a "thin" app with no models, preserving hooks, templatetags, and views.
+**Current status**: Applied in Fase 3 (ventas) and Fase 4 (productos). Both `apps.legacy.ventas` and `apps.legacy.productos` remain in `INSTALLED_APPS` as thin apps with no models, preserving hooks, templatetags, views_dynamic, and wrappers.
+
+**Productos specific**: `apps.legacy.productos` preserves `views_dynamic.py` (dynamic views), `wrappers.py` (DynamicProductWrapper, DynamicMovimientoInventarioWrapper, etc.), and `migrations/` (migration chain). Unlike ventas, it does not have hooks or templatetags — it only needs views and wrappers.

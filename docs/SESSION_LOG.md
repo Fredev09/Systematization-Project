@@ -539,3 +539,59 @@ Ejecutar Fase 4 — eliminar modelos Producto/Categoria/MovimientoInventario leg
 
 ### Próximo paso
 Ejecutar Fase 4 — eliminar modelos Producto/Categoria/MovimientoInventario legacy.
+
+---
+
+## [2026-06-26] Fase 4 completada — Eliminación de Producto, Categoria y MovimientoInventario legacy
+
+### Trabajo realizado
+- Eliminación completa de modelos `Categoria`, `Producto` y `MovimientoInventario` legacy de `apps/legacy/productos/`.
+- Datos preservados en Dynamic Forms (6 productos, 6 movimientos de inventario — 100% íntegros).
+
+### Archivos modificados
+**Eliminados (código huérfano):**
+- `apps/legacy/productos/models.py` — Clases `Categoria`, `Producto`, `MovimientoInventario` (76→3 líneas, comment)
+- `apps/legacy/productos/admin.py` — `ProductoAdmin`, `MovimientoInventarioAdmin` (37→3 líneas)
+- `apps/legacy/productos/views.py` — 676 líneas de vistas legacy orphan (→3 líneas)
+- `apps/legacy/productos/forms.py` — `ProductoForm`, `ProductoEditForm` (123→3 líneas)
+- `apps/legacy/productos/urls.py` — 15 líneas de rutas no usadas (→3 líneas)
+- `apps/legacy/productos/tests.py` — `ProductoModelTests` (55→3 líneas)
+- `templates/productos/agregar_producto.html` — orphan
+- `templates/productos/editar_producto.html` — orphan
+- `templates/productos/eliminar_producto.html` — orphan
+- `templates/formularios/agregar_categoria.html` — orphan
+
+**Preservados (activos):**
+- `views_dynamic.py` — Vistas dinámicas activas, sin cambios
+- `wrappers.py` — Wrappers activos (DynamicProductWrapper, DynamicMovimientoInventarioWrapper, etc.)
+- `migrations/` — 9 archivos (incluyendo nueva migración 0009), preservados
+- `apps.py` — `ProductosConfig`, preservado (app sigue en INSTALLED_APPS)
+
+**Migración de BD:**
+- `productos/migrations/0009_remove_producto_categoria_and_more.py` — Creada por `makemigrations`, aplicada por `migrate`
+- SQL generado: DROP TABLE `productos_categoria` CASCADE; DROP TABLE `productos_movimientoinventario` CASCADE; DROP TABLE `productos_producto` CASCADE;
+- Tablas eliminadas: `productos_categoria`, `productos_producto`, `productos_movimientoinventario` (con sus FK constraints)
+
+**Commands de migración modificados (eliminada dependencia de modelos legacy):**
+- `migrar_productos_dynamic.py` — No-op informativo (migración ya completada)
+
+### Validaciones
+- `python manage.py check` — 0 issues
+- `python manage.py makemigrations --check` — No pending changes
+- `python manage.py migrate --plan` — No pending operations
+- `python manage.py verificar_integridad_dynamic` — **TODO OK**: 6 productos, 5 ventas, 1 cliente, 6 movimientos, 0 relaciones rotas, 0 duplicados
+- `python manage.py migrar_productos_dynamic` — ejecuta sin errores
+
+### Decisiones importantes
+- **App preservada en INSTALLED_APPS**: `apps.legacy.productos` permanece en INSTALLED_APPS (thin app) porque contiene:
+  - `wrappers.py` — Wrappers usados por templates y views dinámicas
+  - `views_dynamic.py` — Vistas activas de productos, inventario y catálogo
+  - `migrations/` — Historial de migraciones necesario para la cadena
+- **Sin FK blockers**: Las FK externas (Venta.producto, Venta.cliente) fueron eliminadas en Fase 3. No había dependencias de FKs desde otros módulos.
+- **Commands preservados como no-op**: `migrar_productos_dynamic` se mantiene como referencia para rollback.
+
+### Problemas encontrados
+- Ninguno. La migración y eliminación fueron limpias, sin efectos secundarios en el sistema en producción.
+
+### Próximo paso
+Ejecutar Fase 5 — limpieza final (squash migraciones, verificar imports legacy restantes en templates).

@@ -39,61 +39,30 @@ These modules use Dynamic Forms for their primary data operations:
 
 **Files preserved**: `views_dynamic.py` (1107 lines, active), `hooks.py` (active), `templatetags/formatos.py` (active), `migrations/` (9 files, migration chain).
 
-## Legacy Modules (still present, pending removal)
+## Removed Modules (eliminated in Fase 4)
 
 | Module | Files | Purpose |
 |--------|-------|---------|
-| `apps.legacy.productos.models.Producto` | `apps/legacy/productos/models.py:11-39` | Legacy product model (FK from MovimientoInventario) |
-| `apps.legacy.productos.models.Categoria` | `apps/legacy/productos/models.py:4-8` | Legacy category model (FK from Producto) |
-| `apps.legacy.productos.models.MovimientoInventario` | `apps/legacy/productos/models.py:42-76` | Legacy inventory movement model (FK to Producto) |
-| `apps.legacy.productos.admin` | `apps/legacy/productos/admin.py` | ProductoAdmin + MovimientoInventarioAdmin |
-| `apps.legacy.productos.views` | `apps/legacy/productos/views.py` | Legacy product views (676 lines, ALL orphan) |
+| `apps.legacy.productos.models.Producto` | Eliminado | Legacy product model — table `productos_producto` dropped (migration 0009) |
+| `apps.legacy.productos.models.Categoria` | Eliminado | Legacy category model — table `productos_categoria` dropped (migration 0009) |
+| `apps.legacy.productos.models.MovimientoInventario` | Eliminado | Legacy inventory model — table `productos_movimientoinventario` dropped (migration 0009) |
+| `apps.legacy.productos.admin` | Eliminado | ProductoAdmin + MovimientoInventarioAdmin |
+| `apps.legacy.productos.views` | Eliminado | Legacy product views (676 lines, ALL orphan) |
+| `apps.legacy.productos.forms` | Eliminado | ProductoForm + ProductoEditForm |
+| `apps.legacy.productos.urls` | Eliminado | Not included in root urlconf |
+| `apps.legacy.productos.tests` | Eliminado | ProductoModelTests |
 
-## Audit Results — By Model
+**Files preserved**: `views_dynamic.py` (active), `wrappers.py` (active), `migrations/` (9 files, migration chain).
 
-### Producto (apps.legacy.productos.models)
+## Zero Legacy Models Remaining
 
-| Category | Count | Details |
-|----------|-------|---------|
-| Active (model def) | 1 | `models.py:11` — class definition, fields, properties |
-| Active (indirect via FK) | 2 | `MovimientoInventario.producto` (CASCADE), `Venta.producto` (PROTECT) |
-| Active (admin) | 1 | `ProductoAdmin` registered in admin.py |
-| Active (settings) | 1 | `apps.legacy.productos` in INSTALLED_APPS |
-| Orphan (views) | ~20 | `productos/views.py` — all `Producto.objects` queries (0 routed) |
-| Orphan (forms) | 2 | `ProductoForm`, `ProductoEditForm` in `forms.py` |
-| Orphan (urls) | 1 | `productos/urls.py` — entire file not in root urlconf |
-| Orphan (templates) | 3 | `agregar_producto.html`, `editar_producto.html`, `eliminar_producto.html` |
-| Orphan (import) | 1 | `productos_views` in `config/urls.py:19` — imported but never used |
-| Migration | 8 | 8 migration files reference Producto |
-| Migration command | 1 | `migrar_productos_dynamic.py` reads Producto data |
-| Test | ~10 | Both `productos/tests.py` and `ventas/tests.py` create Producto instances |
+All legacy models from both `ventas` and `productos` apps have been removed:
 
-**Conclusion**: Producto can be removed ONLY after Venta (FK PROTECT) and
-MovimientoInventario (FK CASCADE) are removed.
-
-### MovimientoInventario (apps.legacy.productos.models)
-
-| Category | Count | Details |
-|----------|-------|---------|
-| Active (model def) | 1 | `models.py:42` — class definition, choice tuples |
-| Active (admin) | 1 | `MovimientoInventarioAdmin` in admin.py |
-| Orphan (views) | ~18 | `productos/views.py` — all orphan references |
-| Migration | 1 | `0003_movimientoinventario.py` |
-
-**Conclusion**: MovimientoInventario removal depends on Producto removal.
-
-### Categoria (apps.legacy.productos.models)
-
-| Category | Count | Details |
-|----------|-------|---------|
-| Active (model def) | 1 | `models.py:4` — class definition |
-| Migration command | 2 | `migrar_productos_dynamic.py` reads Categoria for sync |
-| Orphan (views) | 3 | `productos/views.py` — all orphan |
-| Migration | 1 | `0002_categoria...py` |
-| Test | 4 | Both test files create Categoria instances |
-
-**Conclusion**: Categoria removal depends on Producto removal (FK) and
-migration command rewrite.
+- ✅ `Venta` (Fase 3 — table `ventas_venta` dropped)
+- ✅ `Cliente` (Fase 3 — table `ventas_cliente` dropped)
+- ✅ `Producto` (Fase 4 — table `productos_producto` dropped)
+- ✅ `Categoria` (Fase 4 — table `productos_categoria` dropped)
+- ✅ `MovimientoInventario` (Fase 4 — table `productos_movimientoinventario` dropped)
 
 ## Dynamic Forms Infrastructure
 
@@ -122,5 +91,5 @@ The Dynamic Forms EAV engine at `apps/platform/dynamic_forms/` is fully synchron
 | Reports | **100% migrated** | All views on Dynamic Forms; legacy code removed |
 | Data Migration (products) | **100% migrated** | 6/6 products migrated; idempotent command |
 | Data Migration (Venta/Cliente) | **100% migrated** | 5/5 ventas, 1/1 cliente migrados; commands adaptados a no-op |
-| Legacy model cleanup | **~50%** | Venta/Cliente eliminados (Fase 3); Producto/Categoria/MovInventario pendientes (Fase 4) |
-| Legacy views/urls removal | **~30%** | ventas/views.py + ventas/urls.py eliminados; productos/views.py + productos/urls.py pendientes |
+| Legacy model cleanup | **100%** | All 5 legacy models eliminated (Fase 3 + Fase 4) |
+| Legacy views/urls removal | **100%** | All orphan view/url files eliminated (Fase 3 + Fase 4) |
