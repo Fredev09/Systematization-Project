@@ -327,3 +327,163 @@ Migrar `catalogo_publico` → Dynamic Forms y las categorías legacy.
 
 ### Problemas encontrados
 - Ninguno. Todas las variables de contexto y atributos del template son compatibles.
+
+---
+
+## [2026-06-26] Auditoría completa de modelos legacy (Producto, Venta, Cliente)
+
+### Trabajo realizado
+- Auditoría exhaustiva de todos los modelos legacy del proyecto: `Producto`, `Venta`, `Cliente`, `MovimientoInventario`, `Categoria`.
+- Análisis de cada referencia clasificada como: activa, indirecta, migración, test, huérfana o documentación.
+- Verificación de cada URL en `config/urls.py` para confirmar qué vistas están realmente enrutadas.
+
+### Hallazgos clave
+
+**Producto** (apps.legacy.productos.models.Producto):
+- 0 vistas activas en `config/urls.py` que usen `Producto.objects` — todas las rutas apuntan a `views_dynamic.py`.
+- Dependencias activas: FK desde `MovimientoInventario.producto` (CASCADE) y `Venta.producto` (PROTECT), ambos modelos huérfanos.
+- Referencias restantes: admin.py (registro), migraciones (8 archivos), command `migrar_productos_dynamic`, tests (2 archivos).
+- Import `productos_views` en `config/urls.py:19` — importado pero NUNCA usado en ningún URL pattern.
+
+**Venta** (apps.legacy.ventas.models.Venta):
+- 0 vistas activas — toda `apps/legacy/ventas/views.py` (668 líneas) está huérfana, incluyendo `exportar_ventas()`.
+- `config/urls.py` importa `exportar_ventas` desde `views_dynamic.py`, NO desde `views.py`.
+- Dependencias activas: FK a `Producto` (PROTECT) y `Cliente` (SET_NULL).
+- No hay modelos que dependan de Venta (es hoja en el grafo de dependencias).
+- Las URLs legacy en `apps/legacy/ventas/urls.py` NO están incluidas en la urlconf raíz.
+
+**Cliente** (apps.legacy.ventas.models.Cliente):
+- 0 vistas activas — toda la funcionalidad de clientes en producción usa `DynamicClienteWrapper` desde `views_dynamic.py`.
+- Única dependencia activa: FK `Venta.cliente` (SET_NULL) en un modelo ya huérfano.
+
+**Archivos que pueden eliminarse INMEDIATAMENTE** (riesgo cero):
+1. `apps/legacy/productos/urls.py` — no incluido en urlconf raíz
+2. `apps/legacy/ventas/urls.py` — no incluido en urlconf raíz
+3. `apps/legacy/productos/views.py` — ninguna vista tiene ruta activa (676 líneas)
+4. `apps/legacy/ventas/views.py` — ninguna vista tiene ruta activa (668 líneas)
+5. `apps/legacy/productos/forms.py` — solo usado por orphan views (ProductoForm, ProductoEditForm)
+6. `templates/productos/agregar_producto.html` — orphan, sin ruta activa
+7. `templates/productos/editar_producto.html` — orphan, sin ruta activa
+8. `templates/productos/eliminar_producto.html` — orphan, sin ruta activa
+9. `templates/formularios/agregar_categoria.html` — ya identificado previamente
+10. Import `productos_views` en `config/urls.py:19` — líneas 19 y suelta
+
+**Archivos que requieren migración de datos primero**:
+- `apps/legacy/productos/models.py` (5 modelos: Categoria, Producto, MovimientoInventario)
+- `apps/legacy/ventas/models.py` (2 modelos: Cliente, Venta)
+- `apps/legacy/productos/admin.py`
+- `apps/legacy/ventas/admin.py`
+- `apps/legacy/productos/tests.py`
+- `apps/legacy/ventas/tests.py`
+- Todas las migraciones legacy (8 en productos, 8 en ventas)
+- `apps/platform/dynamic_forms/management/commands/migrar_productos_dynamic.py`
+
+### Plan de eliminación por fases
+
+**Fase 1 — Limpieza inmediata** (RIESGO: BAJO)
+- Eliminar 10 archivos huérfanos + 1 import muerto.
+- Rollback: `git checkout` de los archivos eliminados.
+- Validación: `python manage.py check` + `makemigrations --check`.
+
+**Fase 2 — Migración de datos Venta/Cliente** (RIESGO: ALTO)
+- Crear script que copie datos de `Venta` y `Cliente` legacy a Dynamic Forms.
+- Migrar relaciones producto_id → sku dinámico, cliente_id → documento dinámico.
+- Rollback: re-ejecutar script (idempotente).
+- Validación: conteo de registros origen = destino, verificación de integridad.
+
+**Fase 3 — Eliminación de Venta/Cliente** (RIESGO: MEDIO)
+- Eliminar modelos Venta y Cliente de `ventas/models.py`.
+- Eliminar admin.py registrations, tests, migraciones de ventas legacy.
+- Crear migración de squashing que elimine tablas `ventas_venta` y `ventas_cliente`.
+- Rollback: restaurar modelos y migraciones desde git + volver a migrar datos.
+- Validación: `check`, `migrate`, pruebas funcionales de ventas.
+
+**Fase 4 — Eliminación de Producto/Categoria/MovimientoInventario** (RIESGO: MEDIO)
+- Eliminar modelos de `productos/models.py`.
+- Eliminar admin.py, tests, migraciones de productos legacy.
+- Crear migración que elimine tablas `productos_producto`, `productos_categoria`, `productos_movimientoinventario`.
+- Rollback: mismo mecanismo que Fase 3.
+- Validación: `check`, `migrate`, pruebas funcionales de productos e inventario.
+
+**Fase 5 — Limpieza final** (RIESGO: BAJO)
+- Eliminar `migrar_productos_dynamic.py`.
+- Eliminar migraciones squashed de dynamic_forms (opcional).
+- Validación: `check`, limpieza de `__pycache__`.
+
+### Archivos modificados
+- `docs/SESSION_LOG.md` — este registro.
+- `docs/TODO.md` — reorganizado con plan de 5 fases.
+- `docs/MIGRATION_STATUS.md` — actualizado con hallazgos detallados.
+
+### Decisiones importantes
+- **Ventas/views.py completamente huérfano**: se confirmó que `config/urls.py` importa todas las vistas de ventas desde `views_dynamic.py`. Incluso `exportar_ventas()` tiene su versión dinámica.
+- **Fase 1 ejecutable de inmediato**: 10 archivos pueden eliminarse sin riesgo porque ningún código activo los referencia.
+- **Import muerto en urls.py**: `from apps.legacy.productos import views as productos_views` en `config/urls.py:19` no se usa en ningún `path()`.
+
+### Próximo paso
+Ejecutar Fase 1 — eliminar los 10 archivos huérfanos y el import muerto.
+
+---
+
+## [2026-06-26] Fase 2 completada — Migración de datos Venta/Cliente a Dynamic Forms
+
+### Trabajo realizado
+- Auditoría de estructura legacy Venta/Cliente vs formularios dinámicos.
+- Identificación de campos necesarios: se agregó `id_legacy` (texto) al formulario Ventas como clave de idempotencia, indispensable porque las ventas no tienen un identificador único natural en Dynamic Forms.
+- Creación de 3 management commands.
+
+**Archivos creados:**
+1. `migrar_clientes_dynamic.py` — Migración idempotente de Clientes legacy usando `documento` como clave natural (único en ambos sistemas).
+2. `migrar_ventas_dynamic.py` — Migración idempotente de Ventas legacy usando `id_legacy` como trazabilidad. Deshabilita temporalmente el hook `post_crear_venta` durante la migración para evitar doble descuento de stock. Preserva fechas originales actualizando `Registro.fecha_creacion` vía QuerySet.update(). Preserva vendedores asignando `usuario` en `DS.crear()`.
+3. `verificar_integridad_dynamic.py` — Verificación automática de 6 aspectos: cantidad de registros, totales monetarios, cantidades vendidas, usuarios/vendedores, relaciones rotas, duplicados.
+
+**Resultados de migración:**
+- Clientes migrados: 1/1 (100%) — 1 creado, 0 errores.
+- Ventas migradas: 5/5 (100%) — 5 creadas, 0 errores, 0 diferencias por redondeo.
+- Productos (preexistente): 6/6 ya migrados.
+
+**Resultados de verificación de integridad:**
+- Productos: 6 legacy = 6 dinámicos ✓
+- Clientes: 1 legacy = 1 dinámico, todas las fechas coinciden ✓
+- Ventas: 5 legacy = 5 dinámicos, total monetario $620,000.00 exacto, cantidades 5 = 5 ✓
+- Vendedores: 100% coinciden ✓
+- Relaciones rotas: 0 a Productos, 0 a Clientes ✓
+- Duplicados: 0 en documentos, 0 en id_legacy, 0 en SKUs ✓
+
+**Idempotencia verificada:** 2+ ejecuciones de cada comando sin duplicados.
+
+**Validaciones:**
+- `python manage.py check` — 0 issues.
+- `python manage.py makemigrations --check` — No pending changes.
+- `python manage.py migrate --plan` — No pending operations.
+
+### Archivos creados
+- `apps/platform/dynamic_forms/management/commands/migrar_clientes_dynamic.py` — 253 líneas.
+- `apps/platform/dynamic_forms/management/commands/migrar_ventas_dynamic.py` — 317 líneas.
+- `apps/platform/dynamic_forms/management/commands/verificar_integridad_dynamic.py` — 303 líneas.
+
+### Archivos modificados
+- `docs/SESSION_LOG.md` — este registro.
+- `docs/TODO.md` — Fase 2 marcada completada.
+- `docs/MIGRATION_STATUS.md` — Data Migration (Venta/Cliente) actualizado a 100%.
+- `docs/DECISIONS.md` — añadida decisión sobre id_legacy para Ventas.
+
+### Decisiones importantes
+- **id_legacy como trazabilidad para Ventas**: Se agregó el campo `id_legacy` (texto) al formulario Ventas porque las ventas no tienen un identificador único natural (mismo producto + mismo cliente + misma cantidad puede repetirse). El campo almacena el ID del registro legacy.
+- **documento como clave natural para Clientes**: No se agregó id_legacy a Clientes porque el campo `documento` ya es único en ambos sistemas (legacy y dinámico). Sirve como clave de idempotencia sin modificar el esquema.
+- **Hook deshabilitado temporalmente**: Durante la migración de ventas, se deshabilita `hook_post_crear` del formulario Ventas para evitar que el hook descuente stock nuevamente (el stock ya fue descontado cuando ocurrió la venta original).
+- **Fecha preservada vía QuerySet.update()**: Se usa `Registro.objects.filter(id=...).update(fecha_creacion=...)` porque `fecha_creacion` es `auto_now_add` y no puede pasarse como parámetro a `DS.crear()`. El método `update()` de QuerySets bypass `auto_now_add`.
+- **precio_unitario calculado para preservar total exacto**: Se calcula `precio_unitario = total / cantidad` con 4 decimales de precisión para minimizar errores de redondeo en la fórmula `subtotal - descuento`. En 5/5 ventas el total fue exacto.
+- **Sin eliminación de modelos legacy**: Fase 2 no elimina ningún modelo. El objetivo fue únicamente migrar datos para que la Fase 3 sea segura.
+
+### Riesgos encontrados
+- Ninguno. La verificación de integridad confirmó 100% de coincidencia en todos los aspectos (cantidades, totales, usuarios, relaciones, duplicados).
+
+### Próximo paso
+Ejecutar Fase 3 — eliminar modelos Venta/Cliente legacy, incluyendo:
+- `ventas/models.py` (Cliente, Venta)
+- `ventas/admin.py` (VentaAdmin, ClienteAdmin)
+- `ventas/tests.py`
+- 8 migraciones legacy de ventas
+- Crear migración de eliminación de tablas `ventas_venta` y `ventas_cliente`
+- Limpiar `config/settings/base.py`

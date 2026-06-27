@@ -174,3 +174,37 @@
 **Reason**: A hook (e.g., `post_crear_venta`) calls `DS.crear()` for `MovimientosInventario`, which could theoretically trigger another `post_crear` hook. Thread-local storage prevents infinite recursion without requiring database-level state.
 
 **Current status**: Implemented in `services_dynamic.py` with `_hook_local`, `_marcar_inicio_hook()`, `_marcar_fin_hook()`, and `HookRecursivoError`.
+
+---
+
+## Decision: id_legacy Field for Ventas Idempotent Migration
+
+**Decision**: Add an `id_legacy` (text) field to the `Ventas` dynamic form to serve as the idempotency key during legacy-to-dynamic data migration.
+
+**Reason**: Unlike Clientes (which have a natural unique key via `documento`), Ventas have no unique natural identifier. The same product + same client + same quantity could theoretically repeat. The `id_legacy` field stores the legacy `Venta.id`, providing a stable, unique trace key without requiring an extra mapping table.
+
+**Trade-off**: No schema impact on templates or wrappers (the field is purely for migration idempotency). It remains in the form for future idempotent re-runs.
+
+**Current status**: Implemented in `migrar_ventas_dynamic`. The field is auto-created if absent. Verified across 2+ idempotent executions.
+
+---
+
+## Decision: Documento as Natural Key for Cliente Migration
+
+**Decision**: Use the existing `documento` field (unique in both legacy `Cliente.documento` and dynamic `Clientes.documento`) as the idempotency key for client migration, without adding extra fields.
+
+**Reason**: The `documento` field is already unique in both systems. No schema change needed. Lookups are performed via `ValorCampo(campo__nombre='documento', valor=documento)`.
+
+**Current status**: Implemented in `migrar_clientes_dynamic`. Verified across 2+ idempotent executions.
+
+---
+
+## Decision: Hook Disabling During Venta Migration
+
+**Decision**: Temporarily disable the `hook_post_crear` on the `Ventas` form while migrating legacy sales data.
+
+**Reason**: The hook `post_crear_venta` decrements product stock. During migration, this would cause double-decrement: the stock was already decremented when the original sale occurred, and the current dynamic product stock reflects that decrement. Re-executing it would create incorrect stock levels.
+
+**Implementation**: Save the original hook path, set `formulario.hook_post_crear = None`, run `DS.crear()`, then restore the hook within a `try/finally` block.
+
+**Current status**: Implemented in `migrar_ventas_dynamic`. Verified that stock levels remain correct after migration.
