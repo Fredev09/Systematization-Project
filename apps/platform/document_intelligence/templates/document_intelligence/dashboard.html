@@ -1,0 +1,103 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block title %}Document Intelligence{% endblock %}
+
+{% block extra_css %}
+<style>
+    .di-card { transition: transform .2s, box-shadow .2s; border-radius: 16px; overflow: hidden; }
+    .di-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,.15); }
+    .di-icon { font-size: 3rem; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; border-radius: 20px; }
+    .stat-card { border-radius: 12px; padding: 1.5rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="mb-1">🧠 Document Intelligence</h1>
+            <p class="text-muted mb-0">Plataforma universal de análisis documental con IA</p>
+        </div>
+        <div>
+            <span class="badge bg-primary fs-6">v1.0</span>
+        </div>
+    </div>
+
+    {% if stats %}
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card bg-primary bg-opacity-10">
+                <small class="text-muted">Análisis (30 días)</small>
+                <h3 class="mb-0">{{ stats.total_calls }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card bg-success bg-opacity-10">
+                <small class="text-muted">Exitosos</small>
+                <h3 class="mb-0">{{ stats.successful }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card bg-info bg-opacity-10">
+                <small class="text-muted">En caché</small>
+                <h3 class="mb-0">{{ stats.cached }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card bg-warning bg-opacity-10">
+                <small class="text-muted">Costo estimado</small>
+                <h3 class="mb-0">${{ stats.estimated_cost_usd|floatformat:4 }}</h3>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row g-4">
+        <div class="col-md-4">
+            <a href="{% url 'document_intelligence:create_from_file' %}" class="text-decoration-none">
+                <div class="card di-card border-0 shadow-sm h-100">
+                    <div class="card-body text-center p-4">
+                        <div class="di-icon bg-primary bg-opacity-10 mx-auto mb-3">
+                            <span class="text-primary">📄</span>
+                        </div>
+                        <h5 class="card-title">Crear formulario con IA</h5>
+                        <p class="card-text text-muted small">Sube un Excel, CSV, PDF o imagen. La IA detecta campos y genera el formulario automáticamente.</p>
+                        <span class="badge bg-primary">Nuevo</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-4">
+            <a href="{% url 'document_intelligence:scan_invoice' %}" class="text-decoration-none">
+                <div class="card di-card border-0 shadow-sm h-100">
+                    <div class="card-body text-center p-4">
+                        <div class="di-icon bg-success bg-opacity-10 mx-auto mb-3">
+                            <span class="text-success">🧾</span>
+                        </div>
+                        <h5 class="card-title">Escanear factura</h5>
+                        <p class="card-text text-muted small">Toma una foto o sube un PDF de una factura. La IA extrae todos los datos automáticamente.</p>
+                        <span class="badge bg-success">Nuevo</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-4">
+            <a href="{% url 'document_intelligence:history' %}" class="text-decoration-none">
+                <div class="card di-card border-0 shadow-sm h-100">
+                    <div class="card-body text-center p-4">
+                        <div class="di-icon bg-info bg-opacity-10 mx-auto mb-3">
+                            <span class="text-info">📊</span>
+                        </div>
+                        <h5 class="card-title">Historial IA</h5>
+                        <p class="card-text text-muted small">Consulta el historial completo de análisis, tokens, costos y resultados.</p>
+                        <span class="badge bg-info">Historial</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

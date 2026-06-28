@@ -1,0 +1,66 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Field Schema",
+  "description": "Schema for a single detected field from AI analysis",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Field name in Spanish"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "texto", "numero", "moneda", "fecha", "booleano",
+        "lista", "email", "url", "telefono", "textarea",
+        "relacion", "calculado", "imagen", "archivo"
+      ],
+      "description": "Suggested field type"
+    },
+    "required": {
+      "type": "boolean",
+      "description": "Whether the field is required"
+    },
+    "unique": {
+      "type": "boolean",
+      "description": "Whether the field must be unique"
+    },
+    "is_identifier": {
+      "type": "boolean",
+      "description": "Whether this is the primary identifier field"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "AI confidence score for this field detection"
+    },
+    "explanation": {
+      "type": "string",
+      "description": "Explanation of why this type was chosen"
+    },
+    "alternatives": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Alternative field names or types"
+    },
+    "order": {
+      "type": "integer",
+      "description": "Display order in the form"
+    },
+    "options": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Options for 'lista' type fields"
+    },
+    "related_form": {
+      "type": "string",
+      "description": "Related form name for 'relacion' type fields"
+    },
+    "formula": {
+      "type": "string",
+      "description": "Formula expression for 'calculado' type fields"
+    }
+  },
+  "required": ["name", "type", "confidence"]
+}

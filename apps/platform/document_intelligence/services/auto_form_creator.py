@@ -1,0 +1,173 @@
+"""
+auto_form_creator.py — AI-powered automatic form creator.
+
+Takes an extracted document and classification, generates a complete
+form proposal with fields, types, validations, identifier, currency, etc.
+
+The proposal is NOT saved to DB — the user reviews and confirms first.
+Reuses apps.platform.ai.services.FieldDetector and FormGenerator.
+"""
+
+from __future__ import annotations
+
+import logging
+from dataclasses import dataclass, field
+from typing import Any, Optional
+
+from apps.platform.ai.providers.base import BaseAIProvider
+from apps.platform.ai.services.field_detector import FieldDetector
+from apps.platform.ai.services.form_generator import FormGenerator
+from apps.platform.ai.types import DetectedField, FormProposal
+from apps.platform.document_intelligence.extractors.base import (
+    ExtractedDocument,
+)
+from apps.platform.document_intelligence.services.structure_detector import (
+    DocumentClassification,
+)
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class FormCreationProposal:
+    """
+    Complete form creation proposal for user review.
+
+    NOT saved to DB — displayed in the review screen for user confirmation.
+    """
+    form_name: str
+    form_description: str = ""
+    fields: list[DetectedField] = field(default_factory=list)
+    total_fields: int = 0
+    identifier_field: Optional[str] = None
+    currency_field: Optional[str] = None
+    confidence: float = 0.0
+    source_document: str = ""
+    warnings: list[str] = field(default_factory=list)
+
+
+class AutoFormCreator:
+    """
+    Automatically creates form proposals from extracted documents.
+
+    Usage:
+        creator = AutoFormCreator(provider=gemini_provider)
+        proposal = creator.create_proposal(extracted_doc, classification)
+        if proposal.total_fields > 0:
+            # Show review screen
+    """
+
+    def __init__(self, provider: BaseAIProvider):
+        self.provider = provider
+        self.field_detector = FieldDetector(provider)
+        self.form_generator = FormGenerator(provider)
+
+    def create_proposal(
+        self,
+        extracted_doc: ExtractedDocument,
+        classification: Optional[DocumentClassification] = None,
+        use_cache: bool = True,
+    ) -> FormCreationProposal:
+        """
+        Create a form proposal from an extracted document.
+
+        Pipeline:
+          1. Detect fields from document headers + sample rows
+          2. Generate form proposal (name, description, fields, metadata)
+          3. Build FormCreationProposal for user review
+
+        Args:
+            extracted_doc: Extracted document.
+            classification: Optional document type classification.
+            use_cache: Whether to use cached AI results.
+
+        Returns:
+            FormCreationProposal for user review.
+        """
+        source_name = extracted_doc.title
+        doc_type = classification.document_type if classification else "unknown"
+
+        # Determine form name from classification
+        form_name = self._suggest_form_name(extracted_doc, doc_type)
+
+        # Detect fields from columns + sample data
+        sample_rows = (
+            extracted_doc.rows[:5] if extracted_doc.rows else None
+        )
+
+        fields = self.field_detector.analyze_data(
+            headers=extracted_doc.columns,
+            sample_rows=sample_rows,
+            use_cache=use_cache,
+        )
+
+        if not fields:
+            logger.warning("No fields detected for %s. Using column names as text fields.", source_name)
+            # Fallback: use column names as text fields
+            fields = [
+                DetectedField(name=h, suggested_type="texto", confidence=0.5, order=idx)
+                for idx, h in enumerate(extracted_doc.columns)
+            ]
+
+        # Generate form proposal
+        proposal = self.form_generator.generate(
+            fields=fields,
+            source_name=source_name,
+            description=f"Formulario generado a partir de {doc_type}: {source_name}",
+            use_cache=use_cache,
+        )
+
+        # Find identifier and currency fields
+        identifier_field = next(
+            (f.name for f in proposal.fields if f.is_identifier), None
+        )
+        currency_field = next(
+            (f.name for f in proposal.fields if f.suggested_type == "moneda"), None
+        )
+
+        return FormCreationProposal(
+            form_name=proposal.form_name,
+            form_description=proposal.form_description,
+            fields=proposal.fields,
+            total_fields=len(proposal.fields),
+            identifier_field=identifier_field,
+            currency_field=currency_field,
+            confidence=proposal.confidence,
+            source_document=source_name,
+            warnings=proposal.warnings,
+        )
+
+    def _suggest_form_name(
+        self,
+        doc: ExtractedDocument,
+        doc_type: str,
+    ) -> str:
+        """Suggest a form name from document info."""
+        type_names = {
+            "inventario": "Inventario",
+            "ventas": "Ventas",
+            "clientes": "Clientes",
+            "productos": "Productos",
+            "empleados": "Empleados",
+            "facturas": "Facturas",
+            "cotizaciones": "Cotizaciones",
+            "compras": "Compras",
+            "contratos": "Contratos",
+            "pedidos": "Pedidos",
+            "activos": "Activos Fijos",
+            "pagos": "Pagos",
+        }
+
+        if doc_type in type_names:
+            return type_names[doc_type]
+
+        # From filename
+        name = doc.title
+        for ext in [".xlsx", ".xls", ".csv", ".pdf", ".txt", ".json"]:
+            if name.lower().endswith(ext):
+                name = name[:-len(ext)]
+        name = name.replace("_", " ").replace("-", " ").strip()
+        if name and len(name) > 2:
+            return name.title()
+
+        return "Documento sin clasificar"

@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Campo, Formulario, Registro, ValorCampo
+from .models import Campo, Formulario, ImportAudit, ImportLog, ImportSnapshot, Registro, ValorCampo
 
 
 class CampoInline(admin.TabularInline):
@@ -33,8 +33,8 @@ class FormularioAdmin(admin.ModelAdmin):
 
 @admin.register(Campo)
 class CampoAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'formulario', 'tipo', 'obligatorio', 'orden', 'formula')
-    list_filter = ('tipo', 'obligatorio', 'formulario')
+    list_display = ('nombre', 'formulario', 'tipo', 'obligatorio', 'orden', 'identificador_principal', 'formula')
+    list_filter = ('tipo', 'obligatorio', 'identificador_principal', 'formulario')
     search_fields = ('nombre',)
 
 
@@ -43,3 +43,26 @@ class RegistroAdmin(admin.ModelAdmin):
     list_display = ('id', 'formulario', 'fecha_creacion', 'usuario')
     list_filter = ('formulario', 'fecha_creacion')
     inlines = [ValorCampoInline]
+
+
+@admin.register(ImportLog)
+class ImportLogAdmin(admin.ModelAdmin):
+    list_display = ('id', 'formulario', 'usuario', 'fecha', 'modo', 'estado', 'creados', 'actualizados', 'errores')
+    list_filter = ('estado', 'modo', 'formulario')
+    search_fields = ('archivo_nombre', 'resumen')
+    readonly_fields = ('fecha', 'archivo_hash', 'tiempo_seg')
+    date_hierarchy = 'fecha'
+
+
+@admin.register(ImportAudit)
+class ImportAuditAdmin(admin.ModelAdmin):
+    list_display = ('id', 'import_log', 'tipo', 'registro_id', 'campo_nombre', 'created_at')
+    list_filter = ('tipo',)
+    search_fields = ('mensaje',)
+    readonly_fields = ('created_at',)
+
+
+@admin.register(ImportSnapshot)
+class ImportSnapshotAdmin(admin.ModelAdmin):
+    list_display = ('id', 'import_log', 'registro', 'created_at')
+    readonly_fields = ('created_at',)

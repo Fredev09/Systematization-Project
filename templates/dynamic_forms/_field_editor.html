@@ -1,0 +1,53 @@
+{% load static %}
+{# ════════════════════════════════════════════════════════════════════
+   _field_editor.html — ÚNICO editor de campos reutilizable.
+   
+   Uso en templates:
+     {% include "dynamic_forms/_field_editor.html" with campos=campos formularios_disponibles=formularios_disponibles %}
+   
+   Variables esperadas en contexto:
+     - campos: QuerySet o list de Campo (puede estar vacío)
+     - formularios_disponibles: QuerySet de Formulario (para relaciones)
+     - mostrar_botones: bool (default True) — ocultar el header/footer si se incrusta
+   
+   Compatible con field-editor.js (drag & drop, serialización a JSON y POST).
+   ════════════════════════════════════════════════════════════════════ #}
+
+{% if not ocultar_header %}
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <div>
+        <span class="badge bg-secondary" id="field-count">{{ campos|length|default:"0" }}</span>
+        <small class="text-muted ms-1">campos</small>
+    </div>
+    <button type="button" class="btn btn-sm btn-outline-primary" data-action="add-field" id="agregarCampo">
+        <i class='fas fa-plus'></i> Agregar campo
+    </button>
+</div>
+{% endif %}
+
+<div id="camposContainer" class="field-editor-container">
+    {% if campos %}
+        {% for campo in campos %}
+        {% include "dynamic_forms/_field_row.html" with campo=campo index=forloop.counter0 prefix="" %}
+        {% endfor %}
+    {% else %}
+        {% include "dynamic_forms/_field_row.html" with campo=None index=0 prefix="" %}
+    {% endif %}
+</div>
+
+{% if not ocultar_header %}
+<div class="mt-2 text-end">
+    <small class="text-muted">Arrastra los campos ⠿ para reordenarlos</small>
+</div>
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script src="{% static 'js/dynamic_forms/field-editor.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    FieldEditor.init('camposContainer', {
+        sortable: true,
+        countBadgeId: 'field-count'
+    });
+});
+</script>

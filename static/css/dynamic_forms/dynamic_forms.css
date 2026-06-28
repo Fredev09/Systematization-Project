@@ -1077,6 +1077,24 @@ html.dark-mode .df-delete-panel .panel-header {
     background: rgba(239, 68, 68, 0.12) !important;
 }
 
+.df-currency-prefix {
+    background: var(--soft-accent);
+    border: 1px solid var(--border);
+    border-right: none;
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+    padding: 0 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+}
+
+.input-group:focus-within .df-currency-prefix {
+    border-color: var(--primary);
+    border-right: none;
+}
+
 @media (max-width: 768px) {
     .df-pagination-bar {
         flex-direction: column;

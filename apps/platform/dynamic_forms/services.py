@@ -69,6 +69,9 @@ def exportar_registros_excel(registros, campos, formulario_nombre, relacion_reso
     ws = wb.active
     ws.title = 'Registros'
 
+    # Identificar campo identificador principal
+    campo_identificador = campos.filter(identificador_principal=True).first()
+
     # Estilos
     titulo_fill = PatternFill('solid', fgColor='D41473')
     encabezado_fill = PatternFill('solid', fgColor='FCE7F3')
@@ -83,10 +86,13 @@ def exportar_registros_excel(registros, campos, formulario_nombre, relacion_reso
     center = Alignment(horizontal='center', vertical='center')
     left = Alignment(horizontal='left', vertical='center')
 
-    # Construir encabezados
-    encabezados = ['#', 'Fecha']
+    # Construir encabezados (sin ID interno)
+    encabezados = ['Fecha']
+    if campo_identificador:
+        encabezados.append(campo_identificador.nombre)
     for campo in campos:
-        encabezados.append(campo.nombre)
+        if campo.id != getattr(campo_identificador, 'id', None):
+            encabezados.append(campo.nombre)
     encabezados.append('Usuario')
 
     # Título y resumen
@@ -125,16 +131,20 @@ def exportar_registros_excel(registros, campos, formulario_nombre, relacion_reso
 
     # Datos
     campos_ids = [c.id for c in campos]
+    id_identificador = getattr(campo_identificador, 'id', None) if campo_identificador else None
     for registro in registros:
         fecha = timezone.localtime(registro.fecha_creacion).strftime(
             '%d/%m/%Y %I:%M %p'
         )
         usuario = registro.usuario.username if registro.usuario else ''
 
-        fila = [registro.id, fecha]
+        fila = [fecha]
         valores_reg = valores_map.get(registro.id, {})
+        if id_identificador:
+            fila.append(valores_reg.get(id_identificador, ''))
         for campo_id in campos_ids:
-            fila.append(valores_reg.get(campo_id, ''))
+            if campo_id != id_identificador:
+                fila.append(valores_reg.get(campo_id, ''))
 
         fila.append(usuario)
         ws.append(fila)

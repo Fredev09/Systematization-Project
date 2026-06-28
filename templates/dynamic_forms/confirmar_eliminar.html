@@ -57,13 +57,13 @@
                     <strong>Esta acción eliminará también los {{ total_registros }} registro(s) asociados.</strong>
                 </div>
 
-                <form method="post" class="mt-4">
+                <form method="post" class="mt-4" data-df-submit>
                     {% csrf_token %}
                     <div class="d-flex justify-content-center gap-3">
                         <a href="{% url 'dynamic_forms:listar_formularios' %}" class="btn btn-secondary">
                             <i class='fas fa-times'></i> Cancelar
                         </a>
-                        <button type="submit" name="confirmar" value="si" class="btn btn-danger">
+                        <button type="submit" name="confirmar" value="si" class="btn btn-danger" data-loading-text="Eliminando...">
                             <i class='fas fa-trash'></i> Sí, eliminar
                         </button>
                     </div>
@@ -73,4 +73,5 @@
     </div>
 </section>
 
+{% block scripts %}{{ block.super }}{% endblock %}
 {% endblock %}

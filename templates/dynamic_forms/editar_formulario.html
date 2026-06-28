@@ -33,7 +33,7 @@
     </nav>
 </section>
 
-<form method="post" id="formularioForm">
+<form method="post" id="formularioForm" data-df-submit>
     {% csrf_token %}
 
     <section class="panel-card mb-4">
@@ -74,90 +74,15 @@
                 <h2>Campos del formulario</h2>
                 <p>Agrega, edita o elimina campos del formulario</p>
             </section>
-            <button type="button" class="btn btn-primary" id="agregarCampo">
-                <i class='fas fa-plus'></i> Agregar campo
-            </button>
         </header>
 
         <div class="card-body">
-            <div id="camposContainer">
-                {% for campo in campos %}
-                <div class="campo-fila row g-2 mb-2" data-index="{{ forloop.counter0 }}">
-                    <div class="col-12 col-md-3">
-                        <input type="text" name="campo_nombre" class="form-control form-control-sm" placeholder="Nombre del campo" value="{{ campo.nombre }}" required>
-                    </div>
-                    <div class="col-6 col-md-2">
-                        <select name="campo_tipo" class="form-select form-select-sm campo-tipo">
-                            <option value="texto" {% if campo.tipo == 'texto' %}selected{% endif %}>Texto</option>
-                            <option value="numero" {% if campo.tipo == 'numero' %}selected{% endif %}>Número</option>
-                            <option value="fecha" {% if campo.tipo == 'fecha' %}selected{% endif %}>Fecha</option>
-                            <option value="booleano" {% if campo.tipo == 'booleano' %}selected{% endif %}>Booleano</option>
-                            <option value="lista" {% if campo.tipo == 'lista' %}selected{% endif %}>Lista desplegable</option>
-                            <option value="email" {% if campo.tipo == 'email' %}selected{% endif %}>Correo electrónico</option>
-                            <option value="url" {% if campo.tipo == 'url' %}selected{% endif %}>URL</option>
-                            <option value="telefono" {% if campo.tipo == 'telefono' %}selected{% endif %}>Teléfono</option>
-                            <option value="textarea" {% if campo.tipo == 'textarea' %}selected{% endif %}>Texto largo</option>
-                            <option value="imagen" {% if campo.tipo == 'imagen' %}selected{% endif %}>Imagen</option>
-                            <option value="archivo" {% if campo.tipo == 'archivo' %}selected{% endif %}>Archivo</option>
-                        </select>
-                    </div>
-                    <div class="col-6 col-md-2">
-                        <div class="form-check mt-2">
-                            <input type="checkbox" name="campo_obligatorio" class="form-check-input" id="obligatorio_e{{ forloop.counter0 }}" {% if campo.obligatorio %}checked{% endif %}>
-                            <label class="form-check-label small" for="obligatorio_e{{ forloop.counter0 }}">Obligatorio</label>
-                        </div>
-                    </div>
-                    <div class="col-6 col-md-2">
-                        <input type="number" name="campo_orden" class="form-control form-control-sm" placeholder="Orden" min="0" value="{{ campo.orden }}">
-                    </div>
-                    <div class="col-10 col-md-2 campo-opciones-container" style="{% if campo.tipo != 'lista' %}display:none;{% endif %}">
-                        <input type="text" name="campo_opciones" class="form-control form-control-sm" placeholder="Op1, Op2, Op3" value="{% if campo.opciones %}{{ campo.opciones|join:', ' }}{% endif %}">
-                    </div>
-                    <div class="col-2 col-md-1 d-flex align-items-center">
-                        <button type="button" class="action-btn danger-btn eliminar-campo" title="Eliminar campo">
-                            <i class='fas fa-times'></i>
-                        </button>
-                    </div>
-                </div>
-                {% empty %}
-                <div class="campo-fila row g-2 mb-2" data-index="0">
-                    <div class="col-12 col-md-3">
-                        <input type="text" name="campo_nombre" class="form-control form-control-sm" placeholder="Nombre del campo" required>
-                    </div>
-                    <div class="col-6 col-md-2">
-                        <select name="campo_tipo" class="form-select form-select-sm campo-tipo">
-                            <option value="texto">Texto</option>
-                            <option value="numero">Número</option>
-                            <option value="fecha">Fecha</option>
-                            <option value="booleano">Booleano</option>
-                            <option value="lista">Lista desplegable</option>
-                        </select>
-                    </div>
-                    <div class="col-6 col-md-2">
-                        <div class="form-check mt-2">
-                            <input type="checkbox" name="campo_obligatorio" class="form-check-input" id="obligatorio_e0">
-                            <label class="form-check-label small" for="obligatorio_e0">Obligatorio</label>
-                        </div>
-                    </div>
-                    <div class="col-6 col-md-2">
-                        <input type="number" name="campo_orden" class="form-control form-control-sm" placeholder="Orden" min="0" value="0">
-                    </div>
-                    <div class="col-10 col-md-2 campo-opciones-container" style="display:none;">
-                        <input type="text" name="campo_opciones" class="form-control form-control-sm" placeholder="Op1, Op2, Op3">
-                    </div>
-                    <div class="col-2 col-md-1 d-flex align-items-center">
-                        <button type="button" class="action-btn danger-btn eliminar-campo" title="Eliminar campo">
-                            <i class='fas fa-times'></i>
-                        </button>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
+            {% include "dynamic_forms/_field_editor.html" with campos=campos formularios_disponibles=formularios_disponibles ocultar_header=False %}
         </div>
 
         <div class="panel-footer df-submit-area">
             <a href="{% url 'dynamic_forms:listar_formularios' %}" class="btn btn-secondary">Cancelar</a>
-            <button type="submit" class="btn btn-primary">
+            <button type="submit" class="btn btn-primary" data-loading-text="Guardando...">
                 <i class='fas fa-save'></i> Guardar cambios
             </button>
         </div>
@@ -167,105 +92,4 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const container = document.getElementById('camposContainer');
-    const agregarBtn = document.getElementById('agregarCampo');
-    let index = container.querySelectorAll('.campo-fila').length;
-
-    function actualizarOpcionesVisibilidad() {
-        container.querySelectorAll('.campo-fila').forEach(function(fila) {
-            const select = fila.querySelector('.campo-tipo');
-            const opcionesContainer = fila.querySelector('.campo-opciones-container');
-            if (select.value === 'lista') {
-                opcionesContainer.style.display = 'block';
-            } else {
-                opcionesContainer.style.display = 'none';
-            }
-        });
-    }
-
-    function agregarFila() {
-        const fila = document.createElement('div');
-        fila.className = 'campo-fila row g-2 mb-2 animate-fade-in';
-        fila.dataset.index = index;
-        fila.innerHTML = `
-            <div class="col-12 col-md-3">
-                <input type="text" name="campo_nombre" class="form-control form-control-sm" placeholder="Nombre del campo" required>
-            </div>
-            <div class="col-6 col-md-2">
-                <select name="campo_tipo" class="form-select form-select-sm campo-tipo">
-                    <option value="texto">Texto</option>
-                    <option value="numero">Número</option>
-                    <option value="fecha">Fecha</option>
-                    <option value="booleano">Booleano</option>
-                    <option value="lista">Lista desplegable</option>                            <option value="email">Correo electrónico</option>
-                            <option value="url">URL</option>
-                            <option value="telefono">Teléfono</option>
-                            <option value="textarea">Texto largo</option>
-                            <option value="imagen">Imagen</option>
-                            <option value="archivo">Archivo</option>
-                            <option value="relacion">Relación</option>
-                            <option value="calculado">Calculado</option>
-                        </select>
-            </div>
-            <div class="col-6 col-md-2">
-                <div class="form-check mt-2">
-                    <input type="checkbox" name="campo_obligatorio" class="form-check-input" id="obligatorio_e${index}">
-                    <label class="form-check-label small" for="obligatorio_e${index}">Obligatorio</label>
-                </div>
-            </div>
-            <div class="col-6 col-md-2">
-                <input type="number" name="campo_orden" class="form-control form-control-sm" placeholder="Orden" min="0" value="0">
-            </div>
-            <div class="col-10 col-md-2 campo-opciones-container" style="display:none;">
-                <input type="text" name="campo_opciones" class="form-control form-control-sm" placeholder="Op1, Op2, Op3">
-            </div>
-            <div class="col-10 col-md-2 campo-relacion-container" style="display:none;">
-                <select name="campo_formulario_destino" class="form-select form-select-sm">
-                    <option value="">-- Selecciona formulario --</option>
-                    {% for f in formularios_disponibles %}
-                    <option value="{{ f.id }}">{{ f.nombre }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-10 col-md-2 campo-formula-container" style="display:none;">
-                <input type="text" name="campo_formula" class="form-control form-control-sm" placeholder="Ej: cantidad * precio">
-            </div>
-            <div class="col-2 col-md-1 d-flex align-items-center">
-                <button type="button" class="action-btn danger-btn eliminar-campo" title="Eliminar campo">
-                    <i class='fas fa-times'></i>
-                </button>
-            </div>
-        `;
-        container.appendChild(fila);
-        index++;
-        actualizarOpcionesVisibilidad();
-    }
-
-    agregarBtn.addEventListener('click', agregarFila);
-
-    container.addEventListener('change', function(e) {
-        if (e.target.classList.contains('campo-tipo')) {
-            actualizarOpcionesVisibilidad();
-        }
-    });
-
-    container.addEventListener('click', function(e) {
-        if (e.target.closest('.eliminar-campo')) {
-            const fila = e.target.closest('.campo-fila');
-            if (container.querySelectorAll('.campo-fila').length > 1) {
-                fila.style.transition = 'all 0.2s ease';
-                fila.style.transform = 'scale(0.9)';
-                fila.style.opacity = '0';
-                setTimeout(() => fila.remove(), 200);
-            } else {
-                alert('Debe haber al menos un campo en el formulario.');
-            }
-        }
-    });
-
-    actualizarOpcionesVisibilidad();
-});
-</script>
 {% endblock %}

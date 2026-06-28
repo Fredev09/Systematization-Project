@@ -53,12 +53,38 @@ logger = logging.getLogger(__name__)
 # ======================================================================
 
 
+_EXTENSIONES_PERMITIDAS_SUBIDA: set[str] = {
+    '.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg',  # imágenes
+    '.pdf', '.doc', '.docx', '.xls', '.xlsx',           # documentos
+    '.txt', '.csv', '.zip', '.rar',                     # otros
+}
+
+_MAX_TAMANO_SUBIDA: int = 20 * 1024 * 1024  # 20 MB
+
+
 def _guardar_archivo_subido(archivo, campo_nombre, formulario_nombre):
-    """Guarda un archivo/imagen en MEDIA_ROOT/dynamic_uploads/ y devuelve la URL."""
+    """Guarda un archivo/imagen en MEDIA_ROOT/dynamic_uploads/ y devuelve la URL.
+
+    Seguridad:
+      - Solo permite extensiones de la lista blanca.
+      - Rechaza archivos > 20 MB.
+      - Genera nombre UUID (previene path traversal).
+    """
+    if archivo.size > _MAX_TAMANO_SUBIDA:
+        raise ValueError(
+            f'El archivo excede el tamaño máximo de '
+            f'{_MAX_TAMANO_SUBIDA // (1024 * 1024)} MB.'
+        )
+
+    ext = Path(archivo.name).suffix.lower()
+    if ext not in _EXTENSIONES_PERMITIDAS_SUBIDA:
+        raise ValueError(
+            f'Extensión "{ext}" no permitida para subida de archivos.'
+        )
+
     dir_upload = Path(settings.MEDIA_ROOT) / 'dynamic_uploads'
     os.makedirs(dir_upload, exist_ok=True)
 
-    ext = Path(archivo.name).suffix or '.bin'
     nombre_archivo = f"{formulario_nombre}_{campo_nombre}_{uuid.uuid4().hex[:12]}{ext}"
     ruta = dir_upload / nombre_archivo
 
@@ -556,6 +582,69 @@ class DynamicService:
     # ------------------------------------------------------------------
 
     @staticmethod
+    def _guardar_valores_no_calculados(
+        registro, formulario, valores_dict, archivos_dict, valores_guardados, usar_update_or_create=False
+    ) -> None:
+        """
+        Primera pasada: guarda los valores enviados (excepto calculados) en ValorCampo.
+        Compartido entre crear() y actualizar().
+        """
+        for campo in DynamicService._campos_activos(formulario):
+            if campo.tipo == 'calculado':
+                continue
+
+            if campo.tipo in Campo.TIPOS_ARCHIVO and archivos_dict:
+                archivo = archivos_dict.get(campo.nombre)
+                if archivo:
+                    valor = _guardar_archivo_subido(archivo, campo.nombre, formulario.nombre)
+                    if usar_update_or_create:
+                        ValorCampo.objects.update_or_create(
+                            registro=registro, campo=campo, defaults={'valor': valor}
+                        )
+                    else:
+                        ValorCampo.objects.create(registro=registro, campo=campo, valor=valor)
+                    valores_guardados[campo.nombre] = valor
+                continue
+
+            if campo.nombre not in valores_dict:
+                if usar_update_or_create:
+                    # En actualizar, conservar valor existente si no viene en valores_dict
+                    continue
+                # En crear, no guardar si no está en el dict
+                continue
+
+            valor = valores_dict[campo.nombre].strip()
+            if valor:
+                if usar_update_or_create:
+                    ValorCampo.objects.update_or_create(
+                        registro=registro, campo=campo, defaults={'valor': valor}
+                    )
+                else:
+                    ValorCampo.objects.create(registro=registro, campo=campo, valor=valor)
+                valores_guardados[campo.nombre] = valor
+            elif usar_update_or_create:
+                ValorCampo.objects.filter(registro=registro, campo=campo).delete()
+                valores_guardados.pop(campo.nombre, None)
+
+    @staticmethod
+    def _recalcular_campos_calculados(registro, formulario, valores_guardados, usar_update_or_create=False) -> None:
+        """
+        Segunda pasada: recalcula campos calculados después de guardar valores normales.
+        Soporta encadenamiento (ej: subtotal → total = subtotal - descuento).
+        """
+        for campo in DynamicService._campos_activos(formulario):
+            if campo.tipo == 'calculado' and campo.formula:
+                from .services import _evaluar_formula
+                resultado = _evaluar_formula(campo.formula, valores_guardados)
+                if usar_update_or_create:
+                    ValorCampo.objects.update_or_create(
+                        registro=registro, campo=campo, defaults={'valor': resultado}
+                    )
+                else:
+                    ValorCampo.objects.create(registro=registro, campo=campo, valor=resultado)
+                valores_guardados[campo.nombre] = resultado
+
+    @staticmethod
     def crear(nombre_formulario, valores_dict, usuario=None, usar_select_for_update=False,
               archivos_dict=None):
         """
@@ -578,69 +667,22 @@ class DynamicService:
         """
         formulario = DynamicService.obtener_formulario(nombre_formulario)
 
-        # Validar
         errores = DynamicService.validar_completo(formulario, valores_dict)
         if errores:
             raise ValidacionError(errores)
 
         with transaction.atomic():
             if usar_select_for_update:
-                # Bloquear el formulario para evitar condiciones de carrera
                 list(Formulario.objects.select_for_update().filter(id=formulario.id))
 
-            registro = Registro.objects.create(
-                formulario=formulario,
-                usuario=usuario,
+            registro = Registro.objects.create(formulario=formulario, usuario=usuario)
+
+            valores_guardados: dict[str, str] = {}
+            DynamicService._guardar_valores_no_calculados(
+                registro, formulario, valores_dict, archivos_dict, valores_guardados
             )
+            DynamicService._recalcular_campos_calculados(registro, formulario, valores_guardados)
 
-            # --- Primera pasada: guardar valores enviados (excepto calculados) ---
-            valores_guardados = {}  # {nombre_campo: valor}
-            for campo in DynamicService._campos_activos(formulario):
-                if campo.tipo == 'calculado':
-                    continue  # Se recalcula en la segunda pasada
-
-                # Manejo de archivos: si el campo es imagen/archivo y viene archivo
-                if campo.tipo in Campo.TIPOS_ARCHIVO and archivos_dict:
-                    archivo = archivos_dict.get(campo.nombre)
-                    if archivo:
-                        valor = _guardar_archivo_subido(
-                            archivo, campo.nombre, formulario.nombre
-                        )
-                        ValorCampo.objects.create(
-                            registro=registro,
-                            campo=campo,
-                            valor=valor,
-                        )
-                        valores_guardados[campo.nombre] = valor
-                        continue
-                    # Si no viene archivo, no se crea ValorCampo (comportamiento
-                    # consistente con llenar_formulario)
-                    continue
-
-                valor = valores_dict.get(campo.nombre, '').strip()
-                if valor:
-                    ValorCampo.objects.create(
-                        registro=registro,
-                        campo=campo,
-                        valor=valor,
-                    )
-                    valores_guardados[campo.nombre] = valor
-
-            # --- Segunda pasada: recalcular campos calculados ---
-            # Se actualiza valores_guardados en cada iteración para permitir
-            # encadenamiento de fórmulas (ej: subtotal → total = subtotal - descuento)
-            for campo in DynamicService._campos_activos(formulario):
-                if campo.tipo == 'calculado' and campo.formula:
-                    from .services import _evaluar_formula
-                    resultado = _evaluar_formula(campo.formula, valores_guardados)
-                    ValorCampo.objects.create(
-                        registro=registro,
-                        campo=campo,
-                        valor=resultado,
-                    )
-                    valores_guardados[campo.nombre] = resultado
-
-            # Ejecutar hook post-crear
             DynamicService._ejecutar_hook(formulario.hook_post_crear, registro)
 
         return registro
@@ -668,7 +710,6 @@ class DynamicService:
         """
         formulario = registro.formulario
 
-        # Validar (excluyendo el registro actual para unicidad)
         errores = DynamicService.validar_completo(
             formulario, valores_dict, excluir_registro_id=registro.id
         )
@@ -679,63 +720,21 @@ class DynamicService:
             if usar_select_for_update:
                 list(Registro.objects.select_for_update().filter(id=registro.id))
 
-            # Actualizar timestamp
             registro.save(update_fields=['fecha_actualizacion'])
 
-            # --- Primera pasada: guardar valores enviados (excepto calculados) ---
-            valores_guardados = {}  # {nombre_campo: valor}
-            # Cargar valores existentes como base
+            valores_guardados: dict[str, str] = {}
             for vc in registro.valores.select_related('campo').all():
                 if vc.campo.tipo != 'calculado':
                     valores_guardados[vc.campo.nombre] = vc.valor
 
-            for campo in DynamicService._campos_activos(formulario):
-                if campo.tipo == 'calculado':
-                    continue
+            DynamicService._guardar_valores_no_calculados(
+                registro, formulario, valores_dict, archivos_dict, valores_guardados,
+                usar_update_or_create=True
+            )
+            DynamicService._recalcular_campos_calculados(
+                registro, formulario, valores_guardados, usar_update_or_create=True
+            )
 
-                # Manejo de archivos: si el campo es imagen/archivo
-                if campo.tipo in Campo.TIPOS_ARCHIVO and archivos_dict:
-                    archivo = archivos_dict.get(campo.nombre)
-                    if archivo:
-                        # Nuevo archivo: guardar y reemplazar valor
-                        valor = _guardar_archivo_subido(
-                            archivo, campo.nombre, formulario.nombre
-                        )
-                        ValorCampo.objects.update_or_create(
-                            registro=registro,
-                            campo=campo,
-                            defaults={'valor': valor},
-                        )
-                        valores_guardados[campo.nombre] = valor
-                    # Si no viene archivo, conservar el valor existente
-                    continue
-
-                if campo.nombre in valores_dict:
-                    valor = valores_dict[campo.nombre].strip()
-                    if valor:
-                        ValorCampo.objects.update_or_create(
-                            registro=registro,
-                            campo=campo,
-                            defaults={'valor': valor},
-                        )
-                        valores_guardados[campo.nombre] = valor
-                    else:
-                        ValorCampo.objects.filter(registro=registro, campo=campo).delete()
-                        valores_guardados.pop(campo.nombre, None)
-
-            # --- Segunda pasada: recalcular campos calculados (con encadenamiento) ---
-            for campo in DynamicService._campos_activos(formulario):
-                if campo.tipo == 'calculado' and campo.formula:
-                    from .services import _evaluar_formula
-                    resultado = _evaluar_formula(campo.formula, valores_guardados)
-                    ValorCampo.objects.update_or_create(
-                        registro=registro,
-                        campo=campo,
-                        defaults={'valor': resultado},
-                    )
-                    valores_guardados[campo.nombre] = resultado
-
-            # Ejecutar hook post-actualizar
             DynamicService._ejecutar_hook(formulario.hook_post_actualizar, registro)
 
         return registro
@@ -779,6 +778,89 @@ class DynamicService:
             raise
         finally:
             _marcar_fin_hook()
+
+    # ------------------------------------------------------------------
+    # IDENTIFICADOR PRINCIPAL
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def obtener_identificador_principal(nombre_formulario):
+        """
+        Retorna el campo marcado como identificador principal de un formulario.
+
+        Args:
+            nombre_formulario: Nombre del formulario
+
+        Returns:
+            Campo o None si no hay identificador principal
+        """
+        formulario = DynamicService.obtener_formulario(nombre_formulario, raise_if_missing=False)
+        if formulario is None:
+            return None
+        return formulario.campos.filter(activo=True, identificador_principal=True).first()
+
+    @staticmethod
+    def buscar_por_identificador(nombre_formulario, valor_identificador):
+        """
+        Busca un registro por el valor de su identificador principal.
+
+        Preparado para futura integración con importaciones, upsert y sincronización.
+
+        Args:
+            nombre_formulario: Nombre del formulario
+            valor_identificador: Valor del identificador principal a buscar
+
+        Returns:
+            Registro o None si no se encuentra
+        """
+        campo_id = DynamicService.obtener_identificador_principal(nombre_formulario)
+        if campo_id is None:
+            return None
+        try:
+            vc = ValorCampo.objects.get(campo=campo_id, valor=str(valor_identificador))
+            return vc.registro
+        except ValorCampo.DoesNotExist:
+            return None
+
+    @staticmethod
+    def upsert_por_identificador(nombre_formulario, valores_dict, usuario=None):
+        """
+        Crea o actualiza un registro basándose en el valor del identificador principal.
+
+        Preparado para futura integración con importaciones y sincronización.
+        Si el identificador principal existe en la BD, actualiza; si no, crea.
+
+        Args:
+            nombre_formulario: Nombre del formulario
+            valores_dict: Dict {nombre_campo: valor}
+            usuario: Usuario opcional
+
+        Returns:
+            (Registro, fue_creado) — tupla con el registro y un booleano
+        """
+        campo_id = DynamicService.obtener_identificador_principal(nombre_formulario)
+        if campo_id is None:
+            raise DynamicFormError(
+                f'El formulario "{nombre_formulario}" no tiene un identificador principal configurado.'
+            )
+
+        nombre_campo_id = campo_id.nombre
+        valor_id = valores_dict.get(nombre_campo_id, '').strip()
+
+        if not valor_id:
+            registro = DynamicService.crear(nombre_formulario, valores_dict, usuario=usuario)
+            return registro, True
+
+        registro_existente = DynamicService.buscar_por_identificador(
+            nombre_formulario, valor_id
+        )
+
+        if registro_existente:
+            registro = DynamicService.actualizar(registro_existente, valores_dict, usuario=usuario)
+            return registro, False
+        else:
+            registro = DynamicService.crear(nombre_formulario, valores_dict, usuario=usuario)
+            return registro, True
 
     # ------------------------------------------------------------------
     # ELIMINACIÓN

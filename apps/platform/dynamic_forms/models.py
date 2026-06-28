@@ -1,18 +1,14 @@
-from django.db import models
+from __future__ import annotations
 
-
-# ---------------------------------------------------------------------------
-# Funciones auxiliares para importar hooks/validaciones desde paths Python
-# ---------------------------------------------------------------------------
 import importlib
 import logging
+
+from django.db import models
 
 logger = logging.getLogger(__name__)
 
 
 def _importar_funcion(path):
-    """Importa una función desde un path Python 'modulo.submodulo.funcion'.
-    Retorna la función o None si no se puede importar."""
     if not path:
         return None
     try:
@@ -67,17 +63,33 @@ class Campo(models.Model):
     TIPOS = (
         ('texto', 'Texto'),
         ('numero', 'Número'),
+        ('moneda', 'Moneda'),
+        ('porcentaje', 'Porcentaje'),
         ('fecha', 'Fecha'),
+        ('hora', 'Hora'),
+        ('fecha_hora', 'Fecha y hora'),
         ('booleano', 'Booleano'),
         ('lista', 'Lista desplegable'),
         ('email', 'Correo electrónico'),
         ('url', 'URL'),
         ('telefono', 'Teléfono'),
+        ('documento', 'Documento de identidad'),
+        ('codigo', 'Código'),
+        ('codigo_barras', 'Código de barras'),
+        ('qr', 'Código QR'),
         ('textarea', 'Texto largo'),
         ('imagen', 'Imagen'),
         ('archivo', 'Archivo'),
         ('relacion', 'Relación'),
         ('calculado', 'Calculado'),
+        ('color', 'Color'),
+        ('ip', 'Dirección IP'),
+        ('uuid', 'UUID'),
+        ('geolocalizacion', 'Geolocalización'),
+        ('duracion', 'Duración'),
+        ('estado', 'Estado'),
+        ('categoria', 'Categoría'),
+        ('tags', 'Etiquetas'),
     )
 
     # Tipos que requieren subida de archivos
@@ -97,10 +109,22 @@ class Campo(models.Model):
     obligatorio = models.BooleanField(default=False)
     orden = models.IntegerField(default=0)
     opciones = models.JSONField(blank=True, null=True)  # Para listas desplegables
+    descripcion = models.TextField(
+        blank=True, null=True,
+        help_text='Descripción del campo para orientar al usuario.'
+    )
+    visible = models.BooleanField(
+        default=True,
+        help_text='Si está desactivado, el campo no se muestra en formularios ni tablas.'
+    )
     activo = models.BooleanField(default=True)  # Para archivar campos sin perder datos
     unico = models.BooleanField(
         default=False,
         help_text='Si se activa, no pueden existir dos registros con el mismo valor en este campo.'
+    )
+    metadata_json = models.JSONField(
+        blank=True, null=True,
+        help_text='Configuración extendida: regex, min/max, decimales, default, placeholder, ayuda, etc.',
     )
 
     # Para tipo 'relacion': a qué formulario apunta
@@ -114,11 +138,35 @@ class Campo(models.Model):
     # Para tipo 'calculado': fórmula a evaluar (ej: cantidad * precio)
     formula = models.TextField(blank=True, null=True)
 
+    # Identificador principal del formulario
+    # Solo un campo por formulario puede tener esta marca
+    identificador_principal = models.BooleanField(
+        default=False,
+        help_text='Marca este campo como el identificador principal del formulario. '
+                  'Solo un campo por formulario puede tener esta marca.'
+    )
+
     class Meta:
         ordering = ['orden']
+        verbose_name = 'Campo'
+        verbose_name_plural = 'Campos'
 
     def __str__(self):
         return f"{self.nombre} ({self.get_tipo_display()})"
+
+    def save(self, *args, **kwargs):
+        """Auto-desmarca otros campos del mismo formulario si este es el identificador principal."""
+        if self.identificador_principal and self.pk is None:
+            Campo.objects.filter(
+                formulario=self.formulario,
+                identificador_principal=True
+            ).exclude(pk=self.pk).update(identificador_principal=False)
+        super().save(*args, **kwargs)
+        if self.identificador_principal:
+            Campo.objects.filter(
+                formulario=self.formulario,
+                identificador_principal=True
+            ).exclude(pk=self.pk).update(identificador_principal=False)
 
 
 class Registro(models.Model):
@@ -162,3 +210,138 @@ class ValorCampo(models.Model):
 
     def __str__(self):
         return f"{self.campo.nombre}: {self.valor[:50]}"
+
+
+# ======================================================================
+# ImportHistory — Trazabilidad completa de importaciones
+# ======================================================================
+
+
+class ImportLog(models.Model):
+    ESTADOS = [
+        ('completado', 'Completado'),
+        ('revertido', 'Revertido'),
+        ('parcial', 'Parcial'),
+    ]
+    MODOS = [
+        ('crear', 'Solo crear'),
+        ('actualizar', 'Solo actualizar'),
+        ('upsert', 'UPSERT'),
+        ('validar', 'Solo validar'),
+    ]
+
+    formulario = models.ForeignKey(Formulario, on_delete=models.CASCADE, related_name='importaciones')
+    usuario = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True)
+    fecha = models.DateTimeField(auto_now_add=True, db_index=True)
+    archivo_nombre = models.CharField(max_length=500)
+    archivo_tamano = models.IntegerField(default=0)
+    archivo_hash = models.CharField(max_length=64, blank=True, db_index=True)
+    modo = models.CharField(max_length=20, choices=MODOS)
+    estado = models.CharField(max_length=20, choices=ESTADOS, default='completado')
+    total_filas = models.IntegerField(default=0)
+    creados = models.IntegerField(default=0)
+    actualizados = models.IntegerField(default=0)
+    ignorados = models.IntegerField(default=0)
+    errores = models.IntegerField(default=0)
+    tiempo_seg = models.FloatField(default=0.0)
+    resumen = models.TextField(blank=True)
+    hoja_detectada = models.CharField(max_length=200, blank=True)
+    confianza_global = models.FloatField(default=0.0)
+    calidad_estrellas = models.IntegerField(default=0)
+    resultado_json = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = 'Importación'
+        verbose_name_plural = 'Importaciones'
+        ordering = ['-fecha']
+
+    def __str__(self):
+        return f'Importación #{self.id} — {self.formulario.nombre} ({self.get_modo_display()})'
+
+
+class ImportAudit(models.Model):
+    TIPOS = [
+        ('creacion', 'Creación'),
+        ('actualizacion', 'Actualización'),
+        ('error', 'Error'),
+        ('advertencia', 'Advertencia'),
+        ('decision', 'Decisión automática'),
+        ('ignorado', 'Ignorado'),
+        ('rollback', 'Rollback'),
+    ]
+
+    import_log = models.ForeignKey(ImportLog, on_delete=models.CASCADE, related_name='audits')
+    tipo = models.CharField(max_length=20, choices=TIPOS, db_index=True)
+    registro_id = models.IntegerField(null=True, blank=True)
+    campo_nombre = models.CharField(max_length=200, blank=True)
+    valor_anterior = models.TextField(blank=True)
+    valor_nuevo = models.TextField(blank=True)
+    mensaje = models.TextField()
+    metadata_json = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Auditoría de importación'
+        verbose_name_plural = 'Auditorías de importación'
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f'{self.get_tipo_display()}: {self.mensaje[:80]}'
+
+
+class ImportSnapshot(models.Model):
+    import_log = models.ForeignKey(ImportLog, on_delete=models.CASCADE, related_name='snapshots')
+    registro = models.ForeignKey(Registro, on_delete=models.CASCADE)
+    valores_anteriores = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Snapshot de importación'
+        verbose_name_plural = 'Snapshots de importación'
+        unique_together = [('import_log', 'registro')]
+
+    def __str__(self):
+        return f'Snapshot #{self.registro_id} — Importación #{self.import_log_id}'
+
+
+class MappingMemory(models.Model):
+    """
+    Memoria persistente de mapeos de columnas para importaciones.
+
+    Almacena mapeos exitosos para reutilizarlos automáticamente
+    en futuras importaciones del mismo formulario con el mismo
+    patrón de encabezados.
+    """
+    formulario = models.ForeignKey(
+        Formulario, on_delete=models.CASCADE, related_name='mapping_memories'
+    )
+    headers_hash = models.CharField(
+        max_length=64, db_index=True,
+        help_text='SHA256 de los nombres de columna normalizados.',
+    )
+    headers_text = models.TextField(
+        blank=True,
+        help_text='JSON con la lista original de encabezados.',
+    )
+    mapping_json = models.TextField(
+        help_text='JSON con el mapeo {col_idx: campo_nombre}.',
+    )
+    confidence_avg = models.FloatField(
+        default=0.95,
+        help_text='Confianza promedio del mapeo almacenado.',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    times_used = models.IntegerField(
+        default=1,
+        help_text='Número de veces que este mapeo ha sido reutilizado.',
+    )
+
+    class Meta:
+        verbose_name = 'Memoria de mapeo'
+        verbose_name_plural = 'Memorias de mapeo'
+        unique_together = [('formulario', 'headers_hash')]
+        ordering = ['-times_used', '-updated_at']
+
+    def __str__(self):
+        return f'MappingMemory[{self.formulario.nombre}] hash={self.headers_hash[:12]}'

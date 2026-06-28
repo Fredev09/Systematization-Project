@@ -1,0 +1,242 @@
+{% extends "base/base.html" %}
+{% load static %}
+{% block titulo %}Detalle de Importación #{{ import_log.id }} — {{ import_log.formulario.nombre }}{% endblock %}
+{% block contenido %}
+<div class="container-fluid py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h4 class="mb-1">Detalle de Importación #{{ import_log.id }}</h4>
+      <p class="text-muted mb-0">{{ import_log.formulario.nombre }} — {{ import_log.fecha|date:"d/m/Y H:i" }}</p>
+    </div>
+    <div>
+      {% if import_log.estado != 'revertido' and import_log.modo != 'validar' %}
+      <a href="{% url 'dynamic_forms:revertir_importacion' import_log.id %}" class="btn btn-warning btn-sm me-2">
+        <i class="fas fa-undo"></i> Revertir
+      </a>
+      {% endif %}
+      <a href="{% url 'dynamic_forms:historial_importaciones' import_log.formulario.id %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left"></i> Historial
+      </a>
+    </div>
+  </div>
+
+  <!-- Resumen KPI -->
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card text-center border-success">
+        <div class="card-body py-3">
+          <h5 class="text-success mb-0">{{ import_log.creados }}</h5>
+          <small class="text-muted">Creados</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card text-center border-info">
+        <div class="card-body py-3">
+          <h5 class="text-info mb-0">{{ import_log.actualizados }}</h5>
+          <small class="text-muted">Actualizados</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card text-center border-secondary">
+        <div class="card-body py-3">
+          <h5 class="text-secondary mb-0">{{ import_log.ignorados }}</h5>
+          <small class="text-muted">Ignorados</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card text-center border-danger">
+        <div class="card-body py-3">
+          <h5 class="text-danger mb-0">{{ import_log.errores }}</h5>
+          <small class="text-muted">Errores</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center border-primary">
+        <div class="card-body py-3">
+          <h5 class="text-primary mb-0">{{ import_log.tiempo_seg|floatformat:1 }}s</h5>
+          <small class="text-muted">Duración</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Información general -->
+  <div class="row mb-4">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header"><strong>Información General</strong></div>
+        <div class="card-body">
+          <table class="table table-sm mb-0">
+            <tr><td>Archivo</td><td><code>{{ import_log.archivo_nombre }}</code></td></tr>
+            <tr><td>Tamaño</td><td>{{ import_log.archivo_tamano|filesizeformat }}</td></tr>
+            <tr><td>Modo</td><td><span class="badge bg-info">{{ import_log.get_modo_display }}</span></td></tr>
+            <tr><td>Estado</td>
+              <td>
+                {% if import_log.estado == 'completado' %}
+                <span class="badge bg-success">Completado</span>
+                {% elif import_log.estado == 'revertido' %}
+                <span class="badge bg-warning text-dark">Revertido</span>
+                {% elif import_log.estado == 'parcial' %}
+                <span class="badge bg-danger">Parcial</span>
+                {% endif %}
+              </td>
+            </tr>
+            <tr><td>Hoja detectada</td><td>{{ import_log.hoja_detectada|default:"—" }}</td></tr>
+            <tr><td>Confianza global</td><td>{{ import_log.confianza_global|floatformat:1 }}%</td></tr>
+            <tr><td>Calidad</td><td>{{ import_log.calidad_estrellas }} ★</td></tr>
+            <tr><td>Hash</td><td><code>{{ import_log.archivo_hash|truncatechars:20 }}</code></td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header"><strong>Resumen</strong></div>
+        <div class="card-body">
+          <p>{{ import_log.resumen|default:"Sin resumen" }}</p>
+          <hr>
+          <strong>Calidad del archivo:</strong>
+          {% if resultado.quality %}
+          <table class="table table-sm mb-0 mt-2">
+            <tr><td>Puntaje</td><td>{{ resultado.quality.score }}</td></tr>
+            <tr><td>Problemas</td><td>{{ resultado.quality.issues }}</td></tr>
+            <tr><td>Advertencias</td><td>{{ resultado.quality.warnings }}</td></tr>
+            <tr><td>Coincidencias auto.</td><td>{{ resultado.quality.auto_match_pct|default:"—" }}%</td></tr>
+          </table>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Conflictos y advertencias -->
+  {% if resultado.conflicts and resultado.conflicts.conflicts %}
+  <div class="card mb-4 border-warning">
+    <div class="card-header text-warning"><strong>Conflictos detectados</strong></div>
+    <div class="card-body">
+      <ul class="mb-0">
+        {% for c in resultado.conflicts.conflicts %}
+        <li>{{ c }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if resultado.warnings %}
+  <div class="card mb-4 border-info">
+    <div class="card-header text-info"><strong>Advertencias</strong></div>
+    <div class="card-body">
+      <ul class="mb-0">
+        {% for w in resultado.warnings %}
+        <li>{{ w }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Auditoría -->
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <strong>Auditoría ({{ total_audits }} eventos)</strong>
+      <div>
+        <a href="{% url 'dynamic_forms:descargar_reporte_errores' import_log.id %}" class="btn btn-sm btn-outline-danger">
+          <i class="fas fa-download"></i> Descargar errores
+        </a>
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Tipo</th>
+            <th>Registro</th>
+            <th>Campo</th>
+            <th>Valor Anterior</th>
+            <th>Valor Nuevo</th>
+            <th>Mensaje</th>
+            <th>Fecha</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for audit in page_obj %}
+          <tr>
+            <td>
+              {% if audit.tipo == 'creacion' %}
+              <span class="badge bg-success">Creación</span>
+              {% elif audit.tipo == 'actualizacion' %}
+              <span class="badge bg-info">Actualización</span>
+              {% elif audit.tipo == 'error' %}
+              <span class="badge bg-danger">Error</span>
+              {% elif audit.tipo == 'advertencia' %}
+              <span class="badge bg-warning text-dark">Advertencia</span>
+              {% elif audit.tipo == 'decision' %}
+              <span class="badge bg-secondary">Decisión</span>
+              {% elif audit.tipo == 'ignorado' %}
+              <span class="badge bg-light text-dark">Ignorado</span>
+              {% elif audit.tipo == 'rollback' %}
+              <span class="badge bg-warning text-dark">Rollback</span>
+              {% endif %}
+            </td>
+            <td>{{ audit.registro_id|default:"—" }}</td>
+            <td>{{ audit.campo_nombre|default:"—" }}</td>
+            <td class="text-muted"><small>{{ audit.valor_anterior|truncatechars:40|default:"—" }}</small></td>
+            <td class="text-muted"><small>{{ audit.valor_nuevo|truncatechars:40|default:"—" }}</small></td>
+            <td><small>{{ audit.mensaje|truncatechars:80 }}</small></td>
+            <td class="text-nowrap"><small>{{ audit.created_at|date:"d/m/Y H:i:s" }}</small></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" class="text-center text-muted py-3">No hay eventos de auditoría</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if page_obj.paginator.num_pages > 1 %}
+  <nav class="mt-3">
+    <ul class="pagination pagination-sm justify-content-center">
+      {% if page_obj.has_previous %}
+      <li class="page-item"><a class="page-link" href="?page=1">&laquo;</a></li>
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">&lsaquo;</a></li>
+      {% endif %}
+      <li class="page-item active"><span class="page-link">{{ page_obj.number }}/{{ page_obj.paginator.num_pages }}</span></li>
+      {% if page_obj.has_next %}
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">&rsaquo;</a></li>
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">&raquo;</a></li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %}
+
+  <!-- Snapshots -->
+  {% if total_snapshots > 0 %}
+  <div class="card mt-4">
+    <div class="card-header"><strong>Snapshots ({{ total_snapshots }})</strong></div>
+    <div class="card-body p-0">
+      <table class="table table-sm mb-0">
+        <thead class="table-light">
+          <tr><th>Registro ID</th><th>Valores previos</th><th>Fecha</th></tr>
+        </thead>
+        <tbody>
+          {% for snap in import_log.snapshots.all|slice:":50" %}
+          <tr>
+            <td>{{ snap.registro_id }}</td>
+            <td><code>{{ snap.valores_anteriores|truncatechars:100 }}</code></td>
+            <td>{{ snap.created_at|date:"d/m/Y H:i" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" class="text-center text-muted py-3">Sin snapshots</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

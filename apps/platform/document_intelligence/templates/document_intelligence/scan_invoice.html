@@ -1,0 +1,78 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block title %}Escanear factura{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'document_intelligence:dashboard' %}">Document Intelligence</a></li>
+            <li class="breadcrumb-item active">Escanear factura</li>
+        </ol>
+    </nav>
+
+    <h2 class="mb-4">🧾 Escanear factura con IA</h2>
+
+    {% if not invoice %}
+    <div class="card shadow-sm border-0 rounded-4">
+        <div class="card-body p-4">
+            <h5>Sube una imagen o PDF de la factura</h5>
+            <p class="text-muted small">Soporta: JPG, PNG, PDF</p>
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <input type="file" name="invoice_file" class="form-control form-control-lg" accept=".pdf,.jpg,.jpeg,.png,.webp" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-lg">🔍 Analizar factura</button>
+            </form>
+        </div>
+    </div>
+    {% else %}
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 rounded-4">
+                <div class="card-body">
+                    <h5>Datos de la factura</h5>
+                    <table class="table table-sm">
+                        <tr><th>Proveedor</th><td>{{ invoice.provider|default:"—" }}</td></tr>
+                        <tr><th>NIT</th><td>{{ invoice.nit|default:"—" }}</td></tr>
+                        <tr><th>Número</th><td>{{ invoice.invoice_number|default:"—" }}</td></tr>
+                        <tr><th>Fecha</th><td>{{ invoice.date|default:"—" }}</td></tr>
+                        <tr><th>Moneda</th><td>{{ invoice.currency|default:"COP" }}</td></tr>
+                        <tr><th>Subtotal</th><td>${{ invoice.subtotal|floatformat:2 }}</td></tr>
+                        <tr><th>Impuestos</th><td>${{ invoice.taxes|floatformat:2 }}</td></tr>
+                        <tr><th class="fw-bold">Total</th><td class="fw-bold fs-5">${{ invoice.total|floatformat:2 }}</td></tr>
+                        <tr><th>Confianza</th><td>{{ invoice.confidence|floatformat:0 }}%</td></tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0 rounded-4">
+                <div class="card-body">
+                    <h5>Productos / Servicios</h5>
+                    {% if invoice.items %}
+                    <table class="table table-sm">
+                        <thead><tr><th>Descripción</th><th>Cant</th><th>V. Unit</th><th>Total</th></tr></thead>
+                        <tbody>
+                            {% for item in invoice.items %}
+                            <tr>
+                                <td>{{ item.descripcion|default:"—" }}</td>
+                                <td>{{ item.cantidad|default:"0" }}</td>
+                                <td>${{ item.valor_unitario|floatformat:2|default:"0" }}</td>
+                                <td>${{ item.total|floatformat:2|default:"0" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-muted">No se detectaron items.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

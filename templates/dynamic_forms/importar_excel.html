@@ -7,72 +7,187 @@
 {% block estilos %}
 <link rel="stylesheet" href="{% static 'css/dynamic_forms/dynamic_forms.css' %}">
 <style>
+/* ===== Mapping Summary Cards ===== */
+.df-mapping-summary {
+    display: grid; gap: .75rem;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    margin-bottom: 1.5rem;
+}
+.df-mapping-summary-item {
+    background: var(--bg-card,#1e293b); border-radius: .625rem;
+    padding: 1rem; text-align: center;
+    border: 1px solid var(--border,#334155);
+    transition: transform .2s ease;
+}
+.df-mapping-summary-item:hover { transform: translateY(-2px); }
+.df-mapping-summary-item .ms-icon {
+    font-size: 1.5rem; margin-bottom: .5rem;
+}
+.df-mapping-summary-item .ms-count {
+    font-size: 1.75rem; font-weight: 700; line-height: 1.2;
+}
+.df-mapping-summary-item .ms-label {
+    font-size: .75rem; color: #94a3b8; margin-top: .25rem;
+}
+.df-mapping-summary-item.ms-auto { border-color: rgba(34,197,94,.4); }
+.df-mapping-summary-item.ms-auto .ms-count { color: #22c55e; }
+.df-mapping-summary-item.ms-review { border-color: rgba(234,179,8,.4); }
+.df-mapping-summary-item.ms-review .ms-count { color: #eab308; }
+.df-mapping-summary-item.ms-manual { border-color: rgba(239,68,68,.4); }
+.df-mapping-summary-item.ms-manual .ms-count { color: #ef4444; }
+.df-mapping-summary-item.ms-total { border-color: rgba(59,130,246,.4); }
+.df-mapping-summary-item.ms-total .ms-count { color: #60a5fa; }
+
+/* ===== Category Badge ===== */
+.df-cat-badge {
+    display: inline-flex; align-items: center; gap: .25rem;
+    padding: .15rem .5rem; border-radius: 1rem;
+    font-size: .6875rem; font-weight: 600; margin-top: .5rem;
+}
+.df-cat-badge.auto { background: rgba(34,197,94,.15); color: #22c55e; }
+.df-cat-badge.review { background: rgba(234,179,8,.15); color: #eab308; }
+.df-cat-badge.manual { background: rgba(239,68,68,.15); color: #ef4444; }
+
+/* ===== Auto-skip notice ===== */
+.df-auto-skip-notice {
+    display: flex; align-items: center; gap: .75rem;
+    padding: 1rem 1.25rem; border-radius: .625rem;
+    background: rgba(34,197,94,.1);
+    border: 1px solid rgba(34,197,94,.3);
+    margin-bottom: 1.5rem;
+}
+.df-auto-skip-notice i { font-size: 1.5rem; color: #22c55e; }
+.df-auto-skip-notice .notice-title {
+    font-weight: 600; font-size: .9375rem;
+}
+.df-auto-skip-notice .notice-desc {
+    font-size: .8125rem; color: #94a3b8;
+}
+
+/* ===== Info row for memory / AI ===== */
+.df-enrichment-row {
+    display: flex; gap: .75rem; flex-wrap: wrap; margin-bottom: 1rem;
+}
+.df-enrichment-tag {
+    display: inline-flex; align-items: center; gap: .35rem;
+    padding: .3rem .75rem; border-radius: 2rem;
+    font-size: .75rem; font-weight: 500;
+}
+.df-enrichment-tag.memory {
+    background: rgba(168,85,247,.15); color: #c084fc;
+    border: 1px solid rgba(168,85,247,.3);
+}
+.df-enrichment-tag.ai {
+    background: rgba(6,182,212,.15); color: #22d3ee;
+    border: 1px solid rgba(6,182,212,.3);
+}
+
+/* ===== Wizard Steps ===== */
 .df-wizard-step { display: none; }
 .df-wizard-step.active { display: block; }
 
 .df-import-progress {
     display: flex; align-items: center; gap: 1rem;
-    justify-content: center; margin-bottom: 2rem;
+    justify-content: center; margin-bottom: 2rem; flex-wrap: wrap;
 }
 .df-import-progress .step {
     display: flex; align-items: center; gap: .5rem;
     padding: .5rem 1rem; border-radius: 2rem;
     background: var(--bg-card,#1e293b); color: #94a3b8;
-    font-size: .875rem;
+    font-size: .875rem; transition: all .3s ease;
 }
 .df-import-progress .step.active {
     background: var(--accent,#d41473); color: #fff;
+    box-shadow: 0 0 15px rgba(212,20,115,.3);
 }
 .df-import-progress .step.completed {
     background: #166534; color: #fff;
 }
-.df-import-progress .step-num {
+.df-import-progress .step .step-icon {
     width: 24px; height: 24px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     font-weight: 700; font-size: .75rem;
     background: rgba(255,255,255,.2);
 }
 
+/* ===== Mapping Cards ===== */
 .df-mapping-grid {
     display: grid; gap: 1rem;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
 }
 .df-mapping-card {
     background: var(--bg-card,#1e293b); border-radius: .625rem;
     padding: 1rem; border: 1px solid var(--border,#334155);
+    transition: border-color .2s;
 }
+.df-mapping-card:hover { border-color: var(--accent,#d41473); }
 .df-mapping-card label {
     display: block; font-size: .75rem;
     color: #94a3b8; margin-bottom: .25rem;
 }
-.df-mapping-card select {
-    width: 100%;
-}
+.df-mapping-card select { width: 100%; }
 .df-mapping-card .excel-col {
     font-weight: 600; color: var(--accent,#d41473);
+    display: flex; align-items: center; gap: .5rem;
+    word-break: break-word;
 }
 
-.df-preview-table {
-    font-size: .8125rem;
+/* ===== Match Badges (FASE 4) ===== */
+.df-mapping-card .match-badge {
+    display: inline-flex; align-items: center; gap: .25rem;
+    padding: .15rem .5rem; border-radius: 1rem;
+    font-size: .6875rem; font-weight: 600; margin-top: .5rem;
+    cursor: help;
 }
-.df-preview-table .row-valid td { background: rgba(22,101,52,.15); }
-.df-preview-table .row-error td { background: rgba(220,38,38,.15); }
+.match-badge.exact { background: rgba(34,197,94,.15); color: #22c55e; }
+.match-badge.normalized { background: rgba(59,130,246,.15); color: #60a5fa; }
+.match-badge.synonym { background: rgba(168,85,247,.15); color: #c084fc; }
+.match-badge.fuzzy { background: rgba(234,179,8,.15); color: #eab308; }
+.match-badge.fuzzy_review { background: rgba(234,179,8,.15); color: #eab308; }
+.match-badge.manual { background: rgba(148,163,184,.15); color: #94a3b8; }
+.match-badge.memory { background: rgba(168,85,247,.15); color: #c084fc; }
+.match-badge.ai { background: rgba(6,182,212,.15); color: #22d3ee; }
+.match-badge.none { background: rgba(239,68,68,.15); color: #ef4444; }
+.match-badge .confianza { opacity: .8; }
+
+.match-explanation {
+    font-size: .6875rem; color: #64748b; margin-top: .25rem;
+    line-height: 1.3;
+}
+
+/* ===== Conflict Warnings (FASE 4) ===== */
+.conflict-warning {
+    display: flex; align-items: center; gap: .25rem;
+    padding: .1rem .4rem; border-radius: .25rem;
+    font-size: .6875rem;
+    background: rgba(234,179,8,.1); color: #eab308;
+    margin-top: .25rem;
+}
+.conflict-warning i { font-size: .625rem; }
+
+/* ===== Preview Table ===== */
+.df-preview-table { font-size: .8125rem; }
+.df-preview-table .row-valid td { background: rgba(22,101,52,.1); }
+.df-preview-table .row-error td { background: rgba(220,38,38,.1); }
 .df-preview-table .error-badge {
     color: #ef4444; font-size: .75rem; cursor: help;
 }
 
+/* ===== Result Stats ===== */
 .df-result-stats {
     display: grid; gap: 1rem;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     margin-bottom: 1.5rem;
 }
 .df-result-stat {
     background: var(--bg-card,#1e293b); border-radius: .625rem;
     padding: 1.25rem; text-align: center;
     border: 1px solid var(--border,#334155);
+    transition: transform .2s ease, box-shadow .2s ease;
 }
+.df-result-stat:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,.2); }
 .df-result-stat .stat-value {
-    font-size: 2rem; font-weight: 700;
+    font-size: 1.75rem; font-weight: 700;
 }
 .df-result-stat .stat-label {
     font-size: .8125rem; color: #94a3b8; margin-top: .25rem;
@@ -80,12 +195,106 @@
 .df-result-stat.stat-success .stat-value { color: #22c55e; }
 .df-result-stat.stat-error .stat-value { color: #ef4444; }
 .df-result-stat.stat-total .stat-value { color: #3b82f6; }
+.df-result-stat.stat-info .stat-value { color: #c084fc; }
+.df-result-stat.stat-warning .stat-value { color: #eab308; }
+
+/* ===== Analysis Summary ===== */
+.df-analysis-summary {
+    display: grid; gap: .75rem;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    margin-bottom: 1.5rem;
+}
+.df-analysis-item {
+    background: var(--bg-card,#1e293b); border-radius: .5rem;
+    padding: .75rem 1rem; border: 1px solid var(--border,#334155);
+    display: flex; align-items: center; gap: .75rem;
+}
+.df-analysis-item i { font-size: 1.25rem; color: var(--accent,#d41473); }
+.df-analysis-item .analysis-value { font-weight: 600; }
+.df-analysis-item .analysis-label { font-size: .75rem; color: #94a3b8; }
+
+/* ===== Mode Selector ===== */
+.df-mode-grid {
+    display: grid; gap: .75rem;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    margin-bottom: 1.5rem;
+}
+.df-mode-card {
+    background: var(--bg-card,#1e293b); border-radius: .625rem;
+    padding: 1rem; border: 2px solid var(--border,#334155);
+    cursor: pointer; transition: all .2s;
+    display: flex; align-items: flex-start; gap: .75rem;
+}
+.df-mode-card:hover { border-color: var(--accent,#d41473); }
+.df-mode-card.selected { border-color: #22c55e; background: rgba(22,101,52,.1); }
+.df-mode-card input[type="radio"] { margin-top: .25rem; accent-color: var(--accent,#d41473); }
+.df-mode-card .mode-body h5 { margin: 0 0 .25rem; font-size: .9375rem; }
+.df-mode-card .mode-body p { margin: 0; font-size: .8125rem; color: #94a3b8; }
+
+/* ===== Validation Warnings ===== */
+.df-validation-warnings { margin-bottom: 1rem; }
+.df-validation-warnings .warning-item {
+    display: flex; align-items: center; gap: .5rem;
+    padding: .5rem .75rem; border-radius: .5rem;
+    background: rgba(234,179,8,.1); border: 1px solid rgba(234,179,8,.2);
+    margin-bottom: .25rem; font-size: .8125rem;
+}
+
+/* ===== Progress Bar ===== */
+.df-progress-bar-container {
+    background: var(--bg-card,#1e293b); border-radius: 2rem;
+    height: 8px; overflow: hidden; margin: 1rem 0;
+    border: 1px solid var(--border,#334155);
+}
+.df-progress-bar {
+    height: 100%; border-radius: 2rem; transition: width .5s ease;
+    background: linear-gradient(90deg, var(--accent,#d41473), #e91e63);
+}
+
+/* ===== Loading Skeleton (FASE 3) ===== */
+.df-skeleton {
+    background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: .5rem;
+}
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+
+.df-skeleton-card {
+    height: 100px; margin-bottom: 1rem;
+}
+
+/* ===== Quality Stars (FASE 7) ===== */
+.df-quality {
+    display: flex; align-items: center; gap: .5rem;
+    padding: .75rem 1rem; border-radius: .5rem;
+    margin-bottom: 1rem;
+}
+.df-quality.excellent { background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.2); }
+.df-quality.good { background: rgba(59,130,246,.1); border: 1px solid rgba(59,130,246,.2); }
+.df-quality.regular { background: rgba(234,179,8,.1); border: 1px solid rgba(234,179,8,.2); }
+.df-quality.bad { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.2); }
+.df-quality .stars { font-size: 1.25rem; letter-spacing: 2px; }
+.df-quality .quality-label { font-weight: 600; font-size: .9375rem; }
+
+/* ===== Accessibility (FASE 8) ===== */
+.df-mapping-card select:focus-visible,
+.df-mode-card input:focus-visible,
+.df-btn:focus-visible {
+    outline: 2px solid var(--accent,#d41473);
+    outline-offset: 2px;
+}
+.sr-only {
+    position: absolute; width: 1px; height: 1px;
+    overflow: hidden; clip: rect(0,0,0,0);
+    white-space: nowrap; border: 0;
+}
 </style>
 {% endblock %}
 
 {% block topbar_info %}
 <section class="topbar-icon">
-    <i class='fas fa-file-import'></i>
+    <i class='fas fa-file-import' aria-hidden="true"></i>
 </section>
 <section>
     <strong>Importar Excel</strong>
@@ -102,79 +311,266 @@
         <p class="df-description-text">{{ formulario.nombre }} — Sube un archivo .xlsx para importar datos masivamente</p>
     </header>
     <nav class="header-actions">
-        <a href="{% url 'dynamic_forms:ver_registros' formulario.id %}" class="btn btn-outline-secondary">
-            <i class='fas fa-arrow-left'></i> Volver a registros
+        <a href="{% url 'dynamic_forms:ver_registros' formulario.id %}"
+           class="btn btn-outline-secondary" aria-label="Volver a registros">
+            <i class='fas fa-arrow-left' aria-hidden="true"></i> Volver a registros
         </a>
+        <a href="{% url 'dynamic_forms:historial_importaciones' formulario.id %}"
+           class="btn btn-outline-secondary" aria-label="Historial de importaciones">
+            <i class="fas fa-history" aria-hidden="true"></i> Historial
+        </a>
+        {% if paso != 'subir' and paso != 'resultado' %}
+        <a href="{% url 'dynamic_forms:descargar_plantilla' formulario.id %}"
+           class="btn btn-outline-info" aria-label="Descargar plantilla">
+            <i class="fas fa-download" aria-hidden="true"></i> Plantilla
+        </a>
+        {% endif %}
     </nav>
 </section>
 
-<section class="panel-card">
+<section class="panel-card" role="main" aria-label="Asistente de importación">
     {% if paso == 'subir' %}
-    {# --- PASO 1: SUBIR ARCHIVO --- #}
-    <div class="df-import-progress">
-        <div class="step active"><span class="step-num">1</span> Subir</div>
-        <i class="fas fa-chevron-right" style="color:#475569"></i>
-        <div class="step"><span class="step-num">2</span> Mapeo</div>
-        <i class="fas fa-chevron-right" style="color:#475569"></i>
-        <div class="step"><span class="step-num">3</span> Vista previa</div>
-        <i class="fas fa-chevron-right" style="color:#475569"></i>
-        <div class="step"><span class="step-num">4</span> Resultado</div>
+    {# ===== PASO 1: SUBIR ARCHIVO ===== #}
+    <div class="df-import-progress" role="navigation" aria-label="Progreso de importación">
+        <div class="step active" aria-current="step"><span class="step-icon" aria-hidden="true"><i class="fas fa-upload"></i></span> Subir</div>
+        <i class="fas fa-chevron-right" aria-hidden="true" style="color:#475569"></i>
+        <div class="step"><span class="step-icon" aria-hidden="true">2</span> Mapeo</div>
+        <i class="fas fa-chevron-right" aria-hidden="true" style="color:#475569"></i>
+        <div class="step"><span class="step-icon" aria-hidden="true">3</span> Preview</div>
+        <i class="fas fa-chevron-right" aria-hidden="true" style="color:#475569"></i>
+        <div class="step"><span class="step-icon" aria-hidden="true">4</span> Resultado</div>
     </div>
 
     <div class="card-body">
         <div class="df-empty-state" style="margin-bottom:2rem">
-            <i class="fas fa-file-excel" style="font-size:3rem;color:#22c55e"></i>
+            <i class="fas fa-file-excel" style="font-size:3rem;color:#22c55e" aria-hidden="true"></i>
             <h4>Sube tu archivo Excel</h4>
-            <p>El archivo debe tener la primera fila con los nombres de columna.
-            Formatos aceptados: <strong>.xlsx</strong></p>
+            <p>El análisis detectará automáticamente la hoja, los encabezados y las columnas.</p>
         </div>
 
-        <form method="post" enctype="multipart/form-data">
+        <form method="post" enctype="multipart/form-data" aria-label="Formulario de subida" data-df-submit>
             {% csrf_token %}
             <input type="hidden" name="paso" value="subir">
 
             <div class="mb-4">
-                <label class="form-label">Archivo Excel (.xlsx)</label>
-                <input type="file" name="archivo_excel" class="form-control"
-                       accept=".xlsx" required>
+                <label for="archivo_excel" class="form-label">Archivo Excel (.xlsx)</label>
+                <input type="file" name="archivo_excel" id="archivo_excel"
+                       class="form-control" accept=".xlsx" required
+                       aria-required="true" tabindex="0">
             </div>
 
-            <div class="df-submit-area">
+            <div class="df-submit-area" role="group" aria-label="Acciones">
+                <a href="{% url 'dynamic_forms:descargar_plantilla' formulario.id %}"
+                   class="btn btn-outline-info" tabindex="0">
+                    <i class="fas fa-download" aria-hidden="true"></i> Descargar plantilla
+                </a>
                 <a href="{% url 'dynamic_forms:ver_registros' formulario.id %}"
-                   class="btn btn-outline-secondary">Cancelar</a>
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-upload"></i> Subir y analizar
+                   class="btn btn-outline-secondary" tabindex="0">Cancelar</a>
+                <button type="submit" class="btn btn-primary" tabindex="0"
+                        id="btn-subir" aria-label="Subir y analizar archivo"
+                        data-loading-text="Analizando...">
+                    <i class="fas fa-upload" aria-hidden="true"></i> Subir y analizar
                 </button>
             </div>
         </form>
     </div>
 
     {% elif paso == 'mapeo' %}
-    {# --- PASO 2: MAPEO DE COLUMNAS --- #}
-    <div class="df-import-progress">
-        <div class="step completed"><span class="step-num">✓</span> Subir</div>
-        <i class="fas fa-chevron-right" style="color:#475569"></i>
-        <div class="step active"><span class="step-num">2</span> Mapeo</div>
-        <i class="fas fa-chevron-right" style="color:#475569"></i>
-        <div class="step"><span class="step-num">3</span> Vista previa</div>
-        <i class="fas fa-chevron-right" style="color:#475569"></i>
-        <div class="step"><span class="step-num">4</span> Resultado</div>
+    {# ===== PASO 2: MAPEO DE COLUMNAS ===== #}
+    <div class="df-import-progress" role="navigation" aria-label="Progreso de importación">
+        <div class="step completed"><span class="step-icon" aria-hidden="true"><i class="fas fa-check"></i></span> Subir</div>
+        <i class="fas fa-chevron-right" aria-hidden="true" style="color:#475569"></i>
+        <div class="step active" aria-current="step"><span class="step-icon" aria-hidden="true"><i class="fas fa-columns"></i></span> Mapeo</div>
+        <i class="fas fa-chevron-right" aria-hidden="true" style="color:#475569"></i>
+        <div class="step"><span class="step-icon" aria-hidden="true"><i class="fas fa-eye"></i></span> Preview</div>
+        <i class="fas fa-chevron-right" aria-hidden="true" style="color:#475569"></i>
+        <div class="step"><span class="step-icon" aria-hidden="true"><i class="fas fa-check-double"></i></span> Resultado</div>
     </div>
 
     <div class="card-body">
-        <div class="alert alert-info">
-            <i class="fas fa-info-circle"></i>
+        {% if auto_summary %}
+        {# ===== RESUMEN DE MAPEO AUTOMÁTICO ===== #}
+        <div class="df-mapping-summary" role="region" aria-label="Resumen de mapeo automático">
+            <div class="df-mapping-summary-item ms-auto">
+                <div class="ms-icon"><i class="fas fa-check-circle" aria-hidden="true"></i></div>
+                <div class="ms-count">{{ auto_summary.auto }}</div>
+                <div class="ms-label">Automáticas</div>
+            </div>
+            <div class="df-mapping-summary-item ms-review">
+                <div class="ms-icon"><i class="fas fa-eye" aria-hidden="true"></i></div>
+                <div class="ms-count">{{ auto_summary.review }}</div>
+                <div class="ms-label">Requieren revisión</div>
+            </div>
+            <div class="df-mapping-summary-item ms-manual">
+                <div class="ms-icon"><i class="fas fa-hand-pointer" aria-hidden="true"></i></div>
+                <div class="ms-count">{{ auto_summary.manual }}</div>
+                <div class="ms-label">Asignación manual</div>
+            </div>
+            <div class="df-mapping-summary-item ms-total">
+                <div class="ms-icon"><i class="fas fa-columns" aria-hidden="true"></i></div>
+                <div class="ms-count">{{ auto_summary.total }}</div>
+                <div class="ms-label">Total columnas</div>
+            </div>
+        </div>
+
+        {# --- Enriquecimiento: memoria + IA --- #}
+        <div class="df-enrichment-row">
+            {% if auto_summary.memoria_usada %}
+            <span class="df-enrichment-tag memory" title="Se aplicó un mapeo de una importación anterior">
+                <i class="fas fa-brain" aria-hidden="true"></i> Memoria de mapeo
+            </span>
+            {% endif %}
+            {% if auto_summary.ai_usada %}
+            <span class="df-enrichment-tag ai" title="DeepSeek AI ayudó a resolver columnas ambiguas">
+                <i class="fas fa-robot" aria-hidden="true"></i> IA (DeepSeek)
+            </span>
+            {% endif %}
+            {% if auto_summary.confianza_promedio %}
+            <span class="df-enrichment-tag" style="background:rgba(148,163,184,.15);color:#94a3b8;border:1px solid rgba(148,163,184,.3)">
+                <i class="fas fa-percentage" aria-hidden="true"></i>
+                Confianza: {{ auto_summary.confianza_promedio|floatformat:1 }}%
+            </span>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    {% if analysis_meta %}
+        {# --- Resumen de análisis --- #}
+        <div class="df-analysis-summary">
+            <div class="df-analysis-item">
+                <i class="fas fa-file-excel" aria-hidden="true"></i>
+                <div>
+                    <div class="analysis-value">{{ analysis_meta.sheet_name|default:'N/D' }}</div>
+                    <div class="analysis-label">
+                        Hoja detectada
+                        {% if analysis_meta.total_sheets > 1 %}
+                        ({{ analysis_meta.total_sheets }} hojas)
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="df-analysis-item">
+                <i class="fas fa-row" aria-hidden="true"></i>
+                <div>
+                    <div class="analysis-value">Fila {{ analysis_meta.header_row|add:1 }}</div>
+                    <div class="analysis-label">Encabezados detectados</div>
+                </div>
+            </div>
+            {% if analysis_meta.data_start_row %}
+            <div class="df-analysis-item">
+                <i class="fas fa-arrow-down" aria-hidden="true"></i>
+                <div>
+                    <div class="analysis-value">Fila {{ analysis_meta.data_start_row|add:1 }}</div>
+                    <div class="analysis-label">Primera fila de datos</div>
+                </div>
+            </div>
+            {% endif %}
+            <div class="df-analysis-item">
+                <i class="fas fa-percentage" aria-hidden="true"></i>
+                <div>
+                    <div class="analysis-value">{{ analysis_meta.confianza_global|floatformat:1 }}%</div>
+                    <div class="analysis-label">Confianza del mapeo</div>
+                </div>
+            </div>
+        </div>
+
+        {# --- Calidad del archivo (FASE 7) --- #}
+        {% if calidad %}
+        {% with estrellas=calidad.estrellas|default:0 %}
+        <div class="df-quality
+            {% if estrellas >= 4 %}excellent
+            {% elif estrellas == 3 %}regular
+            {% else %}bad{% endif %}">
+            <div class="stars" aria-label="{{ estrellas }} de 5 estrellas">
+                {% for i in "12345"|make_list %}
+                    {% if forloop.counter <= estrellas %}★{% else %}☆{% endif %}
+                {% endfor %}
+            </div>
+            <div>
+                <span class="quality-label">{{ calidad.etiqueta|default:'Sin evaluar' }}</span>
+                {% if calidad.recomendaciones %}
+                <div style="font-size:.75rem;color:#94a3b8;margin-top:.25rem">
+                    {% for rec in calidad.recomendaciones %}
+                    <div><i class="fas fa-info-circle" aria-hidden="true"></i> {{ rec }}</div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endwith %}
+        {% endif %}
+
+        {# --- Conflictos globales (FASE 4) --- #}
+        {% if conflictos_globales %}
+        <div class="df-validation-warnings">
+            {% for cconf in conflictos_globales %}
+            <div class="warning-item">
+                <i class="fas fa-exclamation-triangle" aria-hidden="true" style="color:#eab308"></i>
+                <strong>"{{ cconf.columna }}"</strong> es similar a:
+                {{ cconf.conflictos|join:", " }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endif %}
+
+        <div class="alert alert-info" role="alert">
+            <i class="fas fa-info-circle" aria-hidden="true"></i>
             <strong>{{ total_filas }} fila{{ total_filas|pluralize:"s" }}</strong> detectada{{ total_filas|pluralize:"s" }}.
-            Asigna cada columna del Excel a un campo del formulario.
+            Revisa el mapeo automático.
             {% if sin_mapear %}
             <br><strong>Campos sin mapear:</strong>
             {% for c in sin_mapear %}{{ c }}{% if not forloop.last %}, {% endif %}{% endfor %}
             {% endif %}
         </div>
 
-        <form method="post">
+        {# --- Selector de modo (FASE 1) --- #}
+        <div class="mb-4">
+            <h5><i class="fas fa-cog" aria-hidden="true"></i> Modo de importación</h5>
+            <div class="df-mode-grid" role="radiogroup" aria-label="Modo de importación">
+                <label class="df-mode-card {% if modo_actual == 'crear' or not modo_actual %}selected{% endif %}">
+                    <input type="radio" name="modo_importacion" value="crear"
+                           {% if modo_actual == 'crear' or not modo_actual %}checked{% endif %}
+                           tabindex="0" aria-label="Solo crear registros nuevos">
+                    <div class="mode-body">
+                        <h5><i class="fas fa-plus-circle text-success" aria-hidden="true"></i> Solo crear</h5>
+                        <p>Crea registros nuevos. Ignora si el identificador ya existe.</p>
+                    </div>
+                </label>
+                <label class="df-mode-card {% if modo_actual == 'actualizar' %}selected{% endif %}">
+                    <input type="radio" name="modo_importacion" value="actualizar"
+                           {% if modo_actual == 'actualizar' %}checked{% endif %}
+                           tabindex="0" aria-label="Solo actualizar registros existentes">
+                    <div class="mode-body">
+                        <h5><i class="fas fa-pen text-warning" aria-hidden="true"></i> Solo actualizar</h5>
+                        <p>Actualiza registros existentes. Ignora los que no encuentre.</p>
+                    </div>
+                </label>
+                <label class="df-mode-card {% if modo_actual == 'upsert' %}selected{% endif %}">
+                    <input type="radio" name="modo_importacion" value="upsert"
+                           {% if modo_actual == 'upsert' %}checked{% endif %}
+                           tabindex="0" aria-label="UPSERT: crear o actualizar">
+                    <div class="mode-body">
+                        <h5><i class="fas fa-sync text-info" aria-hidden="true"></i> UPSERT</h5>
+                        <p>Crea si no existe, actualiza si ya existe.</p>
+                    </div>
+                </label>
+                <label class="df-mode-card {% if modo_actual == 'validar' %}selected{% endif %}">
+                    <input type="radio" name="modo_importacion" value="validar"
+                           {% if modo_actual == 'validar' %}checked{% endif %}
+                           tabindex="0" aria-label="Solo validar, Dry Run">
+                    <div class="mode-body">
+                        <h5><i class="fas fa-flask text-purple" aria-hidden="true"></i> Solo validar</h5>
+                        <p>Dry Run: valida sin escribir en la base de datos.</p>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        {# --- Mapeo de columnas con matching explicable (FASE 4) --- #}
+        <form method="post" aria-label="Formulario de mapeo de columnas" data-df-submit>
             {% csrf_token %}
-            <input type="hidden" name="paso" value="confirmar">
+            <input type="hidden" name="paso" value="mapear">
 
             <div class="df-mapping-grid">
                 {% for col_idx, col_name in encabezados_con_idx %}
@@ -182,11 +578,75 @@
                 <div class="df-mapping-card">
                     <label>Columna en Excel</label>
                     <div class="excel-col">
-                        <i class="fas fa-columns"></i>
+                        <i class="fas fa-columns" aria-hidden="true"></i>
                         {{ col_name }}
                     </div>
-                    <label class="mt-2">Campo del formulario</label>
-                    <select name="mapeo_{{ col_idx }}" class="form-select">
+
+                    {# Categoría automática (auto/review/manual) #}
+                    {% for cc in auto_summary.columnas %}
+                    {% if cc.column_index == col_idx %}
+                        <div class="df-cat-badge {{ cc.category }}" title="
+                            {% if cc.category == 'auto' %}Asignación automática con alta confianza
+                            {% elif cc.category == 'review' %}Asignación automática que requiere revisión
+                            {% else %}Requiere asignación manual{% endif %}">
+                            {% if cc.category == 'auto' %}<i class="fas fa-check-circle"></i> Automática
+                            {% elif cc.category == 'review' %}<i class="fas fa-eye"></i> Revisar
+                            {% else %}<i class="fas fa-hand-pointer"></i> Manual{% endif %}
+                            {% if cc.confidence %}({{ cc.confidence|floatformat:0 }}%){% endif %}
+                        </div>
+                    {% endif %}
+                    {% endfor %}
+
+                    {# Badge de matching + explicación #}
+                    {% for r in match_results %}
+                    {% if r.column_index == col_idx %}
+                        {% if r.matched_to %}
+                        <div class="match-badge {{ r.method|default:'none' }}"
+                             title="{% if r.explanation %}{{ r.explanation }}{% endif %}">
+                            {% if r.method == 'exact' %}<i class="fas fa-check-circle"></i>
+                            {% elif r.method == 'normalized' %}<i class="fas fa-equals"></i>
+                            {% elif r.method == 'synonym' %}<i class="fas fa-book"></i>
+                            {% elif r.method == 'fuzzy' %}<i class="fas fa-bolt"></i>
+                            {% elif r.method == 'fuzzy_review' %}<i class="fas fa-exclamation-triangle"></i>
+                            {% elif r.method == 'manual' %}<i class="fas fa-hand-pointer"></i>
+                            {% elif r.method == 'memory' %}<i class="fas fa-brain"></i>
+                            {% elif r.method == 'ai' %}<i class="fas fa-robot"></i>
+                            {% else %}<i class="fas fa-question-circle"></i>{% endif %}
+                            {{ r.method|default:'No detectado'|capfirst }}
+                            <span class="confianza">— {{ r.confidence|floatformat:0 }}%</span>
+                        </div>
+                        {% if r.explanation %}
+                        <div class="match-explanation">{{ r.explanation }}</div>
+                        {% endif %}
+
+                        {% elif r.confidence > 0 and r.suggestion %}
+                        <div class="match-badge fuzzy" title="{{ r.explanation }}">
+                            <i class="fas fa-lightbulb" aria-hidden="true"></i> Sugerencia: {{ r.suggestion }}
+                            <span class="confianza">({{ r.confidence|floatformat:0 }}%)</span>
+                        </div>
+                        {% if r.explanation %}
+                        <div class="match-explanation">{{ r.explanation }}</div>
+                        {% endif %}
+
+                        {% else %}
+                        <div class="match-badge none">
+                            <i class="fas fa-times-circle" aria-hidden="true"></i> No detectado
+                        </div>
+                        {% endif %}
+
+                        {# Conflictos (FASE 4) #}
+                        {% if r.conflicts %}
+                        <div class="conflict-warning" title="Campos similares detectados">
+                            <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
+                            Similar a: {{ r.conflicts|join:", " }}
+                        </div>
+                        {% endif %}
+                    {% endif %}
+                    {% endfor %}
+
+                    <label for="mapeo_{{ col_idx }}" class="mt-2">Campo del formulario</label>
+                    <select name="mapeo_{{ col_idx }}" id="mapeo_{{ col_idx }}"
+                            class="form-select" tabindex="0">
                         <option value="">— No importar —</option>
                         {% for campo in campos_activos %}
                         {% if campo.tipo != 'calculado' and campo.tipo != 'imagen' and campo.tipo != 'archivo' %}
@@ -206,60 +666,142 @@
 
             <div class="df-submit-area mt-4">
                 <a href="{% url 'dynamic_forms:importar_excel' formulario.id %}"
-                   class="btn btn-outline-secondary">Volver a empezar</a>
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-eye"></i> Validar y previsualizar
+                   class="btn btn-outline-secondary" tabindex="0">
+                    <i class="fas fa-undo" aria-hidden="true"></i> Volver a empezar
+                </a>
+                <button type="submit" class="btn btn-primary btn-lg" tabindex="0"
+                        aria-label="Validar y previsualizar"
+                        data-loading-text="Validando...">
+                    <i class="fas fa-eye" aria-hidden="true"></i> Validar y previsualizar
                 </button>
             </div>
         </form>
     </div>
 
     {% elif paso == 'preview' %}
-    {# --- PASO 3: VISTA PREVIA DE VALIDACIÓN --- #}
-    <div class="df-import-progress">
-        <div class="step completed"><span class="step-num">✓</span> Subir</div>
-        <i class="fas fa-chevron-right" style="color:#475569"></i>
-        <div class="step completed"><span class="step-num">✓</span> Mapeo</div>
-        <i class="fas fa-chevron-right" style="color:#475569"></i>
-        <div class="step active"><span class="step-num">3</span> Vista previa</div>
-        <i class="fas fa-chevron-right" style="color:#475569"></i>
-        <div class="step"><span class="step-num">4</span> Resultado</div>
+    {# ===== PASO 3: VISTA PREVIA ===== #}
+    <div class="df-import-progress" role="navigation" aria-label="Progreso de importación">
+        <div class="step completed"><span class="step-icon" aria-hidden="true"><i class="fas fa-check"></i></span> Subir</div>
+        <i class="fas fa-chevron-right" aria-hidden="true" style="color:#475569"></i>
+        <div class="step completed"><span class="step-icon" aria-hidden="true"><i class="fas fa-check"></i></span> Mapeo</div>
+        <i class="fas fa-chevron-right" aria-hidden="true" style="color:#475569"></i>
+        <div class="step active" aria-current="step"><span class="step-icon" aria-hidden="true"><i class="fas fa-eye"></i></span> Preview</div>
+        <i class="fas fa-chevron-right" aria-hidden="true" style="color:#475569"></i>
+        <div class="step"><span class="step-icon" aria-hidden="true"><i class="fas fa-check-double"></i></span> Resultado</div>
     </div>
 
+    {# --- Barra de progreso --- #}
+    <div class="df-progress-bar-container" role="progressbar" aria-valuenow="75" aria-valuemin="0" aria-valuemax="100">
+        <div class="df-progress-bar" style="width: 75%"></div>
+    </div>
+
+    {# --- KPIs del preview --- #}
     <div class="df-result-stats">
         <div class="df-result-stat stat-total">
             <div class="stat-value">{{ total_filas }}</div>
-            <div class="stat-label">Total de filas</div>
+            <div class="stat-label"><i class="fas fa-list" aria-hidden="true"></i> Total de filas</div>
         </div>
         <div class="df-result-stat stat-success">
             <div class="stat-value">{{ validas|length }}</div>
-            <div class="stat-label">Válidas</div>
+            <div class="stat-label"><i class="fas fa-check-circle" aria-hidden="true"></i> Válidas</div>
         </div>
         <div class="df-result-stat stat-error">
             <div class="stat-value">{{ con_errores|length }}</div>
-            <div class="stat-label">Con errores</div>
+            <div class="stat-label"><i class="fas fa-exclamation-circle" aria-hidden="true"></i> Con errores</div>
+        </div>
+        <div class="df-result-stat stat-info">
+            <div class="stat-value">{{ modo_msg|default:'Crear' }}</div>
+            <div class="stat-label"><i class="fas fa-cog" aria-hidden="true"></i> Modo</div>
         </div>
     </div>
 
-    {% if con_errores %}
-    <div class="alert alert-danger">
-        <i class="fas fa-exclamation-triangle"></i>
-        <strong>Filas con errores:</strong> Se importarán solo las filas válidas.
+    {# --- Notificación de mapeo 100% automático --- #}
+    {% if mapeo_saltado %}
+    <div class="df-auto-skip-notice" role="alert">
+        <i class="fas fa-magic" aria-hidden="true"></i>
+        <div>
+            <div class="notice-title">Mapeo 100% automático</div>
+            <div class="notice-desc">
+                Todas las columnas fueron mapeadas automáticamente con alta confianza.
+                El mapeo se ha guardado para reutilizarse en futuras importaciones.
+            </div>
+        </div>
     </div>
     {% endif %}
 
+    {# --- Calidad (FASE 7) --- #}
+    {% if calidad and calidad.estrellas %}
+    {% with estrellas=calidad.estrellas %}
+    <div class="df-quality
+        {% if estrellas >= 4 %}excellent
+        {% elif estrellas == 3 %}regular
+        {% else %}bad{% endif %}">
+        <div class="stars" aria-label="{{ estrellas }} de 5 estrellas">
+            {% for i in "12345"|make_list %}
+                {% if forloop.counter <= estrellas %}★{% else %}☆{% endif %}
+            {% endfor %}
+        </div>
+        <div>
+            <span class="quality-label">{{ calidad.etiqueta|default:'Sin evaluar' }}</span>
+            {% if calidad.metricas %}
+            <div style="font-size:.75rem;color:#94a3b8;margin-top:.25rem">
+                {{ calidad.metricas.mapeadas }}/{{ calidad.metricas.total_columnas }} columnas mapeadas ·
+                Confianza promedio: {{ calidad.metricas.confianza_promedio|floatformat:1 }}%
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endwith %}
+    {% endif %}
+
+    {# --- Advertencias de validación --- #}
+    {% if validacion and validacion.advertencias %}
+    <div class="df-validation-warnings" role="alert">
+        {% for adv in validacion.advertencias %}
+        <div class="warning-item">
+            <i class="fas fa-exclamation-triangle" aria-hidden="true" style="color:#eab308"></i>
+            {{ adv }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {# --- Alertas contextuales --- #}
+    {% if con_errores %}
+    <div class="alert alert-danger" role="alert">
+        <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
+        <strong>{{ con_errores|length }} fila{{ con_errores|pluralize:"s" }} con errores.</strong>
+        Se importarán solo las filas válidas.
+    </div>
+    {% endif %}
+
+    {% if modo_actual == 'validar' %}
+    <div class="alert alert-info" role="alert">
+        <i class="fas fa-flask" aria-hidden="true"></i>
+        <strong>Modo Dry Run:</strong> Las filas se validarán pero no se escribirán en la BD.
+    </div>
+    {% endif %}
+
+    {% if validas and modo_actual == 'actualizar' %}
+    <div class="alert alert-info" role="alert">
+        <i class="fas fa-info-circle" aria-hidden="true"></i>
+        <strong>Modo actualizar:</strong> Solo se actualizarán registros existentes.
+    </div>
+    {% endif %}
+
+    {# --- Tabla de preview --- #}
     {% if preview %}
     {% with preview|first as first_row %}
     {% with first_row.valores.keys as campo_nombres %}
-    <div class="df-table-wrapper" style="max-height:400px;overflow-y:auto">
+    <div class="df-table-wrapper" style="max-height:400px;overflow-y:auto" tabindex="0" role="region" aria-label="Vista previa de datos">
         <table class="df-table df-preview-table">
             <thead>
                 <tr>
                     <th>#</th>
                     {% for nom_campo in campo_nombres %}
-                    <th>{{ nom_campo }}</th>
+                    <th scope="col">{{ nom_campo }}</th>
                     {% endfor %}
-                    <th>Estado</th>
+                    <th scope="col">Estado</th>
                 </tr>
             </thead>
             <tbody>
@@ -271,10 +813,10 @@
                     {% endfor %}
                     <td>
                         {% if row.valida %}
-                        <span class="text-success"><i class="fas fa-check-circle"></i> Válida</span>
+                        <span class="text-success"><i class="fas fa-check-circle" aria-hidden="true"></i> Válida</span>
                         {% else %}
-                        <span class="error-badge" title="{{ row.errores|join:'; ' }}">
-                            <i class="fas fa-exclamation-circle"></i>
+                        <span class="error-badge" title="{{ row.errores|join:'; ' }}" tabindex="0">
+                            <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
                             {{ row.errores|length }} error{{ row.errores|pluralize:"es" }}
                         </span>
                         {% endif %}
@@ -297,72 +839,120 @@
     {% endwith %}
     {% endif %}
 
-    <form method="post" class="mt-4">
+    {# --- Acción de importación --- #}
+    <form method="post" class="mt-4" aria-label="Confirmar importación" data-df-submit>
         {% csrf_token %}
         <input type="hidden" name="paso" value="importar">
 
         <div class="df-submit-area">
             <a href="{% url 'dynamic_forms:importar_excel' formulario.id %}"
-               class="btn btn-outline-secondary">
-                <i class="fas fa-undo"></i> Volver a empezar
+               class="btn btn-outline-secondary" tabindex="0">
+                <i class="fas fa-undo" aria-hidden="true"></i> Volver a empezar
             </a>
             {% if validas %}
-            <button type="submit" class="btn btn-primary btn-lg"
-                    onclick="return confirm('¿Confirmas la importación de {{ validas|length }} fila{{ validas|length|pluralize:"s" }}? Esta acción no se puede deshacer fácilmente.');">
-                <i class="fas fa-check-double"></i> Importar {{ validas|length }} fila{{ validas|length|pluralize:"s" }}
+            <button type="submit" class="btn btn-primary btn-lg" tabindex="0"
+                    id="btn-importar"
+                    aria-label="{% if modo_actual == 'validar' %}Ejecutar Dry Run{% elif modo_actual == 'actualizar' %}Actualizar {{ validas|length }} registros{% else %}Importar {{ validas|length }} filas{% endif %}"
+                    data-loading-text="{% if modo_actual == 'validar' %}Validando...{% elif modo_actual == 'actualizar' %}Actualizando...{% else %}Importando...{% endif %}">
+                <i class="fas fa-check-double" aria-hidden="true"></i>
+                {% if modo_actual == 'validar' %}
+                Ejecutar Dry Run
+                {% elif modo_actual == 'actualizar' %}
+                Actualizar {{ validas|length }} registro{{ validas|length|pluralize:"s" }}
+                {% elif modo_actual == 'upsert' %}
+                UPSERT {{ validas|length }} registro{{ validas|length|pluralize:"s" }}
+                {% else %}
+                Importar {{ validas|length }} fila{{ validas|length|pluralize:"s" }}
+                {% endif %}
             </button>
             {% else %}
-            <button type="submit" class="btn btn-primary btn-lg" disabled>
-                <i class="fas fa-check-double"></i> Sin filas válidas
+            <button type="submit" class="btn btn-primary btn-lg" disabled tabindex="0">
+                <i class="fas fa-check-double" aria-hidden="true"></i> Sin filas válidas
             </button>
             {% endif %}
         </div>
     </form>
 
     {% elif paso == 'resultado' %}
-    {# --- PASO 4: RESULTADO DE IMPORTACIÓN --- #}
-    <div class="df-import-progress">
-        <div class="step completed"><span class="step-num">✓</span> Subir</div>
-        <i class="fas fa-chevron-right" style="color:#475569"></i>
-        <div class="step completed"><span class="step-num">✓</span> Mapeo</div>
-        <i class="fas fa-chevron-right" style="color:#475569"></i>
-        <div class="step completed"><span class="step-num">✓</span> Vista previa</div>
-        <i class="fas fa-chevron-right" style="color:#475569"></i>
-        <div class="step active"><span class="step-num">4</span> Resultado</div>
+    {# ===== PASO 4: RESULTADO ===== #}
+    <div class="df-import-progress" role="navigation" aria-label="Progreso de importación">
+        <div class="step completed"><span class="step-icon" aria-hidden="true"><i class="fas fa-check"></i></span> Subir</div>
+        <i class="fas fa-chevron-right" aria-hidden="true" style="color:#475569"></i>
+        <div class="step completed"><span class="step-icon" aria-hidden="true"><i class="fas fa-check"></i></span> Mapeo</div>
+        <i class="fas fa-chevron-right" aria-hidden="true" style="color:#475569"></i>
+        <div class="step completed"><span class="step-icon" aria-hidden="true"><i class="fas fa-check"></i></span> Preview</div>
+        <i class="fas fa-chevron-right" aria-hidden="true" style="color:#475569"></i>
+        <div class="step active" aria-current="step"><span class="step-icon" aria-hidden="true"><i class="fas fa-check-double"></i></span> Resultado</div>
     </div>
 
+    {# --- KPIs de resultado --- #}
     <div class="df-result-stats">
         <div class="df-result-stat stat-total">
             <div class="stat-value">{{ resultado.total }}</div>
-            <div class="stat-label">Procesadas</div>
+            <div class="stat-label"><i class="fas fa-list" aria-hidden="true"></i> Procesadas</div>
         </div>
         <div class="df-result-stat stat-success">
             <div class="stat-value">{{ resultado.creados }}</div>
-            <div class="stat-label">Importados</div>
+            <div class="stat-label"><i class="fas fa-plus-circle" aria-hidden="true"></i> Creados</div>
+        </div>
+        <div class="df-result-stat stat-warning">
+            <div class="stat-value">{{ resultado.actualizados }}</div>
+            <div class="stat-label"><i class="fas fa-pen" aria-hidden="true"></i> Actualizados</div>
+        </div>
+        <div class="df-result-stat stat-info">
+            <div class="stat-value">{{ resultado.ignorados }}</div>
+            <div class="stat-label"><i class="fas fa-forward" aria-hidden="true"></i> Ignorados</div>
         </div>
         <div class="df-result-stat stat-error">
             <div class="stat-value">{{ resultado.errores|length }}</div>
-            <div class="stat-label">Fallos</div>
+            <div class="stat-label"><i class="fas fa-times-circle" aria-hidden="true"></i> Fallos</div>
+        </div>
+        <div class="df-result-stat stat-total">
+            <div class="stat-value">{{ resultado.tiempo_seg }}s</div>
+            <div class="stat-label"><i class="fas fa-clock" aria-hidden="true"></i> Tiempo</div>
         </div>
     </div>
 
-    {% if resultado.creados > 0 %}
-    <div class="alert alert-success">
-        <i class="fas fa-check-circle"></i>
-        <strong>{{ resultado.creados }} registro{{ resultado.creados|pluralize:"s" }} importado{{ resultado.creados|pluralize:"s" }} correctamente.</strong>
+    {# --- Mensajes contextuales --- #}
+    {% if resultado.modo == 'validar' %}
+    <div class="alert alert-info" role="alert">
+        <i class="fas fa-flask" aria-hidden="true"></i>
+        <strong>Dry Run completado.</strong> No se modificó ningún registro.
+    </div>
+    {% elif resultado.creados > 0 or resultado.actualizados > 0 %}
+    <div class="alert alert-success" role="alert">
+        <i class="fas fa-check-circle" aria-hidden="true"></i>
+        <strong>
+            {% if resultado.creados > 0 %}{{ resultado.creados }} creado{{ resultado.creados|pluralize:"s" }}.{% endif %}
+            {% if resultado.actualizados > 0 %}{{ resultado.actualizados }} actualizado{{ resultado.actualizados|pluralize:"s" }}.{% endif %}
+        </strong>
         Los hooks y fórmulas se ejecutaron automáticamente.
     </div>
     {% endif %}
 
-    {% if resultado.errores %}
-    <div class="alert alert-danger">
-        <i class="fas fa-exclamation-triangle"></i>
-        <strong>{{ resultado.errores|length }} fila{{ resultado.errores|length|pluralize:"s" }} con errores:</strong>
+    {% if resultado.ignorados > 0 and resultado.modo != 'validar' %}
+    <div class="alert alert-warning" role="alert">
+        <i class="fas fa-forward" aria-hidden="true"></i>
+        <strong>{{ resultado.ignorados }} ignorada{{ resultado.ignorados|pluralize:"s" }}.</strong>
+        {% if resultado.modo == 'actualizar' %}
+        No se encontró un registro existente con el identificador proporcionado.
+        {% else %}
+        No se pudieron procesar.
+        {% endif %}
     </div>
-    <div class="df-table-wrapper" style="max-height:300px;overflow-y:auto">
+    {% endif %}
+
+    {# --- Errores --- #}
+    {% if resultado.errores %}
+    <div class="alert alert-danger" role="alert">
+        <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
+        <strong>{{ resultado.errores|length }} error{{ resultado.errores|length|pluralize:"es" }}.</strong>
+        Descarga el reporte para ver los detalles.
+    </div>
+    <div class="df-table-wrapper" style="max-height:300px;overflow-y:auto" tabindex="0" role="region" aria-label="Detalle de errores">
         <table class="df-table df-preview-table">
             <thead>
-                <tr><th># Fila</th><th>Error</th></tr>
+                <tr><th scope="col"># Fila</th><th scope="col">Error</th></tr>
             </thead>
             <tbody>
                 {% for err in resultado.errores %}
@@ -374,18 +964,74 @@
             </tbody>
         </table>
     </div>
+    <div class="mt-2">
+        <a href="{% url 'dynamic_forms:descargar_errores_importacion' formulario.id %}"
+           class="btn btn-outline-danger" tabindex="0"
+           aria-label="Descargar Excel de errores">
+            <i class="fas fa-download" aria-hidden="true"></i> Descargar Excel de errores
+        </a>
+    </div>
     {% endif %}
 
-    <div class="df-submit-area mt-4">
-        <a href="{% url 'dynamic_forms:ver_registros' formulario.id %}" class="btn btn-primary">
-            <i class="fas fa-table"></i> Ver registros
+    {# --- Acciones finales --- #}
+    <div class="df-submit-area mt-4" role="group" aria-label="Acciones finales">
+        <a href="{% url 'dynamic_forms:ver_registros' formulario.id %}"
+           class="btn btn-primary" tabindex="0">
+            <i class="fas fa-table" aria-hidden="true"></i> Ver registros
         </a>
-        <a href="{% url 'dynamic_forms:importar_excel' formulario.id %}" class="btn btn-outline-secondary">
-            <i class="fas fa-upload"></i> Importar otro archivo
+        <a href="{% url 'dynamic_forms:importar_excel' formulario.id %}"
+           class="btn btn-outline-secondary" tabindex="0">
+            <i class="fas fa-upload" aria-hidden="true"></i> Importar otro archivo
+        </a>
+        <a href="{% url 'dynamic_forms:descargar_plantilla' formulario.id %}"
+           class="btn btn-outline-info" tabindex="0">
+            <i class="fas fa-download" aria-hidden="true"></i> Descargar plantilla
         </a>
     </div>
 
     {% endif %}
 </section>
 
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<script>
+(function() {
+    // =================================================================
+    // DIAGNÓSTICO — El envío del form es gestionado por df-form-submit.js
+    // (evento submit, checkValidity(), spinner, pageshow).
+    // Aquí solo queda la UI no relacionada con envío.
+    // =================================================================
+    console.log('[DIAG] ========== IMPORTAR EXCEL: UI READY ==========');
+    console.log('[DIAG] Timestamp:', new Date().toISOString());
+    console.time('[DIAG] ui-init');
+
+    // -----------------------------------------------------------------
+    // Mode card selection visual
+    // -----------------------------------------------------------------
+    var modeCards = document.querySelectorAll('.df-mode-card input[type="radio"]');
+    console.log('[DIAG] Mode cards found:', modeCards.length);
+    modeCards.forEach(function(radio) {
+        radio.addEventListener('change', function() {
+            var cards = document.querySelectorAll('.df-mode-card');
+            cards.forEach(function(c) { c.classList.remove('selected'); });
+            this.closest('.df-mode-card').classList.add('selected');
+        });
+    });
+
+    // -----------------------------------------------------------------
+    // Tooltip for error badges
+    // -----------------------------------------------------------------
+    var errorBadges = document.querySelectorAll('.error-badge');
+    errorBadges.forEach(function(badge) {
+        badge.addEventListener('mouseenter', function() {
+            this.setAttribute('aria-live', 'polite');
+        });
+    });
+
+    console.timeEnd('[DIAG] ui-init');
+    console.log('[DIAG] ========== READY ==========');
+})();
+</script>
 {% endblock %}

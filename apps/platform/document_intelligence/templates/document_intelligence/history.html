@@ -1,0 +1,82 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block title %}Historial IA{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'document_intelligence:dashboard' %}">Document Intelligence</a></li>
+            <li class="breadcrumb-item active">Historial IA</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">📊 Historial de análisis IA</h2>
+    </div>
+
+    <div class="card shadow-sm border-0 rounded-4">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Documento</th>
+                        <th>Proveedor</th>
+                        <th>Tokens</th>
+                        <th>Costo</th>
+                        <th>Confianza</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td class="small">{{ log.created_at|date:"Y-m-d H:i" }}</td>
+                        <td>
+                            <strong>{{ log.document_name|truncatechars:40|default:"—" }}</strong>
+                            <br><small class="text-muted">{{ log.document_type|default:"" }}</small>
+                        </td>
+                        <td><span class="badge bg-secondary">{{ log.provider }}</span></td>
+                        <td>{{ log.total_tokens }}</td>
+                        <td>${{ log.estimated_cost_usd|floatformat:6 }}</td>
+                        <td>
+                            {% if log.confidence > 0 %}
+                            <div class="progress" style="height: 6px; width: 60px;">
+                                <div class="progress-bar bg-{% if log.confidence >= 0.8 %}success{% elif log.confidence >= 0.5 %}warning{% else %}danger{% endif %}" style="width: {{ log.confidence|floatformat:0 }}%"></div>
+                            </div>
+                            <small>{{ log.confidence|floatformat:0 }}%</small>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td>
+                            {% if log.success %}
+                                {% if log.cached %}<span class="badge bg-info">Cache</span>{% else %}<span class="badge bg-success">OK</span>{% endif %}
+                            {% else %}
+                                <span class="badge bg-danger">Error</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7" class="text-center text-muted py-4">No hay análisis registrados aún.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if total_pages > 1 %}
+    <nav class="mt-3">
+        <ul class="pagination justify-content-center">
+            {% if page > 1 %}
+            <li class="page-item"><a class="page-link" href="?page={{ page|add:-1 }}">← Anterior</a></li>
+            {% endif %}
+            <li class="page-item disabled"><span class="page-link">Página {{ page }} de {{ total_pages }}</span></li>
+            {% if page < total_pages %}
+            <li class="page-item"><a class="page-link" href="?page={{ page|add:1 }}">Siguiente →</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

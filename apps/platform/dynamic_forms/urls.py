@@ -15,4 +15,12 @@ urlpatterns = [
     path('<int:formulario_id>/registros/<int:registro_id>/editar/', views.editar_registro, name='editar_registro'),
     path('<int:formulario_id>/exportar-excel/', views.exportar_excel, name='exportar_excel'),
     path('<int:formulario_id>/importar-excel/', views.importar_excel, name='importar_excel'),
+    path('<int:formulario_id>/importar-excel/descargar-errores/', views.descargar_errores_importacion, name='descargar_errores_importacion'),
+    path('<int:formulario_id>/descargar-plantilla/', views.descargar_plantilla, name='descargar_plantilla'),
+    # Enterprise Import/Export
+    path('<int:formulario_id>/historial-importaciones/', views.historial_importaciones, name='historial_importaciones'),
+    path('<int:formulario_id>/importar-excel/historial/', views.historial_importaciones, name='historial_importaciones_alt'),
+    path('importaciones/<int:import_log_id>/', views.detalle_importacion, name='detalle_importacion'),
+    path('importaciones/<int:import_log_id>/revertir/', views.revertir_importacion, name='revertir_importacion'),
+    path('importaciones/<int:import_log_id>/descargar-reporte-errores/', views.descargar_reporte_errores, name='descargar_reporte_errores'),
 ]

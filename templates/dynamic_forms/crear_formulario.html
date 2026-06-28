@@ -5,12 +5,6 @@
 
 {% block estilos %}
 <link rel="stylesheet" href="{% static 'css/dynamic_forms/dynamic_forms.css' %}">
-<style>
-.campo-formula-container,
-.campo-relacion-container { display: none; }
-.campo-fila[data-tipo="calculado"] .campo-formula-container { display: block; }
-.campo-fila[data-tipo="relacion"] .campo-relacion-container { display: block; }
-</style>
 {% endblock %}
 
 {% block topbar_info %}
@@ -39,7 +33,7 @@
     </nav>
 </section>
 
-<form method="post" id="formularioForm">
+<form method="post" id="formularioForm" data-df-submit>
     {% csrf_token %}
 
     <section class="panel-card mb-4">
@@ -77,73 +71,63 @@
         </div>
     </section>
 
+    <section class="panel-card mb-4">
+        <header class="panel-header">
+            <section>
+                <h2>Identificación del formulario</h2>
+                <p>Define cómo se identificarán los registros de este formulario</p>
+            </section>
+            <span class="badge-custom">Identificador</span>
+        </header>
+        <div class="card-body">
+            <div class="mb-3">
+                <label class="form-label">{{ form.generar_identificador.label }}</label>
+                {% for radio in form.generar_identificador %}
+                <div class="form-check mb-2">
+                    {{ radio.tag }}
+                    <label class="form-check-label" for="{{ radio.id_for_label }}">
+                        {{ radio.choice_label }}
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+            <div id="identificadorConfig" class="row g-3">
+                <div class="col-md-6">
+                    <label for="{{ form.nombre_identificador.id_for_label }}" class="form-label">{{ form.nombre_identificador.label }}</label>
+                    {{ form.nombre_identificador }}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">{{ form.mostrar_en_tablas.label }}</label>
+                    <div class="d-flex gap-3">
+                        {% for radio in form.mostrar_en_tablas %}
+                        <div class="form-check">
+                            {{ radio.tag }}
+                            <label class="form-check-label" for="{{ radio.id_for_label }}">
+                                {{ radio.choice_label }}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <section class="panel-card">
         <header class="panel-header">
             <section>
                 <h2>Campos del formulario</h2>
                 <p>Agrega los campos que los usuarios deberán llenar</p>
             </section>
-            <button type="button" class="btn btn-primary" id="agregarCampo">
-                <i class='fas fa-plus'></i> Agregar campo
-            </button>
         </header>
 
         <div class="card-body">
-            <div id="camposContainer">
-                <div class="campo-fila row g-2 mb-2" data-index="0">
-                    <div class="col-12 col-md-3">
-                        <input type="text" name="campo_nombre" class="form-control form-control-sm" placeholder="Nombre del campo" required>
-                    </div>
-                    <div class="col-6 col-md-2">
-                        <select name="campo_tipo" class="form-select form-select-sm campo-tipo">
-                            <option value="texto">Texto</option>
-                            <option value="numero">Número</option>
-                            <option value="fecha">Fecha</option>
-                            <option value="booleano">Booleano</option>
-                            <option value="lista">Lista desplegable</option>
-                            <option value="email">Correo electrónico</option>
-                            <option value="url">URL</option>
-                            <option value="telefono">Teléfono</option>
-                            <option value="textarea">Texto largo</option>
-                            <option value="imagen">Imagen</option>
-                            <option value="archivo">Archivo</option>
-                        </select>
-                    </div>
-                    <div class="col-6 col-md-2">
-                        <div class="form-check mt-2">
-                            <input type="checkbox" name="campo_obligatorio" class="form-check-input" id="obligatorio_0">
-                            <label class="form-check-label small" for="obligatorio_0">Obligatorio</label>
-                        </div>
-                    </div>
-                    <div class="col-6 col-md-2">
-                        <input type="number" name="campo_orden" class="form-control form-control-sm" placeholder="Orden" min="0" value="0">
-                    </div>
-                    <div class="col-10 col-md-2 campo-opciones-container" style="display:none;">
-                        <input type="text" name="campo_opciones" class="form-control form-control-sm" placeholder="Op1, Op2, Op3">
-                    </div>
-                    <div class="col-10 col-md-2 campo-relacion-container" style="display:none;">
-                        <select name="campo_formulario_destino" class="form-select form-select-sm">
-                            <option value="">-- Selecciona formulario --</option>
-                            {% for f in formularios_disponibles %}
-                            <option value="{{ f.id }}">{{ f.nombre }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-10 col-md-2 campo-formula-container" style="display:none;">
-                        <input type="text" name="campo_formula" class="form-control form-control-sm" placeholder="Ej: cantidad * precio">
-                    </div>
-                    <div class="col-2 col-md-1 d-flex align-items-center">
-                        <button type="button" class="action-btn danger-btn eliminar-campo" title="Eliminar campo">
-                            <i class='fas fa-times'></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
+            {% include "dynamic_forms/_field_editor.html" with campos=campos formularios_disponibles=formularios_disponibles ocultar_header=False %}
         </div>
 
         <div class="panel-footer df-submit-area">
             <a href="{% url 'dynamic_forms:listar_formularios' %}" class="btn btn-secondary">Cancelar</a>
-            <button type="submit" class="btn btn-primary">
+            <button type="submit" class="btn btn-primary" data-loading-text="Guardando...">
                 <i class='fas fa-save'></i> Guardar formulario
             </button>
         </div>
@@ -154,114 +138,24 @@
 
 {% block scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const container = document.getElementById('camposContainer');
-    const agregarBtn = document.getElementById('agregarCampo');
-    let index = 1;
-
-    function actualizarVisibilidad() {
-        document.querySelectorAll('.campo-fila').forEach(function(fila) {
-            const select = fila.querySelector('.campo-tipo');
-            const opcionesContainer = fila.querySelector('.campo-opciones-container');
-            const relacionContainer = fila.querySelector('.campo-relacion-container');
-            const formulaContainer = fila.querySelector('.campo-formula-container');
-            const obligatorioCheck = fila.querySelector('input[name="campo_obligatorio"]');
-
-            opcionesContainer.style.display = (select.value === 'lista') ? 'block' : 'none';
-            relacionContainer.style.display = (select.value === 'relacion') ? 'block' : 'none';
-            formulaContainer.style.display = (select.value === 'calculado') ? 'block' : 'none';
-
-            // Los campos calculados no pueden ser obligatorios
-            if (select.value === 'calculado' && obligatorioCheck) {
-                obligatorioCheck.checked = false;
-                obligatorioCheck.closest('.form-check').style.display = 'none';
-            } else if (obligatorioCheck) {
-                obligatorioCheck.closest('.form-check').style.display = '';
+(function() {
+    // Toggle identifier config section (solo existe en crear_formulario)
+    function toggleIdentificadorConfig() {
+        var radios = document.querySelectorAll('input[name="generar_identificador"]');
+        var config = document.getElementById('identificadorConfig');
+        if (!config) return;
+        var showConfig = false;
+        radios.forEach(function(r) {
+            if (r.checked && r.value === 'True') {
+                showConfig = true;
             }
         });
+        config.style.display = showConfig ? 'flex' : 'none';
     }
-
-    function agregarFila() {
-        const fila = document.createElement('div');
-        fila.className = 'campo-fila row g-2 mb-2';
-        fila.dataset.index = index;
-        fila.innerHTML = `
-            <div class="col-12 col-md-3">
-                <input type="text" name="campo_nombre" class="form-control form-control-sm" placeholder="Nombre del campo" required>
-            </div>
-            <div class="col-6 col-md-2">
-                <select name="campo_tipo" class="form-select form-select-sm campo-tipo">
-                    <option value="texto">Texto</option>
-                    <option value="numero">Número</option>
-                    <option value="fecha">Fecha</option>
-                    <option value="booleano">Booleano</option>
-                    <option value="lista">Lista desplegable</option>
-                    <option value="email">Correo electrónico</option>
-                    <option value="url">URL</option>
-                    <option value="telefono">Teléfono</option>
-                    <option value="textarea">Texto largo</option>
-                    <option value="imagen">Imagen</option>
-                    <option value="archivo">Archivo</option>
-                    <option value="relacion">Relación</option>
-                    <option value="calculado">Calculado</option>
-                </select>
-            </div>
-            <div class="col-6 col-md-2">
-                <div class="form-check mt-2">
-                    <input type="checkbox" name="campo_obligatorio" class="form-check-input" id="obligatorio_${index}">
-                    <label class="form-check-label small" for="obligatorio_${index}">Obligatorio</label>
-                </div>
-            </div>
-            <div class="col-6 col-md-2">
-                <input type="number" name="campo_orden" class="form-control form-control-sm" placeholder="Orden" min="0" value="0">
-            </div>
-            <div class="col-10 col-md-2 campo-opciones-container" style="display:none;">
-                <input type="text" name="campo_opciones" class="form-control form-control-sm" placeholder="Op1, Op2, Op3">
-            </div>
-            <div class="col-10 col-md-2 campo-relacion-container" style="display:none;">
-                <select name="campo_formulario_destino" class="form-select form-select-sm">
-                    <option value="">-- Selecciona formulario --</option>
-                    {% for f in formularios_disponibles %}
-                    <option value="{{ f.id }}">{{ f.nombre }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-10 col-md-2 campo-formula-container" style="display:none;">
-                <input type="text" name="campo_formula" class="form-control form-control-sm" placeholder="Ej: cantidad * precio">
-            </div>
-            <div class="col-2 col-md-1 d-flex align-items-center">
-                <button type="button" class="action-btn danger-btn eliminar-campo" title="Eliminar campo">
-                    <i class='fas fa-times'></i>
-                </button>
-            </div>
-        `;
-        container.appendChild(fila);
-        index++;
-        actualizarVisibilidad();
-    }
-
-    agregarBtn.addEventListener('click', agregarFila);
-
-    container.addEventListener('change', function(e) {
-        if (e.target.classList.contains('campo-tipo')) {
-            actualizarOpcionesVisibilidad();
-        }
+    document.querySelectorAll('input[name="generar_identificador"]').forEach(function(r) {
+        r.addEventListener('change', toggleIdentificadorConfig);
     });
-
-    container.addEventListener('click', function(e) {
-        if (e.target.closest('.eliminar-campo')) {
-            const fila = e.target.closest('.campo-fila');
-            if (container.querySelectorAll('.campo-fila').length > 1) {
-                fila.style.transform = 'scale(0.9)';
-                fila.style.opacity = '0';
-                setTimeout(() => fila.remove(), 200);
-            } else {
-                alert('Debe haber al menos un campo en el formulario.');
-            }
-        }
-    });
-
-    actualizarOpcionesVisibilidad();
-});
+    toggleIdentificadorConfig();
+})();
 </script>
 {% endblock %}

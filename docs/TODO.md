@@ -140,3 +140,11 @@ Validación: `check`, limpieza de `__pycache__`, `makemigrations --check`.
 | R7 | Profiling con Django Debug Toolbar | Media | Pendiente |
 | R8 | Documentación de límites EAV | Baja | Pendiente |
 | R9 | Importación Excel para Dynamic Forms | Alta | ✅ Completado |
+| R17 | Enterprise Import/Export v2.0 — Pipeline, auditoría, rollback, historial | Alta | ✅ Completado |
+| R10 | Tipo de campo Moneda (enteros, decimales, máx 2 decimales) | Alta | ✅ Completado |
+| R11 | Validación booleana extendida (Sí, Si, True, False, 1, 0, yes, no, on, off) | Alta | ✅ Completado |
+| R12 | Conversión automática datetime → YYYY-MM-DD en importación Excel | Alta | ✅ Completado |
+| R13 | Identificador Principal en Campo (solo uno por formulario) | Alta | ✅ Completado |
+| R14 | Configuración de identificación en crear/editar formulario | Alta | ✅ Completado |
+| R15 | Tablas sin ID interno, identificador principal primero | Alta | ✅ Completado |
+| R16 | Servicios de infraestructura: obtener_identificador_principal, buscar_por_identificador, upsert_por_identificador | Alta | ✅ Completado |

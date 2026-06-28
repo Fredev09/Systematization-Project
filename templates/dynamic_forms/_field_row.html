@@ -1,0 +1,163 @@
+{% load static %}
+{# ════════════════════════════════════════════════════════════════════
+   _field_row.html — Fila única de campo para el editor reutilizable.
+   
+   Variables:
+     - campo: Objeto Campo (None si es fila vacía)
+     - index: int — índice numérico para IDs
+     - prefix: str — prefijo para IDs (ej: "g", "e")
+   ════════════════════════════════════════════════════════════════════ #}
+
+{% with id_prefix=prefix|default:'' %}
+<div class="campo-fila row g-2 mb-2 align-items-center" data-index="{{ index }}">
+    {# Drag handle #}
+    <div class="col-1 col-md-1 d-flex align-items-center drag-handle" style="cursor:grab; font-size:1.2rem; color:#9ca3af; user-select:none;">
+        ⠿
+    </div>
+
+    {# Nombre #}
+    <div class="col-12 col-md-2">
+        <input type="text" name="campo_nombre"
+               class="form-control form-control-sm campo-nombre"
+               placeholder="Nombre del campo"
+               value="{% if campo %}{{ campo.nombre }}{% endif %}"
+               {% if not campo %}required{% endif %}>
+    </div>
+
+    {# Tipo — 30+ opciones #}
+    <div class="col-6 col-md-2">
+        <select name="campo_tipo" class="form-select form-select-sm campo-tipo">
+            <optgroup label="📝 Texto">
+                <option value="texto" {% if campo and campo.tipo == 'texto' %}selected{% endif %}>Texto</option>
+                <option value="textarea" {% if campo and campo.tipo == 'textarea' %}selected{% endif %}>Texto largo</option>
+                <option value="codigo" {% if campo and campo.tipo == 'codigo' %}selected{% endif %}>Código</option>
+                <option value="email" {% if campo and campo.tipo == 'email' %}selected{% endif %}>Correo electrónico</option>
+                <option value="url" {% if campo and campo.tipo == 'url' %}selected{% endif %}>URL</option>
+                <option value="telefono" {% if campo and campo.tipo == 'telefono' %}selected{% endif %}>Teléfono</option>
+                <option value="documento" {% if campo and campo.tipo == 'documento' %}selected{% endif %}>Documento</option>
+            </optgroup>
+            <optgroup label="🔢 Números">
+                <option value="numero" {% if campo and campo.tipo == 'numero' %}selected{% endif %}>Número</option>
+                <option value="moneda" {% if campo and campo.tipo == 'moneda' %}selected{% endif %}>Moneda</option>
+                <option value="porcentaje" {% if campo and campo.tipo == 'porcentaje' %}selected{% endif %}>Porcentaje</option>
+                <option value="duracion" {% if campo and campo.tipo == 'duracion' %}selected{% endif %}>Duración</option>
+            </optgroup>
+            <optgroup label="📅 Fechas y horas">
+                <option value="fecha" {% if campo and campo.tipo == 'fecha' %}selected{% endif %}>Fecha</option>
+                <option value="hora" {% if campo and campo.tipo == 'hora' %}selected{% endif %}>Hora</option>
+                <option value="fecha_hora" {% if campo and campo.tipo == 'fecha_hora' %}selected{% endif %}>Fecha y hora</option>
+            </optgroup>
+            <optgroup label="✅ Lógicos">
+                <option value="booleano" {% if campo and campo.tipo == 'booleano' %}selected{% endif %}>Booleano</option>
+                <option value="estado" {% if campo and campo.tipo == 'estado' %}selected{% endif %}>Estado</option>
+                <option value="categoria" {% if campo and campo.tipo == 'categoria' %}selected{% endif %}>Categoría</option>
+                <option value="tags" {% if campo and campo.tipo == 'tags' %}selected{% endif %}>Tags</option>
+            </optgroup>
+            <optgroup label="🔗 Identificadores">
+                <option value="codigo_barras" {% if campo and campo.tipo == 'codigo_barras' %}selected{% endif %}>Código barras</option>
+                <option value="qr" {% if campo and campo.tipo == 'qr' %}selected{% endif %}>QR</option>
+                <option value="color" {% if campo and campo.tipo == 'color' %}selected{% endif %}>Color</option>
+                <option value="ip" {% if campo and campo.tipo == 'ip' %}selected{% endif %}>IP</option>
+                <option value="uuid" {% if campo and campo.tipo == 'uuid' %}selected{% endif %}>UUID</option>
+            </optgroup>
+            <optgroup label="📍 Ubicación">
+                <option value="geolocalizacion" {% if campo and campo.tipo == 'geolocalizacion' %}selected{% endif %}>Geolocalización</option>
+            </optgroup>
+            <optgroup label="📎 Archivos">
+                <option value="imagen" {% if campo and campo.tipo == 'imagen' %}selected{% endif %}>Imagen</option>
+                <option value="archivo" {% if campo and campo.tipo == 'archivo' %}selected{% endif %}>Archivo</option>
+            </optgroup>
+            <optgroup label="🔗 Relaciones y avanzados">
+                <option value="lista" {% if campo and campo.tipo == 'lista' %}selected{% endif %}>Lista desplegable</option>
+                <option value="relacion" {% if campo and campo.tipo == 'relacion' %}selected{% endif %}>Relación</option>
+                <option value="calculado" {% if campo and campo.tipo == 'calculado' %}selected{% endif %}>Calculado</option>
+            </optgroup>
+        </select>
+    </div>
+
+    {# Propiedades: Obligatorio, Único, Visible #}
+    <div class="col-6 col-md-2">
+        <div class="form-check form-check-inline">
+            <input type="checkbox" name="campo_obligatorio" class="form-check-input campo-obligatorio"
+                   id="req_{{ id_prefix }}{{ index }}"
+                   {% if campo and campo.obligatorio %}checked{% endif %}>
+            <label class="form-check-label small" for="req_{{ id_prefix }}{{ index }}">Req</label>
+        </div>
+        <div class="form-check form-check-inline">
+            <input type="checkbox" name="campo_unico" class="form-check-input campo-unico"
+                   id="uniq_{{ id_prefix }}{{ index }}"
+                   {% if campo and campo.unico %}checked{% endif %}>
+            <label class="form-check-label small" for="uniq_{{ id_prefix }}{{ index }}">Único</label>
+        </div>
+        <div class="form-check form-check-inline">
+            <input type="checkbox" name="campo_visible" class="form-check-input campo-visible"
+                   id="vis_{{ id_prefix }}{{ index }}"
+                   {% if campo %}{% if campo.visible or campo.visible is None %}checked{% endif %}{% else %}checked{% endif %}>
+            <label class="form-check-label small" for="vis_{{ id_prefix }}{{ index }}">Visible</label>
+        </div>
+        <div class="form-check form-check-inline">
+            <input type="checkbox" name="campo_identificador_principal" class="form-check-input campo-identificador"
+                   id="id_{{ id_prefix }}{{ index }}"
+                   {% if campo and campo.identificador_principal %}checked{% endif %}>
+            <label class="form-check-label small" for="id_{{ id_prefix }}{{ index }}">ID</label>
+        </div>
+    </div>
+
+    {# Orden, Max length, Default value #}
+    <div class="col-6 col-md-2">
+        <div class="input-group input-group-sm mb-1">
+            <span class="input-group-text">#</span>
+            <input type="number" name="campo_orden" class="form-control campo-orden"
+                   min="0" value="{% if campo %}{{ campo.orden }}{% else %}0{% endif %}">
+        </div>
+        <div class="input-group input-group-sm mb-1">
+            <span class="input-group-text">Max</span>
+            <input type="number" name="campo_max_length" class="form-control campo-maxlength"
+                   placeholder="Max" min="0"
+                   value="{% if campo and campo.metadata_json and campo.metadata_json.max_length %}{{ campo.metadata_json.max_length }}{% endif %}">
+        </div>
+        <input type="text" name="campo_default" class="form-control form-control-sm campo-default"
+               placeholder="Valor defecto"
+               value="{% if campo and campo.metadata_json and campo.metadata_json.default_value %}{{ campo.metadata_json.default_value }}{% endif %}">
+    </div>
+
+    {# Contenedores condicionales #}
+    <div class="col-10 col-md-2">
+        {# Opciones (solo lista) #}
+        <div class="campo-opciones-container" style="{% if campo and campo.tipo != 'lista' %}display:none;{% endif %}">
+            <input type="text" name="campo_opciones" class="form-control form-control-sm campo-opciones"
+                   placeholder="Op1, Op2, Op3"
+                   value="{% if campo and campo.opciones %}{{ campo.opciones|join:', ' }}{% endif %}">
+        </div>
+
+        {# Relación (solo relacion) #}
+        <div class="campo-relacion-container" style="{% if campo and campo.tipo != 'relacion' %}display:none;{% endif %}">
+            <select name="campo_formulario_destino" class="form-select form-select-sm">
+                <option value="">-- Formulario relacionado --</option>
+                {% for f in formularios_disponibles %}
+                <option value="{{ f.id }}" {% if campo and campo.formulario_destino_id == f.id %}selected{% endif %}>{{ f.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        {# Fórmula (solo calculado) #}
+        <div class="campo-formula-container" style="{% if campo and campo.tipo != 'calculado' %}display:none;{% endif %}">
+            <input type="text" name="campo_formula" class="form-control form-control-sm campo-formula"
+                   placeholder="Ej: cantidad * precio"
+                   value="{% if campo and campo.formula %}{{ campo.formula }}{% endif %}">
+        </div>
+
+        {# Descripción (siempre visible) #}
+        <textarea name="campo_descripcion" class="form-control form-control-sm campo-descripcion mt-1"
+                  placeholder="Descripción (opcional)" rows="1"
+                  style="font-size:0.8rem;">{% if campo and campo.descripcion %}{{ campo.descripcion }}{% endif %}</textarea>
+    </div>
+
+    {# Botón eliminar #}
+    <div class="col-2 col-md-1 d-flex align-items-center justify-content-end">
+        <button type="button" class="btn btn-sm btn-outline-danger eliminar-campo" title="Eliminar campo" data-action="remove-field">
+            <i class='fas fa-times'></i>
+        </button>
+    </div>
+</div>
+{% endwith %}

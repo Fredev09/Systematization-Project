@@ -80,7 +80,7 @@
         </div>
         {% endif %}
 
-        <form method="post" enctype="multipart/form-data">
+        <form method="post" enctype="multipart/form-data" data-df-submit>
             {% csrf_token %}
 
             {% for campo in campos %}
@@ -107,6 +107,18 @@
                        placeholder="0"
                        step="any"
                        {% if campo.obligatorio %}required{% endif %}>
+
+                {% elif campo.tipo == 'moneda' %}
+                <div class="input-group">
+                    <span class="input-group-text df-currency-prefix">$</span>
+                    <input type="number"
+                           name="campo_{{ campo.id }}"
+                           class="form-control"
+                           placeholder="0.00"
+                           step="0.01"
+                           min="0"
+                           {% if campo.obligatorio %}required{% endif %}>
+                </div>
 
                 {% elif campo.tipo == 'fecha' %}
                 <input type="date"
@@ -205,7 +217,7 @@
 
             <div class="df-submit-area">
                 <a href="{% url 'dynamic_forms:listar_formularios' %}" class="btn btn-outline-secondary">Cancelar</a>
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-primary" data-loading-text="Guardando...">
                     <i class='fas fa-check'></i> Guardar registro
                 </button>
             </div>
@@ -214,4 +226,5 @@
 </section>
 {% endif %}
 
+{% block scripts %}{{ block.super }}{% endblock %}
 {% endblock %}

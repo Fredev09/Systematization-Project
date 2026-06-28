@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Invoice Schema",
+  "description": "Normalized invoice data structure from AI analysis",
+  "type": "object",
+  "properties": {
+    "provider": {
+      "type": "string",
+      "description": "Provider/supplier name"
+    },
+    "nit": {
+      "type": "string",
+      "description": "NIT (tax ID) of the provider"
+    },
+    "invoice_number": {
+      "type": "string",
+      "description": "Invoice number or consecutive"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Invoice date (YYYY-MM-DD)"
+    },
+    "currency": {
+      "type": "string",
+      "default": "COP",
+      "description": "Currency code (COP, USD, EUR)"
+    },
+    "subtotal": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Subtotal before taxes"
+    },
+    "taxes": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Total taxes"
+    },
+    "total": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Total amount"
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "descripcion": { "type": "string" },
+          "cantidad": { "type": "number", "minimum": 0 },
+          "valor_unitario": { "type": "number", "minimum": 0 },
+          "total": { "type": "number", "minimum": 0 }
+        }
+      },
+      "description": "Line items in the invoice"
+    },
+    "fields": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "type": { "type": "string" },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      },
+      "description": "Detected fields in the invoice"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Overall confidence score"
+    },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Analysis warnings"
+    }
+  },
+  "required": ["provider", "invoice_number", "date", "subtotal", "total"]
+}

@@ -79,6 +79,7 @@ The Dynamic Forms EAV engine at `apps/platform/dynamic_forms/` is fully synchron
 **Migrations applied:**
 - `0001_initial` to `0005_fix_schema_discrepancies` — all applied, DB matches Python models.
 - `0006_add_valorcampo_campo_valor_index` — composite index on `(campo_id, valor)` for EAV queries.
+- `0007_campo_identificador_principal_alter_campo_tipo` — adds `identificador_principal` field and `moneda` type.
 
 ## Completion Estimates
 

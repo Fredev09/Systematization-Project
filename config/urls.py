@@ -60,6 +60,7 @@ urlpatterns = [
     path('catalogo/', catalogo_publico, name='catalogo_publico'),
     path('reportes/', include('apps.shared.reportes.urls')),
     path('forms/', include('apps.platform.dynamic_forms.urls')),
+    path('document-intelligence/', include('apps.platform.document_intelligence.urls')),
     path('', views.index, name='index'),
 ]
 

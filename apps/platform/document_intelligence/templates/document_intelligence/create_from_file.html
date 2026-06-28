@@ -1,0 +1,346 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block title %}Crear formulario con IA{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.css">
+<style>
+    /* ── Layout ── */
+    .di-review-container { max-width: 1400px; }
+    .field-card {
+        border-radius: 12px;
+        transition: all .2s ease;
+        border: 1px solid #e5e7eb;
+        background: #fff;
+    }
+    .field-card:hover { border-color: #6366f1; box-shadow: 0 4px 12px rgba(99,102,241,.1); }
+    .field-card.dragging { opacity: .5; border-color: #6366f1; }
+    .field-card .drag-handle {
+        cursor: grab;
+        color: #9ca3af;
+        font-size: 1.2rem;
+        user-select: none;
+        padding: 4px;
+    }
+    .field-card .drag-handle:active { cursor: grabbing; }
+    .sortable-ghost { opacity: .3; background: #eef2ff; }
+    .sortable-chosen { border-color: #6366f1; box-shadow: 0 0 0 2px #6366f1; }
+    .stars { color: #f59e0b; font-size: 1.5rem; }
+    .stars-empty { color: #e5e7eb; font-size: 1.5rem; }
+    .badge-confidence { font-size: .7rem; }
+    .quality-card { border-radius: 16px; border: none; }
+    .field-panel { transition: max-height .3s ease; }
+    .field-collapsed .field-options { display: none; }
+    /* Tipo badge colors */
+    .badge-type-texto { background: #6b7280; }
+    .badge-type-numero { background: #3b82f6; }
+    .badge-type-moneda { background: #10b981; }
+    .badge-type-porcentaje { background: #f59e0b; }
+    .badge-type-fecha { background: #8b5cf6; }
+    .badge-type-hora { background: #ec4899; }
+    .badge-type-booleano { background: #ef4444; }
+    .badge-type-email { background: #14b8a6; }
+    .badge-type-telefono { background: #f97316; }
+    .badge-type-codigo { background: #6366f1; }
+    .badge-type-lista { background: #a855f7; }
+    .badge-type-relacion { background: #0ea5e9; }
+    .badge-type-color { background: #dc2626; }
+    .badge-type-ip { background: #1d4ed8; }
+    .badge-type-uuid { background: #7c3aed; }
+    .badge-type-geolocalizacion { background: #059669; }
+    .badge-type-duracion { background: #d97706; }
+    .badge-type-estado { background: #0284c7; }
+    .badge-type-categoria { background: #9333ea; }
+    .badge-type-tags { background: #ca8a04; }
+    .badge-type-documento { background: #4f46e5; }
+    .badge-type-codigo_barras { background: #0891b2; }
+    .badge-type-qr { background: #0d9488; }
+    .badge-type-fecha_hora { background: #7e22ce; }
+    .badge-type-textarea { background: #78716c; }
+    .badge-type-url { background: #2563eb; }
+    .badge-type-imagen { background: #db2777; }
+    .badge-type-archivo { background: #ea580c; }
+    /* Similar form card */
+    .similar-card {
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        transition: all .2s;
+        cursor: pointer;
+    }
+    .similar-card:hover { border-color: #6366f1; }
+    .similar-card.selected { border-color: #10b981; background: #f0fdf4; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container di-review-container py-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'document_intelligence:dashboard' %}">Document Intelligence</a></li>
+            <li class="breadcrumb-item active">Crear formulario con IA</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">📄 Crear formulario con IA</h2>
+        <span class="badge bg-primary fs-6">v2.0</span>
+    </div>
+
+    {# ── STEP 1: Upload ── #}
+    {% if not result and not form_created and not similar_forms %}
+    <div class="card shadow-sm border-0 rounded-4">
+        <div class="card-body p-5">
+            <div class="text-center mb-4">
+                <div style="font-size: 3rem;">📤</div>
+                <h4 class="mt-2">Sube un documento para analizar</h4>
+                <p class="text-muted small">Soporta: {{ allowed_extensions|join:", " }}</p>
+            </div>
+            <form method="POST" enctype="multipart/form-data" class="text-center">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="analyze">
+                <div class="mb-3">
+                    <input type="file" name="document_file"
+                           class="form-control form-control-lg"
+                           accept=".xlsx,.xls,.csv,.pdf,.jpg,.jpeg,.png,.webp,.txt,.json,.xml"
+                           style="max-width: 500px; margin: 0 auto;"
+                           required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-lg px-5">
+                    🚀 Analizar con IA
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── STEP 2: Analyze Results + Visual Editor ── #}
+    {% if result %}
+    <div class="row g-4">
+        {# Left sidebar: quality + recommendations #}
+        <div class="col-lg-3">
+            <div class="card quality-card shadow-sm border-0">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-2">Calidad</h6>
+                    <div class="mb-1">
+                        {% for i in "12345"|make_list %}
+                            {% if forloop.counter <= result.quality.stars %}
+                                <span class="stars">★</span>
+                            {% else %}
+                                <span class="stars-empty">★</span>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    <span class="badge bg-{% if result.quality.stars >= 4 %}success{% elif result.quality.stars >= 3 %}warning{% else %}danger{% endif %} fs-6 mb-2">
+                        {{ result.quality.label }}
+                    </span>
+                    <hr>
+                    <small class="text-muted d-block">Tipo: <strong>{{ result.classification|default:"Desconocido" }}</strong></small>
+                    <small class="text-muted d-block">Campos: <strong>{{ result.fields|length }}</strong></small>
+                    {% if result.quality.strengths %}
+                    <hr>
+                    <div class="text-start small">
+                        <strong>✅ Fortalezas</strong>
+                        <ul class="ps-3 mt-1">
+                            {% for s in result.quality.strengths %}
+                            <li>{{ s }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    {% if result.quality.risks %}
+                    <hr>
+                    <div class="text-start small">
+                        <strong>⚠️ Riesgos</strong>
+                        <ul class="ps-3 mt-1">
+                            {% for r in result.quality.risks %}
+                            <li>{{ r }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    {% if result.quality.recommendations %}
+                    <hr>
+                    <div class="text-start small">
+                        <strong>💡 Recomendaciones</strong>
+                        <ul class="ps-3 mt-1">
+                            {% for rec in result.quality.recommendations %}
+                            <li>{{ rec }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {# Editor principal #}
+        <div class="col-lg-9">
+            {# ── Similar forms notification ── #}
+            {% if result.similar_forms %}
+            <div class="card shadow-sm border-0 rounded-4 mb-3">
+                <div class="card-body">
+                    <h6>🔍 Formularios similares encontrados</h6>
+                    <div class="row g-2 mt-2">
+                        {% for sf in result.similar_forms %}
+                        <div class="col-md-4">
+                            <div class="similar-card p-3 text-center"
+                                 onclick="selectSimilar(this, {{ sf.id }})">
+                                <strong>{{ sf.nombre }}</strong>
+                                <div class="mt-1">
+                                    <span class="badge bg-primary">{{ sf.similitud }}% coincidencia</span>
+                                </div>
+                                <small class="text-muted d-block mt-1">{{ sf.campos_coincidentes }} campos</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="mt-2 d-flex gap-2">
+                        <button class="btn btn-outline-success btn-sm" onclick="useExistingForm()">
+                            📋 Usar formulario existente
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm" onclick="dismissSimilar()">
+                            ✏️ Crear nuevo igualmente
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {# Editor del formulario (reutiliza el componente unificado) #}
+            <div class="card shadow-sm border-0 rounded-4">
+                <div class="card-body p-4">
+                    <h5 class="mb-3">📋 Editor de formulario</h5>
+                    <p class="text-muted small mb-3">Arrastra los campos ⠿ para reordenarlos.</p>
+
+                    <form method="POST" id="form-editor">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="create_form">
+                        <input type="hidden" name="fields_json" id="fields_json" data-fields-json="1">
+                        <input type="hidden" name="use_existing_form_id" id="use_existing_form_id" value="">
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-8">
+                                <label class="form-label fw-semibold">Nombre del formulario</label>
+                                <input type="text" name="form_name" id="form_name"
+                                       class="form-control form-control-lg"
+                                       value="{{ result.form_name }}" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Identificador principal</label>
+                                <select name="identifier_field" id="identifier_field" class="form-select">
+                                    <option value="">(ninguno)</option>
+                                    {% for field in result.fields %}
+                                    <option value="{{ field.name }}" {% if field.is_identifier %}selected{% endif %}>
+                                        {{ field.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Descripción</label>
+                            <textarea name="form_description" class="form-control" rows="2">{{ result.form_description }}</textarea>
+                        </div>
+
+                        {# ── Editor unificado de campos ── #}
+                        {% include "dynamic_forms/_field_editor.html" with campos=result_fields_objects formularios_disponibles=formularios_disponibles ocultar_header=False %}
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <div>
+                                <a href="{% url 'document_intelligence:dashboard' %}" class="btn btn-outline-secondary">
+                                    ↩ Cancelar
+                                </a>
+                            </div>
+                            <div>
+                                <button type="submit" class="btn btn-success btn-lg px-4" id="btn-crear-formulario">
+                                    ✅ Crear formulario
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── STEP 3: Form created + import option ── #}
+    {% if form_created %}
+    <div class="card shadow-sm border-0 rounded-4 text-center p-5">
+        <div class="mb-3" style="font-size: 4rem;">✅</div>
+        <h4>Formulario "{{ form_name }}" creado exitosamente</h4>
+        <p class="text-muted">{{ total_fields }} campos creados correctamente.</p>
+        {% if has_data %}
+        <p class="text-info">Se detectaron datos para importar en el documento original.</p>
+        {% endif %}
+        <div class="d-flex justify-content-center gap-3 mt-3 flex-wrap">
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="import_data">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    📥 Importar datos al formulario
+                </button>
+            </form>
+            <a href="{% url 'dynamic_forms:ver_registros' formulario_id %}" class="btn btn-outline-secondary btn-lg">
+                👁️ Ver registros
+            </a>
+            <a href="{% url 'document_intelligence:create_from_file' %}" class="btn btn-outline-primary btn-lg">
+                📄 Crear otro formulario
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{# ════════════════════════════════════════════════════════════════
+   JS específico de create_from_file:
+   - Manejo de formularios similares
+   - Sincronización del identificador principal con el select superior
+   ════════════════════════════════════════════════════════════════ #}
+<script>
+(function() {
+    'use strict';
+
+    // ── Similar forms ──
+    var selectedSimilarId = null;
+
+    window.selectSimilar = function(el, formId) {
+        document.querySelectorAll('.similar-card').forEach(function(c) { c.classList.remove('selected'); });
+        el.classList.add('selected');
+        selectedSimilarId = formId;
+    };
+
+    window.useExistingForm = function() {
+        if (!selectedSimilarId) {
+            alert('Selecciona un formulario existente primero.');
+            return;
+        }
+        window.location.href = '/dynamic-forms/importar-excel/' + selectedSimilarId + '/';
+    };
+
+    window.dismissSimilar = function() {
+        var cards = document.querySelector('.similar-card');
+        if (cards) cards.closest('.card')?.remove();
+    };
+
+    // ── Sincronizar identificador principal con el select superior ──
+    var idSelect = document.getElementById('identifier_field');
+    if (idSelect) {
+        idSelect.addEventListener('change', function() {
+            var selected = this.value;
+            document.querySelectorAll('.campo-identificador').forEach(function(cb) {
+                // Find the nombre input in the same row
+                var fila = cb.closest('.campo-fila');
+                var nameInput = fila ? fila.querySelector('.campo-nombre') : null;
+                var name = nameInput ? nameInput.value.trim() : '';
+                cb.checked = (selected && name === selected);
+            });
+        });
+    }
+})();
+</script>
+{% endblock %}

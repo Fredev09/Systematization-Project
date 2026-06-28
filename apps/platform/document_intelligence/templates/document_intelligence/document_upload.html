@@ -1,0 +1,522 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block titulo %}Subir documento — Document Intelligence{% endblock %}
+
+{% block estilos %}
+<link rel="stylesheet" href="{% static 'css/dynamic_forms/dynamic_forms.css' %}">
+<style>
+/* ── Upload zone ── */
+.upload-zone {
+    border: 3px dashed #d1d5db;
+    border-radius: 20px;
+    padding: 3rem 2rem;
+    text-align: center;
+    transition: all .3s ease;
+    cursor: pointer;
+    background: #fafafa;
+}
+.upload-zone:hover,
+.upload-zone.dragover {
+    border-color: #6366f1;
+    background: #eef2ff;
+}
+.upload-zone.dragover {
+    transform: scale(1.02);
+}
+.upload-zone-icon {
+    font-size: 3.5rem;
+    color: #6366f1;
+    margin-bottom: 1rem;
+}
+.upload-zone input[type="file"] { display: none; }
+
+/* ── Camera button ── */
+.camera-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .75rem 1.5rem;
+    border-radius: 50px;
+    border: 2px solid #6366f1;
+    color: #6366f1;
+    background: white;
+    font-weight: 600;
+    transition: all .2s;
+}
+.camera-btn:hover {
+    background: #6366f1;
+    color: white;
+}
+
+/* ── Preview ── */
+.preview-container {
+    max-width: 400px;
+    margin: 1rem auto;
+    position: relative;
+}
+.preview-container img {
+    max-width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,.15);
+}
+.preview-overlay {
+    position: absolute;
+    top: .5rem; right: .5rem;
+    background: rgba(0,0,0,.6);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 32px; height: 32px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.preview-overlay:hover { background: rgba(220,38,38,.8); }
+
+/* ── File list ── */
+.file-list { margin-top: 1rem; }
+.file-item {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .5rem .75rem;
+    border-radius: 8px;
+    background: #f3f4f6;
+    margin-bottom: .5rem;
+}
+.file-item .file-icon { font-size: 1.5rem; }
+.file-item .file-name { flex: 1; font-size: .9rem; }
+.file-item .file-size { color: #6b7280; font-size: .8rem; }
+.file-item .file-remove {
+    color: #ef4444;
+    cursor: pointer;
+    opacity: .6;
+    transition: opacity .2s;
+}
+.file-item .file-remove:hover { opacity: 1; }
+
+/* ── Quality panel (mismo que create_from_file) ── */
+.stars { color: #f59e0b; font-size: 1.5rem; }
+.stars-empty { color: #e5e7eb; font-size: 1.5rem; }
+
+/* ── Mobile responsive ── */
+@media (max-width: 768px) {
+    .upload-zone { padding: 2rem 1rem; }
+    .upload-zone-icon { font-size: 2.5rem; }
+}
+</style>
+{% endblock %}
+
+{% block topbar_info %}
+<section class="topbar-icon">
+    <i class='fas fa-cloud-upload-alt'></i>
+</section>
+<section>
+    <strong>Subir documento</strong>
+    <span>Carga cualquier archivo para analizar con IA</span>
+</section>
+{% endblock %}
+
+{% block contenido %}
+
+<section class="page-header">
+    <header>
+        <p>Document Intelligence</p>
+        <h1>Subir y analizar documento</h1>
+    </header>
+    <nav class="header-actions">
+        <a href="{% url 'document_intelligence:dashboard' %}" class="btn btn-secondary">
+            <i class='fas fa-arrow-left'></i> Volver
+        </a>
+    </nav>
+</section>
+
+{% if not result and not form_created %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+
+        {# ── Tipos de archivo ── #}
+        <div class="d-flex flex-wrap gap-2 mb-4 justify-content-center">
+            <span class="badge bg-light text-dark px-3 py-2 border">📸 Foto</span>
+            <span class="badge bg-light text-dark px-3 py-2 border">📄 PDF</span>
+            <span class="badge bg-light text-dark px-3 py-2 border">📊 Excel</span>
+            <span class="badge bg-light text-dark px-3 py-2 border">📋 CSV</span>
+            <span class="badge bg-light text-dark px-3 py-2 border">🖼️ Imagen</span>
+            <span class="badge bg-light text-dark px-3 py-2 border">📝 Texto</span>
+        </div>
+
+        <form method="POST" enctype="multipart/form-data" id="uploadForm">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="analyze">
+
+            {# ── Upload zone ── #}
+            <div class="upload-zone" id="uploadZone">
+                <div class="upload-zone-icon">📤</div>
+                <h5 class="fw-bold">Suelta tu archivo aquí</h5>
+                <p class="text-muted small mb-3">o haz clic para seleccionar</p>
+                <input type="file" name="document_file" id="fileInput"
+                       accept=".xlsx,.xls,.csv,.pdf,.jpg,.jpeg,.png,.webp,.gif,.bmp,.tiff,.txt,.json,.xml"
+                       required>
+                <div>
+                    <button type="button" class="btn btn-primary px-4" onclick="document.getElementById('fileInput').click()">
+                        <i class='fas fa-folder-open'></i> Seleccionar archivo
+                    </button>
+                </div>
+            </div>
+
+            {# ── Camera capture ── #}
+            <div class="text-center mt-3">
+                <button type="button" class="camera-btn" id="cameraBtn" onclick="captureCamera()">
+                    <i class='fas fa-camera'></i> Tomar foto con la cámara
+                </button>
+                <input type="file" id="cameraInput" accept="image/*" capture="environment"
+                       style="display:none" onchange="handleCameraCapture(this)">
+            </div>
+
+            {# ── Preview (hidden) ── #}
+            <div class="preview-container" id="previewContainer" style="display:none;">
+                <img id="previewImage" src="" alt="Preview">
+                <button type="button" class="preview-overlay" onclick="clearPreview()">✕</button>
+            </div>
+
+            {# ── File info ── #}
+            <div class="file-list" id="fileList"></div>
+
+            {# ── Submit ── #}
+            <div class="text-center mt-4">
+                <button type="submit" class="btn btn-primary btn-lg px-5" id="submitBtn" disabled>
+                    <i class='fas fa-robot'></i> Analizar con IA
+                </button>
+            </div>
+        </form>
+
+        {# ── Formats supported ── #}
+        <div class="text-center mt-3">
+            <small class="text-muted">Formatos soportados: {{ allowed_extensions|join:", " }}</small>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{# ── STEP 2: Result + Editor ── #}
+{% if result %}
+<div class="row g-4">
+    {# Quality sidebar #}
+    <div class="col-lg-3">
+        <div class="card shadow-sm border-0 rounded-4">
+            <div class="card-body text-center">
+                <h6 class="text-muted mb-2">Calidad</h6>
+                <div class="mb-1">
+                    {% for i in "12345"|make_list %}
+                        {% if forloop.counter <= result.quality.stars %}
+                            <span class="stars">★</span>
+                        {% else %}
+                            <span class="stars-empty">★</span>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                <span class="badge bg-{% if result.quality.stars >= 4 %}success{% elif result.quality.stars >= 3 %}warning{% else %}danger{% endif %} fs-6 mb-2">
+                    {{ result.quality.label }}
+                </span>
+                <hr>
+                <small class="text-muted d-block">Tipo: <strong>{{ result.classification|default:"Desconocido" }}</strong></small>
+                <small class="text-muted d-block">Campos: <strong>{{ result.fields|length }}</strong></small>
+                {% if result.quality.strengths %}
+                <hr>
+                <div class="text-start small">
+                    <strong>✅ Fortalezas</strong>
+                    <ul class="ps-3 mt-1">
+                        {% for s in result.quality.strengths %}
+                        <li>{{ s }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                {% if result.quality.risks %}
+                <hr>
+                <div class="text-start small">
+                    <strong>⚠️ Riesgos</strong>
+                    <ul class="ps-3 mt-1">
+                        {% for r in result.quality.risks %}
+                        <li>{{ r }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                {% if result.quality.recommendations %}
+                <hr>
+                <div class="text-start small">
+                    <strong>💡 Recomendaciones</strong>
+                    <ul class="ps-3 mt-1">
+                        {% for rec in result.quality.recommendations %}
+                        <li>{{ rec }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {# Editor principal #}
+    <div class="col-lg-9">
+        {# Formularios similares #}
+        {% if similar_forms %}
+        <div class="card shadow-sm border-0 rounded-4 mb-3">
+            <div class="card-body">
+                <h6>🔍 Formularios similares encontrados</h6>
+                <div class="row g-2 mt-2">
+                    {% for sf in similar_forms %}
+                    <div class="col-md-4">
+                        <div class="similar-card p-3 text-center border rounded-3"
+                             onclick="selectSimilar(this, {{ sf.id }})"
+                             style="cursor:pointer; transition:all .2s;">
+                            <strong>{{ sf.nombre }}</strong>
+                            <div class="mt-1">
+                                <span class="badge bg-primary">{{ sf.similitud }}% coincidencia</span>
+                            </div>
+                            <small class="text-muted d-block mt-1">{{ sf.campos_coincidentes }} campos</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="mt-2 d-flex gap-2">
+                    <button class="btn btn-outline-success btn-sm" onclick="useExistingForm()">
+                        📋 Usar formulario existente
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm" onclick="dismissSimilar()">
+                        ✏️ Crear nuevo igualmente
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {# Formulario nuevo #}
+        <div class="card shadow-sm border-0 rounded-4">
+            <div class="card-body p-4">
+                <h5 class="mb-3">📋 Editor de formulario</h5>
+                <p class="text-muted small mb-3">Arrastra los campos ⠿ para reordenarlos.</p>
+
+                <form method="POST" id="form-editor">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="create_form">
+                    <input type="hidden" name="fields_json" id="fields_json" data-fields-json="1">
+                    <input type="hidden" name="use_existing_form_id" id="use_existing_form_id" value="">
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-8">
+                            <label class="form-label fw-semibold">Nombre del formulario</label>
+                            <input type="text" name="form_name" id="form_name"
+                                   class="form-control form-control-lg"
+                                   value="{{ result.form_name }}" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Identificador principal</label>
+                            <select name="identifier_field" id="identifier_field" class="form-select">
+                                <option value="">(ninguno)</option>
+                                {% for field in result.fields %}
+                                <option value="{{ field.name }}" {% if field.is_identifier %}selected{% endif %}>
+                                    {{ field.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Descripción</label>
+                        <textarea name="form_description" class="form-control" rows="2">{{ result.form_description }}</textarea>
+                    </div>
+
+                    {# Editor unificado de campos #}
+                    {% include "dynamic_forms/_field_editor.html" with campos=result_fields_objects formularios_disponibles=formularios_disponibles ocultar_header=False %}
+
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{% url 'document_intelligence:document_upload' %}" class="btn btn-outline-secondary">
+                            ↩ Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-success btn-lg px-4" id="btn-crear-formulario">
+                            ✅ Crear formulario
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{# ── STEP 3: Form created ── #}
+{% if form_created %}
+<div class="card shadow-sm border-0 rounded-4 text-center p-5">
+    <div class="mb-3" style="font-size: 4rem;">✅</div>
+    <h4>Formulario "{{ form_name }}" creado exitosamente</h4>
+    <p class="text-muted">{{ total_fields }} campos creados correctamente.</p>
+    {% if has_data %}
+    <p class="text-info">Se detectaron datos para importar en el documento original.</p>
+    {% endif %}
+    <div class="d-flex justify-content-center gap-3 mt-3 flex-wrap">
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="import_data">
+            <button type="submit" class="btn btn-primary btn-lg">
+                📥 Importar datos al formulario
+            </button>
+        </form>
+        <a href="{% url 'dynamic_forms:ver_registros' formulario_id %}" class="btn btn-outline-secondary btn-lg">
+            👁️ Ver registros
+        </a>
+        <a href="{% url 'document_intelligence:document_upload' %}" class="btn btn-outline-primary btn-lg">
+            📄 Subir otro documento
+        </a>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    'use strict';
+
+    // ── Drag & drop upload zone ──
+    var zone = document.getElementById('uploadZone');
+    var fileInput = document.getElementById('fileInput');
+    var fileList = document.getElementById('fileList');
+    var submitBtn = document.getElementById('submitBtn');
+    var previewContainer = document.getElementById('previewContainer');
+    var previewImage = document.getElementById('previewImage');
+
+    if (zone && fileInput) {
+        zone.addEventListener('click', function() { fileInput.click(); });
+
+        zone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            zone.classList.add('dragover');
+        });
+        zone.addEventListener('dragleave', function() {
+            zone.classList.remove('dragover');
+        });
+        zone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            zone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                handleFileSelect();
+            }
+        });
+
+        fileInput.addEventListener('change', handleFileSelect);
+    }
+
+    function handleFileSelect() {
+        var file = fileInput.files[0];
+        if (!file) { resetUI(); return; }
+
+        // Show file info
+        var size = file.size > 1024 * 1024
+            ? (file.size / 1024 / 1024).toFixed(1) + ' MB'
+            : (file.size / 1024).toFixed(0) + ' KB';
+        var icon = getFileIcon(file.name);
+        fileList.innerHTML = '<div class="file-item">' +
+            '<span class="file-icon">' + icon + '</span>' +
+            '<span class="file-name">' + file.name + '</span>' +
+            '<span class="file-size">' + size + '</span>' +
+            '<span class="file-remove" onclick="clearFiles()">✕</span>' +
+            '</div>';
+
+        // Preview for images
+        if (file.type.startsWith('image/')) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                previewImage.src = e.target.result;
+                previewContainer.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        } else {
+            previewContainer.style.display = 'none';
+        }
+
+        submitBtn.disabled = false;
+    }
+
+    function getFileIcon(name) {
+        var ext = name.split('.').pop().toLowerCase();
+        var icons = {
+            'pdf': '📄', 'xlsx': '📊', 'xls': '📊', 'csv': '📋',
+            'jpg': '🖼️', 'jpeg': '🖼️', 'png': '🖼️', 'webp': '🖼️',
+            'gif': '🖼️', 'bmp': '🖼️', 'tiff': '🖼️',
+            'txt': '📝', 'json': '📝', 'xml': '📝', 'md': '📝',
+        };
+        return icons[ext] || '📄';
+    }
+
+    window.clearFiles = function() {
+        fileInput.value = '';
+        fileList.innerHTML = '';
+        previewContainer.style.display = 'none';
+        submitBtn.disabled = true;
+    };
+
+    function resetUI() {
+        fileList.innerHTML = '';
+        previewContainer.style.display = 'none';
+        submitBtn.disabled = true;
+    }
+
+    // ── Camera capture ──
+    window.captureCamera = function() {
+        var input = document.getElementById('cameraInput');
+        if (input) input.click();
+    };
+
+    window.handleCameraCapture = function(input) {
+        if (input.files.length) {
+            fileInput.files = input.files; // Sync files
+            handleFileSelect();
+        }
+    };
+
+    // ── Similar forms ──
+    var selectedSimilarId = null;
+
+    window.selectSimilar = function(el, formId) {
+        document.querySelectorAll('.similar-card').forEach(function(c) { c.classList.remove('selected'); });
+        el.classList.add('selected');
+        selectedSimilarId = formId;
+    };
+
+    window.useExistingForm = function() {
+        if (!selectedSimilarId) {
+            alert('Selecciona un formulario existente primero.');
+            return;
+        }
+        window.location.href = '/dynamic-forms/importar-excel/' + selectedSimilarId + '/';
+    };
+
+    window.dismissSimilar = function() {
+        var cards = document.querySelector('.similar-card');
+        if (cards) cards.closest('.card')?.remove();
+    };
+
+    // ── Identifier sync (mismo que create_from_file) ──
+    var idSelect = document.getElementById('identifier_field');
+    if (idSelect) {
+        idSelect.addEventListener('change', function() {
+            var selected = this.value;
+            document.querySelectorAll('.campo-identificador').forEach(function(cb) {
+                var fila = cb.closest('.campo-fila');
+                var nameInput = fila ? fila.querySelector('.campo-nombre') : null;
+                var name = nameInput ? nameInput.value.trim() : '';
+                cb.checked = (selected && name === selected);
+            });
+        });
+    }
+
+})();
+</script>
+{% endblock %}

@@ -56,6 +56,8 @@ INSTALLED_APPS = [
     'apps.shared.configuracion',
     'apps.shared.reportes',
     'apps.platform.dynamic_forms',
+    'apps.platform.ai',
+    'apps.platform.document_intelligence',
 ]
 
 if USAR_CLOUDINARY:
@@ -225,6 +227,35 @@ BREVO_SENDER_EMAIL = os.environ.get("BREVO_SENDER_EMAIL") or config(
     'BREVO_SENDER_EMAIL',
     default=''
 )
+
+# ──────────────────────────────────────────────
+# AI / LLM Provider Configuration
+# ──────────────────────────────────────────────
+# See apps.platform.ai for the full multi-provider architecture.
+#
+# To switch providers, change AI_PROVIDER and set the corresponding API key.
+#
+# Supported providers: gemini, openrouter, deepseek, qwen
+
+AI_PROVIDER = config('AI_PROVIDER', default='gemini')
+
+# API Keys for each supported provider
+GEMINI_API_KEY = config('GEMINI_API_KEY', default='')
+OPENROUTER_API_KEY = config('OPENROUTER_API_KEY', default='')
+DEEPSEEK_API_KEY = config('DEEPSEEK_API_KEY', default='')
+QWEN_API_KEY = config('QWEN_API_KEY', default='')
+
+# Model overrides (leave empty to use provider defaults)
+GEMINI_MODEL = config('GEMINI_MODEL', default='gemini-2.0-flash')
+OPENROUTER_MODEL = config('OPENROUTER_MODEL', default='openai/gpt-4o-mini')
+DEEPSEEK_MODEL = config('DEEPSEEK_MODEL', default='deepseek-chat')
+QWEN_MODEL = config('QWEN_MODEL', default='qwen-plus')
+
+# Shared tuning parameters
+AI_TEMPERATURE = config('AI_TEMPERATURE', default=0.1, cast=float)
+AI_MAX_TOKENS = config('AI_MAX_TOKENS', default=4096, cast=int)
+AI_TIMEOUT = config('AI_TIMEOUT', default=30, cast=int)
+AI_CACHE_DIR = config('AI_CACHE_DIR', default=BASE_DIR / '.ai_cache')
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 

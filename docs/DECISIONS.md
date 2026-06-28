@@ -244,3 +244,97 @@ Removing the app from `INSTALLED_APPS` would require moving all these components
 **Reason**: Before Phase 5, these constants were duplicated in 7 files (both `views_dynamic.py` files, 4 management commands, and `services_dynamic.py`). Any change to a form name required updating all 7 locations, which was error-prone. Centralizing them in `services_dynamic.py` eliminates the maintenance burden.
 
 **Current status**: Implemented in Phase 5. All 6 consumer files now import from the canonical source in `services_dynamic.py`.
+
+---
+
+## Decision: Identificador Principal as BooleanField on Campo
+
+**Decision**: Add `identificador_principal` as a `BooleanField(default=False)` on the `Campo` model, with auto-unsetting logic in `save()` to ensure only one field per formulario has this flag.
+
+**Reason**: The identifier is a property of a field, not a separate entity. Storing it directly on `Campo` avoids creating a new model or configuration table. The `save()` override automatically desmarca other fields in the same formulario when one is marked as identifier, enforcing the single-identifier constraint at the database level.
+
+**Current status**: Implemented in `models.py`. Migration `0007` applied. The admin, templates, and view processing all support this field. Forms can now auto-create an identifier field on creation (Phase 5).
+
+---
+
+## Decision: Moneda Type as Text Storage with Number Validation
+
+**Decision**: Add `moneda` as a new type in `Campo.TIPOS` with validation accepting integers and decimals up to 2 decimal places. Stored as text in `ValorCampo.valor`, consistent with all other EAV types. Visual prefix `$` rendered via Bootstrap input-group.
+
+**Reason**: The EAV pattern stores all values as text. Adding a new type with formatted validation (max 2 decimals, non-negative) provides field-level enforcement while keeping storage consistent. The Bootstrap input-group provides visual context without storing the symbol. Future regional formatting (COP, USD, EUR) can be added without schema changes.
+
+**Current status**: Implemented in `models.py`, `validators.py`, and all relevant templates. See `Fase de mejoras Dynamic Forms (7 fases)` in SESSION_LOG.md.
+
+---
+
+## Decision: Extensible Booleano Validation
+
+**Decision**: Extend booleano validation to accept 12 variants (Sí, Si, No, True, False, 1, 0, yes, no, on, off) and normalize all to internal format `Sí`/`No`.
+
+**Reason**: Previous implementation only accepted `on` (from HTML checkboxes). Real-world data from Excel imports, APIs, or manual entry may use any of these common boolean representations. Normalizing to the existing format ensures full backward compatibility.
+
+**Current status**: Implemented in `validators.py`. All accepted forms normalized automatically.
+
+---
+
+## Decision: Datetime Conversion in Excel Import
+
+**Decision**: Convert openpyxl `datetime` objects to `YYYY-MM-DD` strings during `leer_excel()` before passing to validation.
+
+**Reason**: openpyxl returns datetime objects for date-formatted cells. The EAV system expects text values. Converting in the import layer avoids type errors downstream and ensures compatibility with existing date validation. Text-based dates (user-typed) continue to work unchanged.
+
+**Current status**: Implemented in `import_service.py.leer_excel()`. 
+
+---
+
+## Decision: Enterprise Import/Export Architecture (v2.0)
+
+**Decision**: Evolve the import/export subsystem from a flat `import_service.py` + single view into a modular architecture with dedicated submodules for each concern: formats, detection, quality, conflict resolution, audit, rollback, and pipeline orchestration.
+
+**Reason**: The original `import_service.py` (859 lines) combined parsing, matching, validation, importing, template generation, and error reporting in one file. As the system grew (ColumnMatcher, 4 import modes, Excel templates, multi-step wizard), the file became hard to maintain. The new architecture:
+- Separates each concern into its own module (`detector.py`, `quality.py`, `conflict.py`, `audit.py`, `rollback.py`)
+- Uses a `Pipeline` orchestrator to coordinate the full workflow
+- Introduces `ImportLog`, `ImportAudit`, `ImportSnapshot` models for full traceability
+- Provides history views with detail, rollback, and error report download
+- Remains fully backward compatible — `import_service.py` unchanged; the pipeline is an opt-in alternative
+
+**Components created**:
+
+Subpackage `import_export/`:
+- `__init__.py` — Exports ImportPipeline, DataDetector, QualityAnalyzer, RollbackManager, AuditLogger
+- `pipeline.py` — Pipeline orchestrator with `PipelineConfig`/`PipelineResult` dataclasses
+- `detector.py` — DataDetector: type inference, duplicate & outlier detection
+- `quality.py` — QualityAnalyzer: 1-5 star rating with penalty/bonus system
+- `conflict.py` — ConflictDetector: duplicated columns, field conflicts, unmatched columns
+- `audit.py` — AuditLogger: detailed per-action logging with 7 event types (creacion, actualizacion, error, advertencia, decision, ignorado, rollback)
+- `rollback.py` — RollbackManager: snapshot-based revert with mode-aware delete/restore
+- `formats/base.py` — BaseParser abstract class with ParseResult dataclass
+- `formats/excel.py` — ExcelParser with sheet scoring, header detection, data row detection
+
+**Models** (database):
+- `ImportLog` — Full import metadata: file info, hash, mode, estado, counts, quality, confianza
+- `ImportAudit` — Per-event audit trail: tipo, registro_id, campo_nombre, valor_anterior/nuevo, mensaje
+- `ImportSnapshot` — Pre-import value snapshots for rollback: registro FK, valores_anteriores JSON
+
+**Views/URLs**:
+- `historial_importaciones` — Paginated table with quality stars, mode badges, KPIs
+- `detalle_importacion` — Full detail with audit trail, snapshots, conflict/warning display
+- `revertir_importacion` — Confirmation page + POST execution
+- `descargar_reporte_errores` — Excel download of error audit events
+
+**Templates**:
+- `templates/dynamic_forms/import_export/historial_importaciones.html`
+- `templates/dynamic_forms/import_export/detalle_importacion.html`
+- `templates/dynamic_forms/import_export/revertir_importacion.html`
+
+**Integration**:
+- `import_service.py` — new `importar_con_pipeline()` function
+- `urls.py` — 5 new routes for history/detail/rollback/errors
+- `views.py` — 4 new enterprise views + json/json import
+- `admin.py` — 3 new ModelAdmins (ImportLog, ImportAudit, ImportSnapshot)
+- Templates `ver_registros.html` and `importar_excel.html` — "Historial" button added
+- AppConfig labels fixed for migrations: `productos` → `ProductosConfig(label='productos')`
+
+**Trade-off**: The pipeline is not yet the default for `importar_excel` view. Backward compatibility is preserved. The pipeline can be swapped in by modifying `views.py` to call `importar_con_pipeline()` instead of `previsualizar()` + `importar()`.
+
+**Current status**: Implemented. Migration `0008` applied. All models, modules, views, URLs, and templates created. `python manage.py check` — 0 issues. `makemigrations --check` — No changes detected. All imports verified. 

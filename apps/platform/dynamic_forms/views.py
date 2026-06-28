@@ -1,25 +1,116 @@
+import json
 import logging
+import time
 from collections import defaultdict
+from dataclasses import asdict, is_dataclass
+from io import BytesIO
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
+
+# ======================================================================
+# DIAGNÓSTICO — Helper de instrumentación temporal
+# ======================================================================
+_DIAG_ENABLED = True  # toggle全局 para desactivar sin borrar
+
+def _diag_log(stage: str, start: float, detail: str = ''):
+    """Registra duración de un paso. Warning si >500ms."""
+    if not _DIAG_ENABLED:
+        return
+    elapsed_ms = (time.perf_counter() - start) * 1000
+    msg = f'[DIAG] {stage}: {elapsed_ms:.1f}ms'
+    if detail:
+        msg += f' | {detail}'
+    if elapsed_ms > 500:
+        logger.warning(f'[DIAG] ⚠ {stage} EXCEDE 500ms: {elapsed_ms:.1f}ms | {detail}')
+    else:
+        logger.info(msg)
+    return time.perf_counter()  # return new start for chaining
+
+
+def _diag_start(stage: str):
+    """Marca inicio de una etapa de diagnóstico."""
+    if _DIAG_ENABLED:
+        logger.info(f'[DIAG] >>> {stage}')
+    return time.perf_counter()
+
+
+# ======================================================================
+# Serialización de session — helpers para objetos no JSON-serializables
+# ======================================================================
+
+def _match_results_to_dicts(match_results):
+    """Convierte list[ColumnMatchResult] a list[dict] para session."""
+    return [asdict(r) for r in match_results]
+
+
+def _match_results_from_dicts(data):
+    """Reconstruye list[ColumnMatchResult] desde list[dict] de session."""
+    from .column_matching import ColumnMatchResult
+    return [ColumnMatchResult(**d) for d in data]
+
+
+def _summary_to_dict(summary) -> dict:
+    """Convierte MappingSummary a dict serializable para session/template."""
+    result = {
+        'total': summary.total,
+        'auto': summary.auto,
+        'review': summary.review,
+        'manual': summary.manual,
+        'puede_saltar_mapeo': summary.puede_saltar_mapeo,
+        'motivo_no_saltar': getattr(summary, 'motivo_no_saltar', []),
+        'necesita_revision': summary.necesita_revision,
+        'necesita_manual': summary.necesita_manual,
+        'confianza_promedio': summary.confianza_promedio,
+        'memoria_usada': getattr(summary, 'memoria_usada', False),
+        'ai_usada': getattr(summary, 'ai_usada', False),
+        'campos_obligatorios_faltantes': getattr(summary, 'campos_obligatorios_faltantes', []),
+        'conflictos_presentes': getattr(summary, 'conflictos_presentes', False),
+        'columnas_extra': getattr(summary, 'columnas_extra', 0),
+        'audit_log': getattr(summary, 'audit_log', []),
+        'columnas': [],
+    }
+    for cc in summary.columnas:
+        if hasattr(cc, '__dataclass_fields__'):
+            col_dict = {
+                'column_index': cc.column_index,
+                'column_name': cc.column_name,
+                'matched_to': cc.matched_to,
+                'confidence': cc.confidence,
+                'method': cc.method,
+                'category': cc.category,
+                'explanation': cc.explanation,
+                'suggestion': cc.suggestion,
+            }
+            result['columnas'].append(col_dict)
+    return result
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from config.pagination import OPCIONES_POR_PAGINA, obtener_por_pagina, parametros_sin_pagina
 from config.permissions import admin_required, es_administrador, rol_usuario
 from .forms import FormularioForm
 from .import_service import (
+    MODOS_IMPORTACION,
+    TIPOS_EXCLUIDOS_MAPEO,
+    analizar_y_clasificar_columnas,
+    analyze_workbook,
     construir_mapeo_completo,
     detectar_columnas,
+    generar_excel_errores,
+    generar_plantilla_excel,
+    guardar_memoria_mapeo,
     importar,
     leer_excel,
     previsualizar,
+    validar_estructura,
 )
-from .models import Campo, Formulario, Registro, ValorCampo
+from .models import Campo, Formulario, ImportAudit, ImportLog, ImportSnapshot, Registro, ValorCampo
 from .services import _evaluar_formula, exportar_registros_excel
 from .services_dynamic import _guardar_archivo_subido
 from .validators import _validar_valor_campo
@@ -30,10 +121,16 @@ def _procesar_campos_post(request, formulario):
     nombres = request.POST.getlist('campo_nombre')
     tipos = request.POST.getlist('campo_tipo')
     obligatorios = request.POST.getlist('campo_obligatorio')
+    unicos = request.POST.getlist('campo_unico')
+    visibles = request.POST.getlist('campo_visible')
     ordenes = request.POST.getlist('campo_orden')
     opciones_list = request.POST.getlist('campo_opciones')
+    descripciones = request.POST.getlist('campo_descripcion')
+    default_values = request.POST.getlist('campo_default')
+    max_lengths = request.POST.getlist('campo_max_length')
     form_destino_ids = request.POST.getlist('campo_formulario_destino')
     formulas = request.POST.getlist('campo_formula')
+    identificadores_principales = request.POST.getlist('campo_identificador_principal')
 
     errores = []
     campos_procesados = []
@@ -54,8 +151,21 @@ def _procesar_campos_post(request, formulario):
             if i < len(obligatorios)
             else False
         )
+        es_unico = (
+            unicos[i] == 'on'
+            if i < len(unicos)
+            else False
+        )
+        es_visible = (
+            visibles[i] != 'off'
+            if i < len(visibles)
+            else True
+        )
         orden = ordenes[i] if i < len(ordenes) else '0'
         opciones_raw = opciones_list[i] if i < len(opciones_list) else ''
+        descripcion = descripciones[i] if i < len(descripciones) else ''
+        default_value = default_values[i] if i < len(default_values) else ''
+        max_length_raw = max_lengths[i] if i < len(max_lengths) else ''
 
         opciones = None
         if tipo == 'lista' and opciones_raw:
@@ -64,6 +174,16 @@ def _procesar_campos_post(request, formulario):
                 for op in opciones_raw.split(',')
                 if op.strip()
             ]
+
+        # Build metadata_json
+        metadata = {}
+        if default_value:
+            metadata['default_value'] = default_value
+        if max_length_raw:
+            try:
+                metadata['max_length'] = int(max_length_raw)
+            except (ValueError, TypeError):
+                pass
 
         # Formulario destino para tipo 'relacion'
         formulario_destino_id = None
@@ -79,14 +199,26 @@ def _procesar_campos_post(request, formulario):
             if not formula:
                 errores.append(f'El campo calculado "{nombre}" debe tener una fórmula.')
 
+        # Identificador principal
+        es_identificador = (
+            identificadores_principales[i] == 'on'
+            if i < len(identificadores_principales)
+            else False
+        )
+
         campos_procesados.append({
             'nombre': nombre,
             'tipo': tipo,
             'obligatorio': es_obligatorio,
+            'unico': es_unico,
+            'visible': es_visible,
             'orden': int(orden) if orden.isdigit() else 0,
             'opciones': opciones,
+            'descripcion': descripcion,
+            'metadata': metadata if metadata else None,
             'formulario_destino_id': formulario_destino_id,
             'formula': formula,
+            'identificador_principal': es_identificador,
         })
 
     return campos_procesados, errores
@@ -99,6 +231,8 @@ def _sincronizar_campos(formulario, campos_procesados):
     - Actualiza campos existentes (por nombre).
     - Marca como inactivos (activo=False) los campos que ya no están en la lista.
     - Reactiva campos que vuelven a aparecer.
+    
+    Soporta todos los campos nuevos (v2.0+): descripcion, visible, unico, metadata_json.
     """
     nombres_procesados = {c['nombre'] for c in campos_procesados}
     campos_existentes = {c.nombre: c for c in formulario.campos.all()}
@@ -115,12 +249,30 @@ def _sincronizar_campos(formulario, campos_procesados):
             campo.activo = True  # Reactivar si estaba inactivo
             update_fields = ['tipo', 'obligatorio', 'orden', 'opciones', 'activo']
 
+            # Nuevos campos (v2.0)
+            if 'unico' in datos:
+                campo.unico = datos['unico']
+                update_fields.append('unico')
+            if 'visible' in datos:
+                campo.visible = datos['visible']
+                update_fields.append('visible')
+            if 'descripcion' in datos:
+                campo.descripcion = datos['descripcion']
+                update_fields.append('descripcion')
+            if 'metadata' in datos and datos['metadata']:
+                campo.metadata_json = datos['metadata']
+                update_fields.append('metadata_json')
+
             if 'formulario_destino_id' in datos:
                 campo.formulario_destino_id = datos['formulario_destino_id']
                 update_fields.append('formulario_destino_id')
             if 'formula' in datos:
                 campo.formula = datos.get('formula')
                 update_fields.append('formula')
+
+            if datos.get('identificador_principal'):
+                campo.identificador_principal = True
+                update_fields.append('identificador_principal')
 
             campo.save(update_fields=update_fields)
         else:
@@ -133,10 +285,21 @@ def _sincronizar_campos(formulario, campos_procesados):
                 'orden': datos['orden'],
                 'opciones': datos['opciones'],
             }
+            # Nuevos campos (v2.0)
+            if 'unico' in datos:
+                kwargs['unico'] = datos['unico']
+            if 'visible' in datos:
+                kwargs['visible'] = datos['visible']
+            if 'descripcion' in datos:
+                kwargs['descripcion'] = datos.get('descripcion', '')
+            if 'metadata' in datos and datos['metadata']:
+                kwargs['metadata_json'] = datos['metadata']
             if 'formulario_destino_id' in datos:
                 kwargs['formulario_destino_id'] = datos['formulario_destino_id']
             if 'formula' in datos:
                 kwargs['formula'] = datos.get('formula')
+            if datos.get('identificador_principal'):
+                kwargs['identificador_principal'] = True
 
             Campo.objects.create(**kwargs)
 
@@ -280,11 +443,29 @@ def crear_formulario(request):
                         errores.append(f'El campo "{datos["nombre"]}" está duplicado.')
                     nombres_vistos.add(datos['nombre'])
 
-                if errores:
-                    for error in errores:
-                        messages.warning(request, error)
+            if errores:
+                for error in errores:
+                    messages.warning(request, error)
 
                 _sincronizar_campos(formulario, campos_procesados)
+
+            # Auto-crear identificador principal si se solicitó
+            if form.cleaned_data.get('generar_identificador'):
+                nombre_id = form.cleaned_data.get('nombre_identificador', 'Código').strip()
+                if not nombre_id:
+                    nombre_id = 'Código'
+                # Verificar si ya existe un campo con ese nombre
+                campo_existente = formulario.campos.filter(nombre=nombre_id).first()
+                if not campo_existente:
+                    Campo.objects.create(
+                        formulario=formulario,
+                        nombre=nombre_id,
+                        tipo='texto',
+                        obligatorio=True,
+                        unico=True,
+                        identificador_principal=True,
+                        orden=-1,  # Aparecer primero
+                    )
 
             messages.success(
                 request,
@@ -663,9 +844,13 @@ def ver_registros(request, formulario_id):
                     if display:
                         vals[campo.id] = display
 
+    # Identificar campo identificador principal
+    campo_identificador = campos.filter(identificador_principal=True).first()
+
     return render(request, 'dynamic_forms/ver_registros.html', {
         'formulario': formulario,
         'campos': campos,
+        'campo_identificador': campo_identificador,
         'registros': registros_pagina,
         'valores_map': valores_map,
         'es_admin': es_administrador(request.user),
@@ -825,22 +1010,39 @@ def importar_excel(request, formulario_id):
     Vista multi-paso para importar registros desde Excel.
 
     Paso 1: GET → formulario de subida
-    Paso 2: POST (subir) → parsear Excel, detectar mapeo, mostrar preview
-    Paso 3: POST (confirmar) → validar filas, mostrar resumen de validación
-    Paso 4: POST (importar) → ejecutar importación
+    Paso 2: POST (subir) → analizar Excel, detectar hoja/header/datos/matching
+    Paso 3: POST (mapear) → confirmar mapeo + seleccionar modo
+    Paso 4: POST (preview) → validar estructura + preview
+    Paso 5: POST (importar) → ejecutar importación según modo elegido
     """
+    _t0 = time.perf_counter()
+    logger.info(
+        f'[DIAG] ========== IMPORTAR_EXCEL ENTRY ==========\n'
+        f'[DIAG] Timestamp: {time.strftime("%Y-%m-%dT%H:%M:%S")}\n'
+        f'[DIAG] formulario_id: {formulario_id}\n'
+        f'[DIAG] request.method: {request.method}\n'
+        f'[DIAG] request.POST keys: {list(request.POST.keys())}\n'
+        f'[DIAG] request.FILES keys: {list(request.FILES.keys())}\n'
+        f'[DIAG] CONTENT_LENGTH: {request.META.get("CONTENT_LENGTH", "N/A")}'
+    )
+
+    _t_frm = _diag_start('get_object_or_404 + campos_activos')
     formulario = get_object_or_404(
         Formulario.objects.prefetch_related('campos'),
         id=formulario_id
     )
     campos_activos = formulario.campos.filter(activo=True).order_by('orden')
+    _diag_log('get_object_or_404 + campos_activos', _t_frm, f'formulario={formulario.nombre}, campos_count={campos_activos.count()}')
 
     paso = request.POST.get('paso', 'subir')
+    logger.info(f'[DIAG] paso detectado: {paso}')
+    logger.info(f'[DIAG] tiempo_acumulado_antes_paso: {(time.perf_counter() - _t0) * 1000:.1f}ms')
 
-    # --- Paso 4: Ejecutar importación ---
+    # --- Paso 5: Ejecutar importación ---
     if paso == 'importar':
         import_data = request.session.pop('import_data', None)
         mapping_data = request.session.pop('mapping_data', None)
+        modo = request.session.pop('modo_importacion', 'crear')
         if not import_data or not mapping_data:
             messages.error(request, 'La sesión de importación ha expirado. Sube el archivo nuevamente.')
             return redirect('dynamic_forms:importar_excel', formulario_id=formulario.id)
@@ -856,7 +1058,34 @@ def importar_excel(request, formulario_id):
             messages.warning(request, 'No hay filas válidas para importar.')
             return redirect('dynamic_forms:importar_excel', formulario_id=formulario.id)
 
-        resultado = importar(formulario, filas_validas, usuario=request.user)
+        # Ejecutar dry run si modo == 'validar'
+        if modo == 'validar':
+            resultado = {
+                'total': len(filas_validas),
+                'creados': 0,
+                'actualizados': 0,
+                'ignorados': len(filas_validas),
+                'errores': [],
+                'tiempo_seg': 0.0,
+                'modo': 'validar',
+            }
+            messages.success(request, 'Dry Run completado. Ningún registro fue modificado.')
+        else:
+            resultado = importar(
+                formulario, filas_validas,
+                usuario=request.user, modo=modo, mapeo=mapeo_idx
+            )
+            if resultado['errores']:
+                request.session['ultimos_errores'] = resultado['errores']
+                request.session['formulario_nombre_errores'] = formulario.nombre
+
+            # Guardar mapeo en memoria persistente para futuras importaciones
+            if resultado['creados'] > 0 or resultado['actualizados'] > 0:
+                guardar_memoria_mapeo(formulario, encabezados, mapeo_idx)
+
+        # Limpiar datos de sesión residuales (FASE 9)
+        for key in ['match_results', 'analysis_meta', 'calidad', 'conflictos_globales', 'tipo_campos', 'mapeo_auto_summary', 'mapeo_saltado']:
+            request.session.pop(key, None)
 
         return render(request, 'dynamic_forms/importar_excel.html', {
             'formulario': formulario,
@@ -866,8 +1095,89 @@ def importar_excel(request, formulario_id):
             'rol_usuario': rol_usuario(request.user),
         })
 
-    # --- Paso 3: Previsualizar validación (confirmar mapeo) ---
-    if paso == 'confirmar':
+    # --- Paso 4: Validar estructura + previsualizar ---
+    if paso == 'preview':
+        import_data = request.session.get('import_data')
+        mapping_data = request.session.get('mapping_data')
+        if not import_data or not mapping_data:
+            messages.error(request, 'La sesión de importación ha expirado. Sube el archivo nuevamente.')
+            return redirect('dynamic_forms:importar_excel', formulario_id=formulario.id)
+
+        encabezados = import_data['encabezados']
+        filas = import_data['filas']
+        match_results_raw = request.session.get('match_results')
+        match_results = _match_results_from_dicts(match_results_raw) if match_results_raw else []
+        mapeo_idx = {int(k): v for k, v in mapping_data.items()}
+        modo = request.POST.get('modo_importacion', 'crear')
+        mapeo_saltado = request.session.pop('mapeo_saltado', False)
+
+        if modo not in MODOS_IMPORTACION:
+            messages.error(request, 'Modo de importación inválido.')
+            return redirect('dynamic_forms:importar_excel', formulario_id=formulario.id)
+
+        # Guardar modo en sesión
+        request.session['modo_importacion'] = modo
+
+        # Validación avanzada de estructura
+        validacion = validar_estructura(
+            formulario, encabezados, filas, mapeo_idx, match_results
+        )
+
+        if not validacion['valido']:
+            for error in validacion['errores']:
+                messages.error(request, error)
+            # Volver al paso de mapeo
+            encabezados_con_idx = [(idx, nombre) for idx, nombre in enumerate(encabezados)]
+            return render(request, 'dynamic_forms/importar_excel.html', {
+                'formulario': formulario,
+                'paso': 'mapeo',
+                'encabezados': encabezados,
+                'encabezados_con_idx': encabezados_con_idx,
+                'campos_activos': campos_activos,
+                'mapeo_idx': mapeo_idx,
+                'total_filas': len(filas),
+                'modo_actual': modo,
+                'es_admin': es_administrador(request.user),
+                'rol_usuario': rol_usuario(request.user),
+            })
+
+        # Preview de validación de filas
+        preview = previsualizar(formulario, encabezados, filas, mapeo_idx)
+        validas = [r for r in preview if r['valida']]
+        con_errores = [r for r in preview if not r['valida']]
+
+        request.session['import_data'] = import_data
+        request.session['mapping_data'] = mapping_data
+        analysis_meta = request.session.get('analysis_meta')
+        calidad = request.session.get('calidad', {})
+        conflictos_globales = request.session.get('conflictos_globales', [])
+        tipo_campos = request.session.get('tipo_campos', {})
+        auto_summary = request.session.pop('mapeo_auto_summary', None)
+
+        modo_msg = MODOS_IMPORTACION.get(modo, modo)
+
+        return render(request, 'dynamic_forms/importar_excel.html', {
+            'formulario': formulario,
+            'paso': 'preview',
+            'preview': preview,
+            'validas': validas,
+            'con_errores': con_errores,
+            'total_filas': len(filas),
+            'validacion': validacion,
+            'modo_actual': modo,
+            'modo_msg': modo_msg,
+            'es_admin': es_administrador(request.user),
+            'rol_usuario': rol_usuario(request.user),
+            'analysis_meta': analysis_meta,
+            'calidad': calidad,
+            'conflictos_globales': conflictos_globales,
+            'tipo_campos': tipo_campos,
+            'auto_summary': auto_summary,
+            'mapeo_saltado': mapeo_saltado,
+        })
+
+    # --- Paso 3: Confirmar mapeo + seleccionar modo ---
+    if paso == 'mapear':
         import_data = request.session.get('import_data')
         if not import_data:
             messages.error(request, 'La sesión de importación ha expirado. Sube el archivo nuevamente.')
@@ -884,12 +1194,28 @@ def importar_excel(request, formulario_id):
                 if col_idx.isdigit() and value:
                     mapeo_usuario[int(col_idx)] = value
 
+        modo = request.POST.get('modo_importacion', 'crear')
+        if modo not in MODOS_IMPORTACION:
+            messages.error(request, 'Modo de importación inválido.')
+            return redirect('dynamic_forms:importar_excel', formulario_id=formulario.id)
+
+        match_results_raw = request.session.get('match_results')
+        # Recalcular match_results si el usuario hizo cambios manuales
+        if mapeo_usuario and match_results_raw:
+            match_results_objects = _match_results_from_dicts(match_results_raw)
+            for r in match_results_objects:
+                if r.column_index in mapeo_usuario:
+                    r.matched_to = mapeo_usuario[r.column_index]
+                    r.method = 'manual'
+                    r.confidence = 1.0
+            request.session['match_results'] = _match_results_to_dicts(match_results_objects)
+
         mapeo_idx, sin_mapear = construir_mapeo_completo(encabezados, formulario, mapeo_usuario)
 
-        # Validar que campos obligatorios estén mapeados
+        # Validar campos obligatorios mapeados
         errores_mapeo = []
         for campo in campos_activos:
-            if campo.obligatorio and campo.tipo not in ('calculado', 'imagen', 'archivo'):
+            if campo.obligatorio and campo.tipo not in TIPOS_EXCLUIDOS_MAPEO:
                 if campo.nombre not in mapeo_idx.values():
                     errores_mapeo.append(
                         f'El campo obligatorio "{campo.nombre}" no está mapeado a ninguna columna.'
@@ -907,33 +1233,27 @@ def importar_excel(request, formulario_id):
                 'campos_activos': campos_activos,
                 'mapeo_idx': mapeo_idx,
                 'total_filas': len(filas),
+                'modo_actual': modo,
                 'es_admin': es_administrador(request.user),
                 'rol_usuario': rol_usuario(request.user),
             })
 
-        # Previsualizar validación
-        preview = previsualizar(formulario, encabezados, filas, mapeo_idx)
-        validas = [r for r in preview if r['valida']]
-        con_errores = [r for r in preview if not r['valida']]
-
-        request.session['import_data'] = import_data
+        # Guardar mapeo en sesión
         request.session['mapping_data'] = {str(k): v for k, v in mapeo_idx.items()}
 
-        return render(request, 'dynamic_forms/importar_excel.html', {
-            'formulario': formulario,
-            'paso': 'preview',
-            'preview': preview,
-            'validas': validas,
-            'con_errores': con_errores,
-            'total_filas': len(filas),
-            'es_admin': es_administrador(request.user),
-            'rol_usuario': rol_usuario(request.user),
-        })
+        # Pasar al preview
+        request.session['modo_importacion'] = modo
 
-    # --- Paso 1: Mostrar formulario de subida ---
+        return redirect('dynamic_forms:importar_excel', formulario_id=formulario.id)
+
+    # --- Paso 2: Subir y analizar archivo ---
     if request.method == 'POST' and paso == 'subir':
+        _t_subir = time.perf_counter()
+        logger.info(f'[DIAG] >>> PASO_SUBIR inicio | tiempo_acumulado: {(_t_subir - _t0) * 1000:.1f}ms')
+
         archivo = request.FILES.get('archivo_excel')
         if not archivo:
+            logger.warning('[DIAG] PASO_SUBIR: No file uploaded')
             messages.error(request, 'Debes seleccionar un archivo Excel.')
             return render(request, 'dynamic_forms/importar_excel.html', {
                 'formulario': formulario,
@@ -942,19 +1262,15 @@ def importar_excel(request, formulario_id):
                 'rol_usuario': rol_usuario(request.user),
             })
 
-        if not archivo.name.endswith('.xlsx'):
-            messages.error(request, 'Solo se aceptan archivos .xlsx.')
-            return render(request, 'dynamic_forms/importar_excel.html', {
-                'formulario': formulario,
-                'paso': 'subir',
-                'es_admin': es_administrador(request.user),
-                'rol_usuario': rol_usuario(request.user),
-            })
+        logger.info(f'[DIAG] File received: name={archivo.name}, size={archivo.size}, content_type={archivo.content_type}')
 
-        # Leer archivo
+        # Validación de seguridad (FASE 5)
+        _t_fileval = _diag_start('_validar_archivo_importacion')
         try:
-            encabezados, filas = leer_excel(archivo)
+            from .import_service import _validar_archivo_importacion, _limitar_filas
+            _validar_archivo_importacion(archivo)
         except ValueError as e:
+            _diag_log('_validar_archivo_importacion (FAILED)', _t_fileval, str(e))
             messages.error(request, str(e))
             return render(request, 'dynamic_forms/importar_excel.html', {
                 'formulario': formulario,
@@ -962,19 +1278,193 @@ def importar_excel(request, formulario_id):
                 'es_admin': es_administrador(request.user),
                 'rol_usuario': rol_usuario(request.user),
             })
+        _diag_log('_validar_archivo_importacion', _t_fileval, 'OK')
 
-        # Detectar mapeo automático
-        mapeo_idx, sin_mapear = construir_mapeo_completo(encabezados, formulario)
+        # Análisis mejorado: auto-detección completa
+        _t_awb = _diag_start('analyze_workbook')
+        try:
+            analysis = analyze_workbook(archivo, formulario)
+        except ValueError as e:
+            _diag_log('analyze_workbook (FAILED)', _t_awb, str(e))
+            messages.error(request, str(e))
+            return render(request, 'dynamic_forms/importar_excel.html', {
+                'formulario': formulario,
+                'paso': 'subir',
+                'es_admin': es_administrador(request.user),
+                'rol_usuario': rol_usuario(request.user),
+            })
+        _diag_log('analyze_workbook', _t_awb,
+                   f'sheet={analysis.get("sheet_name","?")}, '
+                   f'columns={len(analysis.get("encabezados",[]))}, '
+                   f'raw_rows={analysis.get("total_filas","?")}, '
+                   f'header_row={analysis.get("header_row","?")}, '
+                   f'data_start_row={analysis.get("data_start_row","?")}')
 
-        # Guardar datos en sesión
+        _t_post = _diag_start('post_analysis (mapeo + session)')
+
+        encabezados = analysis['encabezados']
+        filas = _limitar_filas(analysis['filas'])
+        match_results = analysis['match_results']
+
+        logger.info(f'[DIAG] Post-analysis: encabezados={len(encabezados)}, filas={len(filas)}, match_results={len(match_results)}')
+
+        # =============================================================
+        # ORQUESTACIÓN COMPLETA: ColumnMatcher + MappingMemory +
+        #                       AIMatcher + AutoMappingAnalyzer
+        # =============================================================
+        _t_auto = _diag_start('analizar_y_clasificar_columnas')
+        resultado_auto = analizar_y_clasificar_columnas(
+            formulario=formulario,
+            encabezados=encabezados,
+            campos_activos=campos_activos,
+        )
+        summary = resultado_auto['summary']
+        mapeo_idx = resultado_auto['mapeo_idx']
+        sin_mapear = resultado_auto['sin_mapear']
+        _diag_log('analizar_y_clasificar_columnas', _t_auto,
+                   f'Auto={summary.auto}, Review={summary.review}, '
+                   f'Manual={summary.manual}, puede_saltar={summary.puede_saltar_mapeo}, '
+                   f'memoria={summary.memoria_usada}, ai={summary.ai_usada}')
+
+        # Guardar en sesión
+        _t_sess = _diag_start('session_write')
         request.session['import_data'] = {
             'encabezados': encabezados,
             'filas': filas,
         }
+        request.session['analysis_meta'] = {
+            'sheet_name': analysis['sheet_name'],
+            'total_sheets': analysis['total_sheets'],
+            'all_sheets_scores': analysis.get('all_sheets_scores', {}),
+            'header_row': analysis['header_row'],
+            'header_score': analysis['header_score'],
+            'data_start_row': analysis.get('data_start_row', analysis['header_row'] + 1),
+            'confianza_global': analysis['confianza_global'],
+        }
+        request.session['match_results'] = _match_results_to_dicts(match_results)
+        request.session['calidad'] = analysis.get('calidad', {})
+        request.session['conflictos_globales'] = analysis.get('conflictos_globales', [])
+        request.session['mapeo_auto_summary'] = _summary_to_dict(summary)
+
+        # Mapa de tipos de campo para normalización (FASE 5)
+        tipo_campos = {c.nombre: c.tipo for c in campos_activos}
+        request.session['tipo_campos'] = tipo_campos
+        _diag_log('session_write', _t_sess, '6 keys written')
 
         encabezados_con_idx = [(idx, nombre) for idx, nombre in enumerate(encabezados)]
 
-        return render(request, 'dynamic_forms/importar_excel.html', {
+        _diag_log('post_analysis (mapeo + session)', _t_post)
+
+        # =============================================================
+        # DECISIÓN UNIFICADA: ¿Saltar pantalla de mapeo?
+        # Llamar a decidir_accion() evalúa TODAS las condiciones:
+        #   - Todos los campos obligatorios deben estar mapeados
+        #   - Sin conflictos entre columnas
+        #   - Confianza promedio >= threshold (92%)
+        #   - Ninguna columna 'manual' sin resolver
+        # Si todo está bien → salta a preview (aunque haya columnas
+        # opcionales del Excel sin correspondencia en el formulario).
+        # La decisión se renderiza EN LINEA (sin redirect) para evitar
+        # que GET muestre el formulario de subida.
+        # =============================================================
+        if summary.puede_saltar_mapeo:
+            logger.info(
+                f'[DIAG] ¡Mapeo automático! Saltando pantalla de mapeo '
+                f'({summary.auto} automáticas, {summary.review} revisión, '
+                f'{summary.manual} manuales, confianza={summary.confianza_promedio:.1f}%).'
+            )
+            logger.info(
+                f'[DIAG] ¡Mapeo 100% automático! Saltando pantalla de mapeo '
+                f'({summary.auto} columnas mapeadas automáticamente).'
+            )
+            # Guardar en sesión
+            request.session['mapping_data'] = {str(k): v for k, v in mapeo_idx.items()}
+            request.session['modo_importacion'] = 'crear'
+            request.session['mapeo_saltado'] = True
+
+            # Guardar automáticamente en la memoria de mapeo
+            guardar_memoria_mapeo(formulario, encabezados, mapeo_idx)
+
+            # Validación avanzada de estructura
+            validacion = validar_estructura(
+                formulario, encabezados, filas, mapeo_idx, match_results
+            )
+
+            if not validacion['valido']:
+                for error in validacion['errores']:
+                    messages.error(request, error)
+                _t_total = time.perf_counter()
+                logger.info(
+                    f'[DIAG] <<< PASO_SUBIR fin (saltada + errores → mapeo) | '
+                    f'total: {(_t_total - _t_subir) * 1000:.1f}ms'
+                )
+                return render(request, 'dynamic_forms/importar_excel.html', {
+                    'formulario': formulario,
+                    'paso': 'mapeo',
+                    'encabezados': encabezados,
+                    'encabezados_con_idx': encabezados_con_idx,
+                    'campos_activos': campos_activos,
+                    'mapeo_idx': mapeo_idx,
+                    'sin_mapear': sin_mapear,
+                    'total_filas': len(filas),
+                    'analysis_meta': analysis,
+                    'match_results': match_results,
+                    'calidad': analysis.get('calidad', {}),
+                    'conflictos_globales': analysis.get('conflictos_globales', []),
+                    'tipo_campos': tipo_campos,
+                    'auto_summary': _summary_to_dict(summary),
+                    'es_admin': es_administrador(request.user),
+                    'rol_usuario': rol_usuario(request.user),
+                })
+
+            # Preview de validación de filas
+            preview = previsualizar(formulario, encabezados, filas, mapeo_idx)
+            validas = [r for r in preview if r['valida']]
+            con_errores = [r for r in preview if not r['valida']]
+            modo_msg = MODOS_IMPORTACION.get('crear', 'Crear')
+
+            _t_total = time.perf_counter()
+            logger.info(
+                f'[DIAG] <<< PASO_SUBIR fin (saltando a preview) | '
+                f'total: {(_t_total - _t_subir) * 1000:.1f}ms'
+            )
+            return render(request, 'dynamic_forms/importar_excel.html', {
+                'formulario': formulario,
+                'paso': 'preview',
+                'preview': preview,
+                'validas': validas,
+                'con_errores': con_errores,
+                'total_filas': len(filas),
+                'validacion': validacion,
+                'modo_actual': 'crear',
+                'modo_msg': modo_msg,
+                'es_admin': es_administrador(request.user),
+                'rol_usuario': rol_usuario(request.user),
+                'analysis_meta': request.session.get('analysis_meta'),
+                'calidad': analysis.get('calidad', {}),
+                'conflictos_globales': analysis.get('conflictos_globales', []),
+                'tipo_campos': tipo_campos,
+                'auto_summary': _summary_to_dict(summary),
+                'mapeo_saltado': True,
+            })
+
+        # Log motivos por los que NO se saltó el mapeo
+        motivos = getattr(summary, 'motivo_no_saltar', [])
+        if motivos:
+            logger.info(f'[DIAG] Motivos para mostrar pantalla de mapeo ({len(motivos)}):')
+            for m in motivos:
+                logger.info(f'[DIAG]   → {m}')
+            if len(motivos) <= 5:
+                for m in motivos:
+                    messages.info(request, m)
+        else:
+            logger.info(f'[DIAG] Mostrando pantalla de mapeo (sin motivos específicos) '
+                        f'Auto={summary.auto} Review={summary.review} Manual={summary.manual}')
+
+        _diag_log('post_analysis (mapeo + session)', _t_post)
+
+        _t_render = _diag_start('render (mapeo template)')
+        response = render(request, 'dynamic_forms/importar_excel.html', {
             'formulario': formulario,
             'paso': 'mapeo',
             'encabezados': encabezados,
@@ -983,9 +1473,23 @@ def importar_excel(request, formulario_id):
             'mapeo_idx': mapeo_idx,
             'sin_mapear': sin_mapear,
             'total_filas': len(filas),
+            'analysis_meta': analysis,
+            'match_results': match_results,
+            'calidad': analysis.get('calidad', {}),
+            'conflictos_globales': analysis.get('conflictos_globales', []),
+            'tipo_campos': tipo_campos,
+            'auto_summary': _summary_to_dict(summary),
             'es_admin': es_administrador(request.user),
             'rol_usuario': rol_usuario(request.user),
         })
+        _diag_log('render (mapeo template)', _t_render)
+
+        _t_total = time.perf_counter()
+        logger.info(
+            f'[DIAG] <<< PASO_SUBIR fin | total: {(_t_total - _t_subir) * 1000:.1f}ms | '
+            f'total_acumulado: {(_t_total - _t0) * 1000:.1f}ms'
+        )
+        return response
 
     return render(request, 'dynamic_forms/importar_excel.html', {
         'formulario': formulario,
@@ -993,6 +1497,57 @@ def importar_excel(request, formulario_id):
         'es_admin': es_administrador(request.user),
         'rol_usuario': rol_usuario(request.user),
     })
+
+
+@login_required(login_url='login')
+@admin_required
+def descargar_plantilla(request, formulario_id):
+    """
+    Descarga una plantilla Excel con la definición del formulario.
+    """
+    formulario = get_object_or_404(Formulario, id=formulario_id)
+
+    try:
+        buffer = generar_plantilla_excel(formulario)
+    except Exception as e:
+        logger.exception(f'Error generando plantilla para {formulario.nombre}: {e}')
+        messages.error(request, f'Error al generar la plantilla: {e}')
+        return redirect('dynamic_forms:ver_registros', formulario_id=formulario.id)
+
+    nombre_archivo = f'plantilla_{formulario.nombre.lower().replace(" ", "_")}.xlsx'
+    response = HttpResponse(
+        buffer.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
+    return response
+
+
+@login_required(login_url='login')
+@admin_required
+def descargar_errores_importacion(request, formulario_id):
+    """
+    Descarga un Excel con los errores de la última importación.
+    """
+    errores = request.session.pop('ultimos_errores', None)
+    nombre_form = request.session.pop('formulario_nombre_errores', 'importacion')
+
+    if not errores:
+        messages.info(request, 'No hay errores para descargar.')
+        return redirect('dynamic_forms:importar_excel', formulario_id=formulario_id)
+
+    buffer = generar_excel_errores(nombre_form, errores)
+    if buffer is None:
+        messages.info(request, 'No hay errores para descargar.')
+        return redirect('dynamic_forms:importar_excel', formulario_id=formulario_id)
+
+    nombre_archivo = f'errores_importacion_{nombre_form.lower().replace(" ", "_")}.xlsx'
+    response = HttpResponse(
+        buffer.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
+    return response
 
 
 @login_required(login_url='login')
@@ -1006,3 +1561,121 @@ def exportar_excel(request, formulario_id):
     ).select_related('usuario').order_by('-fecha_creacion')
 
     return exportar_registros_excel(registros, campos, formulario.nombre, relacion_resolver=_resolver_valores_relacion)
+
+
+# ======================================================================
+# Enterprise Import/Export — History, detail, rollback
+# ======================================================================
+
+
+@login_required(login_url='login')
+@admin_required
+def historial_importaciones(request, formulario_id):
+    formulario = get_object_or_404(Formulario, id=formulario_id)
+    importaciones = ImportLog.objects.filter(formulario=formulario).select_related('usuario').order_by('-fecha')
+    page_obj = Paginator(importaciones, 25).get_page(request.GET.get('page'))
+
+    for imp in page_obj:
+        imp.quality_display = f'{"★" * imp.calidad_estrellas}{"☆" * (5 - imp.calidad_estrellas)}'
+
+    return render(request, 'dynamic_forms/import_export/historial_importaciones.html', {
+        'formulario': formulario,
+        'page_obj': page_obj,
+        'es_admin': es_administrador(request.user),
+        'rol_usuario': rol_usuario(request.user),
+        'hay_importaciones': importaciones.exists(),
+    })
+
+
+@login_required(login_url='login')
+@admin_required
+def detalle_importacion(request, import_log_id):
+    import_log = get_object_or_404(
+        ImportLog.objects.select_related('formulario', 'usuario'),
+        id=import_log_id,
+    )
+    audits = ImportAudit.objects.filter(import_log=import_log).order_by('created_at')
+    snapshots = ImportSnapshot.objects.filter(import_log=import_log).select_related('registro')
+
+    try:
+        resultado = json.loads(import_log.resultado_json) if import_log.resultado_json else {}
+    except (json.JSONDecodeError, TypeError):
+        resultado = {}
+
+    page_obj = Paginator(audits, 50).get_page(request.GET.get('page'))
+
+    return render(request, 'dynamic_forms/import_export/detalle_importacion.html', {
+        'import_log': import_log,
+        'page_obj': page_obj,
+        'total_audits': audits.count(),
+        'total_snapshots': snapshots.count(),
+        'resultado': resultado,
+        'es_admin': es_administrador(request.user),
+        'rol_usuario': rol_usuario(request.user),
+    })
+
+
+@login_required(login_url='login')
+@admin_required
+def revertir_importacion(request, import_log_id):
+    import_log = get_object_or_404(
+        ImportLog.objects.select_related('formulario', 'usuario'),
+        id=import_log_id,
+    )
+
+    if request.method == 'POST':
+        from apps.platform.dynamic_forms.import_export.rollback import RollbackManager
+        rm = RollbackManager()
+        try:
+            result = rm.revert(import_log_id)
+            if result.get('errors'):
+                for err in result['errors'][:5]:
+                    messages.warning(request, err)
+            messages.success(request, f'Importación revertida: {result["reverted_count"]} registros afectados.')
+        except Exception as e:
+            messages.error(request, f'Error al revertir: {e}')
+        return redirect('dynamic_forms:detalle_importacion', import_log_id=import_log_id)
+
+    return render(request, 'dynamic_forms/import_export/revertir_importacion.html', {
+        'import_log': import_log,
+        'es_admin': es_administrador(request.user),
+        'rol_usuario': rol_usuario(request.user),
+    })
+
+
+@login_required(login_url='login')
+@admin_required
+def descargar_reporte_errores(request, import_log_id):
+    import_log = get_object_or_404(
+        ImportLog.objects.select_related('formulario', 'usuario'),
+        id=import_log_id,
+    )
+    audits = ImportAudit.objects.filter(import_log=import_log, tipo='error').order_by('created_at')
+
+    if not audits.exists():
+        messages.info(request, 'No hay errores registrados en esta importación.')
+        return redirect('dynamic_forms:detalle_importacion', import_log_id=import_log_id)
+
+    from openpyxl import Workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Errores'
+    ws.append(['ID', 'Tipo', 'Campo', 'Valor Anterior', 'Valor Nuevo', 'Mensaje', 'Fecha'])
+
+    for a in audits:
+        ws.append([
+            a.id, a.tipo, a.campo_nombre, a.valor_anterior[:100], a.valor_nuevo[:100],
+            a.mensaje, a.created_at.isoformat(),
+        ])
+
+    from io import BytesIO
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    response = HttpResponse(
+        buffer.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = f'attachment; filename="errores_importacion_{import_log.id}.xlsx"'
+    return response
