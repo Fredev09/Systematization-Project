@@ -1150,3 +1150,86 @@ Las 6 fases del plan de 10 fueron completadas en esta sesión:
 
 ### Próximo paso
 Migrar `importar_excel` view a `importar_con_pipeline()` para que todas las importaciones queden registradas en ImportLog/ImportAudit/ImportSnapshot. Actualmente el flujo legacy (`previsualizar()` + `importar()`) sigue siendo el default.
+
+---
+
+## [2026-06-28] Corrección de 4 bugs funcionales en módulo IA + Document Intelligence
+
+### Trabajo realizado
+Auditoría y corrección de 4 bugs abiertos en el módulo IA y Document Intelligence, sin refactorizar ni cambiar arquitectura.
+
+**Bug 1 — Form similarity ignorada al crear formulario**
+- Causa raíz: `_handle_create_form()` en `document_intelligence/views.py:1809` siempre creaba un nuevo `Formulario.objects.create()` sin leer el campo `use_existing_form_id` del POST.
+- Fix: Se agregó bloque al inicio que verifica `request.POST.get("use_existing_form_id")`. Si está presente, redirige al formulario existente con mensaje de éxito, limpia el archivo temporal y elimina el resultado de la sesión. No crea un formulario duplicado.
+
+**Bug 2 — Confianza binaria 95% o 50%**
+- Causa raíz: Los 5 prompts de AI (`detect_fields.md`, `detect_form.md`, `detect_invoice.md`, `detect_table.md`) hardcodeaban `"confidence": 0.95` en todos los ejemplos JSON. El LLM replicaba este patrón ciegamente. Para campos no detectados, los fallbacks en Python retornaban 0.5.
+- Fix: En cada prompt, se reemplazó `0.95` por valores variados (0.87, 0.82, 0.88, 0.85) y se agregó instrucción explícita de calibración: "CALIBRA la confianza según la evidencia", "NO uses 0.95 por defecto", y rangos sugeridos por nivel de certeza.
+
+**Bug 3 — Chatbox pobre (sin contexto del sistema)**
+- Causa raíz: `_build_system_context()` (línea 765) consultaba datos completos del sistema (formularios, registros, importaciones, usuarios, estadísticas IA) pero **nunca era llamada** en el flujo online. Solo se usaba en modo offline. `ConversationalDocuments.ask()` recibía solo el contexto del documento actual (`doc_ctx`), sin información del sistema.
+- Fix: En `ai_chat_ask()`, se antepone `_build_system_context(request)` a la pregunta del usuario antes de pasarla a `cd.ask()`. El AI ahora recibe contexto completo del sistema para responder preguntas sobre formularios, registros, importaciones, etc.
+
+**Bug 4 — Comentarios {# #} multilínea en templates**
+- Causa raíz: Django `{# #}` es monolínea. 3 templates usaban comentarios decorativos multilínea con `{# #}`, causando que `{% include %}` en medio del comentario se ejecutara como código activo (RecursionError en `_field_editor.html` ya corregido en sesión anterior). Quedaban 2 archivos pendientes.
+- Fix: Reemplazados `{# #}` por `{% comment %}...{% endcomment %}` en `_field_row.html:2-9` y `create_from_file.html:299-303`. Verificación por grep: 0 multilínea `{# #}` restantes.
+
+### Archivos modificados
+- `apps/platform/document_intelligence/views.py` — Bug 1: `_handle_create_form` ahora lee `use_existing_form_id` y redirige al formulario existente sin duplicar. Bug 3: `ai_chat_ask` antepone `_build_system_context()` al prompt del AI.
+- `apps/platform/ai/prompts/detect_fields.md` — Bug 2: confidence variado (0.87), instrucción de calibración.
+- `apps/platform/ai/prompts/detect_form.md` — Bug 2: confidence variado (0.82/0.8), instrucción de calibración.
+- `apps/platform/ai/prompts/detect_invoice.md` — Bug 2: confidence variado (0.88/0.92), instrucción de calibración.
+- `apps/platform/ai/prompts/detect_table.md` — Bug 2: confidence variado (0.85/0.87/0.82), instrucción de calibración.
+- `templates/dynamic_forms/_field_row.html` — Bug 4: `{# #}` → `{% comment %}`.
+- `apps/platform/document_intelligence/templates/document_intelligence/create_from_file.html` — Bug 4: `{# #}` → `{% comment %}`.
+
+### Decisiones importantes
+- **No refactor**: Los 4 bugs se corrigieron con cambios mínimos, sin modificar la arquitectura ni aplicar SOLID.
+- **Prompt calibration over code**: Para Bug 2, se optó por instruir al LLM sobre calibración de confianza en lugar de post-procesar sus respuestas, porque la raíz del problema está en el prompt.
+- **System context como prefijo**: Para Bug 3, se antepone el contexto del sistema a la pregunta del usuario en lugar de modificar `ConversationalDocuments`, porque solo el chat principal (`ai_chat_ask`) necesita contexto global; las preguntas sobre documentos individuales no.
+
+### Validaciones
+- `python manage.py check` — 0 issues.
+- Verificación grep: 0 multilínea `{# #}` restantes en templates HTML.
+- Bug 1: confirmado que `use_existing_form_id` nunca se leía en el handler (0 ocurrencias en Python).
+- Bug 2: confirmado que todos los prompts hardcodeaban `0.95`.
+- Bug 3: confirmado que `_build_system_context()` estaba definida pero no se usaba en el flujo online.
+- Bug 4: grep confirmó que los 2 archivos pendientes fueron corregidos.
+
+---
+
+## [2026-06-28] Phase 4 — AI Assistant: ValorCampo access, form aliases, conversation memory
+
+### Trabajo realizado
+
+5 cambios en `apps/platform/document_intelligence/views.py`:
+
+1. **ValorCampo en Data Agent**: Agregado `valor`/`valores` a `_DATA_AGENT_MODELS` + `ValorCampo` a `_DATA_AGENT_LABELS`. Los usuarios ahora pueden preguntar "¿cuántos valores hay?" y el Data Agent responde con datos reales.
+
+2. **Form alias system**: Nuevo diccionario `_FORM_ALIASES` mapea términos de negocio (`producto`, `venta`, `cliente`, `inventario`) a nombres de formulario dinámicos. Cuando el usuario pregunta "¿Cuántos productos hay?", el Data Agent detecta `producto` como alias, filtra `Registro.objects.filter(formulario__nombre="Productos")` y responde con el conteo correcto (no el total de todos los formularios).
+
+3. **ValorCampo enrichment en listados**: Para preguntas tipo "list" con `form_filter`, los items de `Registro` se enriquecen con datos de `ValorCampo` vía `DS.cargar_valores_mapa()` — el identificador principal se usa como nombre visible. Ej: "Muéstrame los productos" → muestra "Blusa Floral" en vez de "Registro #123".
+
+4. **Business data context en `_build_system_context()`**: Nueva sección `[DATOS DE NEGOCIO]` que incluye:
+   - **Productos**: listado con stock, precio, categoría; valor total del inventario; alerta de stock bajo (<10).
+   - **Ventas**: ingresos totales, unidades vendidas, ticket promedio, últimas ventas.
+   - **Clientes**: total, activos, inactivos.
+   
+   Esto permite al Chat IA responder preguntas como "¿Hay productos con stock bajo?" o "¿Cuánto vale el inventario?" sin necesidad de una query engine separado.
+
+5. **Conversation memory**: `ai_chat_ask` ahora acumula historial Q&A en `request.session["di_chat_history"]`. Hasta 5 exchanges previos se incluyen en el prompt como contexto de conversación. Cache deshabilitado para preguntas conversacionales (`use_cache=False`).
+
+### Archivos modificados
+- `apps/platform/document_intelligence/views.py` — 5 cambios en `_DATA_AGENT_MODELS`, `_DATA_AGENT_LABELS`, `_detect_data_intent`, `_execute_safe_query`, `_build_system_context`, `ai_chat_ask`.
+
+### Decisiones importantes
+- **Session-based conversation memory**: En vez de modificar `ConversationalDocuments` (refactor fuera del alcance), se usa `di_chat_history` en la sesión con topes de 5 exchanges previos y 20 exchanges máximos.
+- **Form alias como filtro de Registro**: En vez de agregar modelos a `_DATA_AGENT_MODELS` (que requerirían queries especializados), los aliases redirigen a `Registro` con `formulario__nombre` filter. Simple y reutiliza toda la infraestructura existente.
+- **ValorCampo enrichment batch**: Los nombres visibles se resuelven con `DS.cargar_valores_mapa()` (batch query, no N+1) y el `identificador_principal` del formulario. Fallback al primer valor no-vacío.
+- **Cache deshabilitado en conversación**: `use_cache=False` evita que respuestas en caché rompan el flujo conversacional. El sistema context se regenera en cada pregunta (siempre actualizado).
+
+### Problemas encontrados
+- Ninguno. `python manage.py check` → 0 issues. `makemigrations --check` → No changes detected.
+
+### Próximo paso
+Phase 5 — SmartLearner/MemoryLearner wiring: conectar los métodos `record_*` que tienen callers reales en producción; demostrar dónde debería ocurrir el aprendizaje antes de conectar.

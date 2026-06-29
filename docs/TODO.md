@@ -148,3 +148,4 @@ Validación: `check`, limpieza de `__pycache__`, `makemigrations --check`.
 | R14 | Configuración de identificación en crear/editar formulario | Alta | ✅ Completado |
 | R15 | Tablas sin ID interno, identificador principal primero | Alta | ✅ Completado |
 | R16 | Servicios de infraestructura: obtener_identificador_principal, buscar_por_identificador, upsert_por_identificador | Alta | ✅ Completado |
+| R18 | Phase 4 — AI Assistant: ValorCampo, form aliases, conversation memory, business context | Alta | ✅ Completado |

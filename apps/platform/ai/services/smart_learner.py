@@ -179,6 +179,8 @@ class SmartLearner:
 
     def _save_all(self) -> None:
         """Save all extended memories to disk."""
+        from apps.platform.ai.utils import make_json_serializable
+
         for fname, attr in [
             ("provider_performance.json", "_provider_performance"),
             ("prompt_performance.json", "_prompt_performance"),
@@ -189,14 +191,9 @@ class SmartLearner:
         ]:
             path = self.memory_dir / fname
             try:
-                data = getattr(self, attr)
-                # Convert dataclasses to dicts for serialization
-                if isinstance(data, dict) and data:
-                    sample = next(iter(data.values()))
-                    if hasattr(sample, '__dataclass_fields__'):
-                        data = {k: v.__dict__ for k, v in data.items()}
+                data = make_json_serializable(getattr(self, attr))
                 path.write_text(
-                    json.dumps(data, ensure_ascii=False, indent=2, default=str),
+                    json.dumps(data, ensure_ascii=False, indent=2),
                     encoding="utf-8",
                 )
             except OSError as e:

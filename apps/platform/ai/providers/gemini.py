@@ -2,15 +2,15 @@
 gemini.py — Google Gemini provider implementation.
 
 Supports:
-  - Gemini 2.0 Flash (default, fast + cheap)
-  - Gemini 2.5 Flash / Pro (configure via GEMINI_MODEL env var)
+  - Gemini 2.5 Flash (default, recommended by Google AI Studio)
+  - Gemini 2.5 Flash-Lite, Gemini 3 Flash / Pro (via GEMINI_MODEL env var)
   - Image analysis (base64 inline)
   - JSON mode via response_mime_type
   - System instructions
 
 Configuration (.env):
   GEMINI_API_KEY=your_key
-  GEMINI_MODEL=gemini-2.0-flash    (default)
+  GEMINI_MODEL=gemini-2.5-flash    (default)
   AI_PROVIDER=gemini
 """
 
@@ -62,7 +62,6 @@ class GeminiProvider(BaseAIProvider):
         """
         url = (
             f"{GEMINI_API_BASE}/{self.config.model}:generateContent"
-            f"?key={self.config.api_key}"
         )
 
         body: dict[str, Any] = {
@@ -82,22 +81,50 @@ class GeminiProvider(BaseAIProvider):
             }
 
         logger.debug(
-            "Gemini request: model=%s, parts=%d",
+            "[GEMINI] model=%s | endpoint=%s | messages=%d | temperature=%s | max_tokens=%s",
             self.config.model,
+            url,
             len(messages),
+            self.config.temperature,
+            self.config.max_tokens,
         )
 
+        # SAFE: API Key se envía como header X-Goog-Api-Key, NO en URL
+        # (los parámetros URL pueden quedar registrados en logs de proxy/server)
         resp = requests.post(
             url,
             json=body,
             timeout=self.config.timeout,
-            headers={"Content-Type": "application/json"},
+            headers={
+                "Content-Type": "application/json",
+                "X-Goog-Api-Key": self.config.api_key,
+            },
         )
 
+        # Sanitizar: ocultar API key en caso de que aparezca en la respuesta
+        resp_safe = resp.text[:1000].replace(self.config.api_key, "***") if self.config.api_key else resp.text[:1000]
+
         if resp.status_code != 200:
+            logger.warning(
+                "[GEMINI] HTTP %s | body=%s",
+                resp.status_code,
+                resp_safe,
+            )
             self._handle_http_error(resp.status_code, resp.text)
 
-        data = resp.json()
+        try:
+            data = resp.json()
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.error("[GEMINI] Invalid JSON response: %s", e)
+            return {
+                "text": "",
+                "json_data": None,
+                "model": self.config.model,
+                "provider": ProviderType.GEMINI.value,
+                "usage": {},
+                "success": False,
+                "error": f"Respuesta inválida del proveedor Gemini: {e}",
+            }
 
         # Parse response
         text = ""

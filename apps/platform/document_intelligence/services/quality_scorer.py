@@ -78,11 +78,13 @@ class QualityScorer:
         result.field_scores["completitud"] = completeness
 
         # Overall weighted score
+        # Extraction 30% (foundation), Classification 10% (nice-to-have),
+        # Form proposal 40% (what user actually edits), Completeness 20% (impacts import)
         weights = {
             "extraccion": 0.30,
-            "clasificacion": 0.25,
-            "propuesta": 0.30,
-            "completitud": 0.15,
+            "clasificacion": 0.10,
+            "propuesta": 0.40,
+            "completitud": 0.20,
         }
         result.overall = sum(
             result.field_scores.get(k, 0.0) * v for k, v in weights.items()
@@ -130,9 +132,10 @@ class QualityScorer:
             return 0.0
         has_id = 0.2 if proposal.identifier_field else 0.0
         has_currency = 0.1 if proposal.currency_field else 0.0
-        confidence = proposal.confidence * 0.4
-        field_variety = min(len(set(f.suggested_type for f in proposal.fields)) / 5, 1.0) * 0.3
-        return min(confidence + has_id + has_currency + field_variety, 1.0)
+        base_confidence = proposal.confidence * 0.35
+        field_variety = min(len(set(f.suggested_type for f in proposal.fields)) / 5, 1.0) * 0.15
+        field_count_bonus = min(n_fields / 5, 1.0) * 0.20
+        return min(base_confidence + has_id + has_currency + field_variety + field_count_bonus, 1.0)
 
     def _score_completeness(self, doc: ExtractedDocument) -> float:
         if not doc:

@@ -72,7 +72,7 @@ class ImportPipeline:
 
     def run(self, config: PipelineConfig) -> PipelineResult:
         t0 = time.time()
-        result = PipelineResult()
+        result = PipelineResult(success=True)
 
         try:
             formulario = Formulario.objects.get(id=config.formulario_id)

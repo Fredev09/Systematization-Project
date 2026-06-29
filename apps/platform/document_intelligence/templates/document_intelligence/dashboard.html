@@ -1,103 +1,495 @@
 {% extends "base/base.html" %}
 {% load static %}
 
-{% block title %}Document Intelligence{% endblock %}
+{% block titulo %}Document Intelligence{% endblock %}
 
-{% block extra_css %}
+{% block estilos %}
 <style>
-    .di-card { transition: transform .2s, box-shadow .2s; border-radius: 16px; overflow: hidden; }
-    .di-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,.15); }
-    .di-icon { font-size: 3rem; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; border-radius: 20px; }
-    .stat-card { border-radius: 12px; padding: 1.5rem; }
+/* ── Layout ── */
+.di-dashboard { max-width: 1400px; }
+.greeting-section { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); border-radius: 20px; padding: 2rem; color: white; }
+.greeting-section h1 { font-size: 1.8rem; font-weight: 700; }
+.greeting-section p { opacity: .85; margin: 0; }
+
+/* ── Stat cards ── */
+.stat-card { border-radius: 16px; border: none; transition: all .25s ease; }
+.stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,.1); }
+.stat-card .stat-icon { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; }
+.stat-card .stat-value { font-size: 1.8rem; font-weight: 800; line-height: 1.2; }
+.stat-card .stat-label { font-size: .8rem; color: #6b7280; font-weight: 500; text-transform: uppercase; letter-spacing: .5px; }
+
+/* ── Chart bars (CSS-only) ── */
+.chart-bar-container { display: flex; align-items: flex-end; gap: 4px; height: 100px; padding: 0 4px; }
+.chart-bar { flex: 1; border-radius: 4px 4px 0 0; min-height: 4px; transition: all .3s; position: relative; }
+.chart-bar:hover { opacity: .8; }
+.chart-bar .bar-tooltip { display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: #1f2937; color: white; padding: 2px 8px; border-radius: 6px; font-size: .7rem; white-space: nowrap; z-index: 10; }
+.chart-bar:hover .bar-tooltip { display: block; }
+
+/* ── Provider cards ── */
+.provider-card { border-radius: 14px; border: 1px solid #e5e7eb; transition: all .2s; padding: 1rem; }
+.provider-card:hover { border-color: #6366f1; box-shadow: 0 4px 12px rgba(99,102,241,.1); }
+.provider-card .provider-status { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+/* ── Nav cards ── */
+.nav-card { border-radius: 16px; border: 1px solid #e5e7eb; transition: all .25s ease; cursor: pointer; }
+.nav-card:hover { border-color: #6366f1; transform: translateY(-3px); box-shadow: 0 8px 20px rgba(99,102,241,.12); }
+.nav-card .nav-icon { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; }
+.nav-card h6 { font-weight: 600; margin-bottom: 2px; }
+.nav-card p { font-size: .78rem; color: #6b7280; margin: 0; }
+
+/* ── Recent activity table ── */
+.recent-table { font-size: .85rem; }
+.recent-table th { font-weight: 600; color: #6b7280; border-bottom-width: 1px; }
+.recent-table td { vertical-align: middle; }
+
+/* ── Dark mode overrides ── */
+html.dark-mode .stat-card { background: #1e293b !important; }
+html.dark-mode .stat-card .stat-label { color: #94a3b8; }
+html.dark-mode .provider-card { border-color: #334155; background: #1e293b; }
+html.dark-mode .provider-card:hover { border-color: #818cf8; }
+html.dark-mode .nav-card { border-color: #334155; background: #1e293b; }
+html.dark-mode .nav-card:hover { border-color: #818cf8; }
+html.dark-mode .nav-card p { color: #94a3b8; }
+html.dark-mode .recent-table { color: #e2e8f0; }
+html.dark-mode .recent-table th { color: #94a3b8; border-bottom-color: #334155; }
+html.dark-mode .table { color: #e2e8f0; }
+html.dark-mode .chart-bar-container { background: #1e293b; border-radius: 8px; padding: 8px 4px; }
+html.dark-mode .chart-bar { opacity: .8; }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+    .greeting-section { padding: 1.5rem; }
+    .greeting-section h1 { font-size: 1.4rem; }
+    .stat-card .stat-value { font-size: 1.4rem; }
+    .nav-card .nav-icon { width: 44px; height: 44px; font-size: 1.2rem; }
+}
 </style>
 {% endblock %}
 
-{% block content %}
-<div class="container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+{% block topbar_info %}
+<section class="topbar-icon">
+    <i class="fas fa-brain"></i>
+</section>
+<section>
+    <strong>Document Intelligence</strong>
+    <span>Centro de inteligencia documental</span>
+</section>
+{% endblock %}
+
+{% block contenido %}
+
+{# ── Greeting ── #}
+<div class="greeting-section mb-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
         <div>
-            <h1 class="mb-1">🧠 Document Intelligence</h1>
-            <p class="text-muted mb-0">Plataforma universal de análisis documental con IA</p>
+            <h1>🧠 Document Intelligence</h1>
+            <p>Centro de inteligencia documental — Analiza, aprende y automatiza con IA gratuita</p>
         </div>
-        <div>
-            <span class="badge bg-primary fs-6">v1.0</span>
+        <div class="d-flex gap-2 align-items-center">
+            {# ── AI Mode Status ── #}
+            {% if ai_mode %}
+            <div class="d-flex align-items-center gap-2 px-3 py-2 rounded-pill {% if ai_mode.status == 'online' %}bg-success bg-opacity-25{% elif ai_mode.status == 'partial' %}bg-warning bg-opacity-25{% else %}bg-secondary bg-opacity-25{% endif %}">
+                {% if ai_mode.status == 'online' %}
+                <span class="d-inline-block rounded-circle bg-success" style="width:10px;height:10px;"></span>
+                <span class="small fw-semibold text-white">🟢 IA Online</span>
+                {% elif ai_mode.status == 'partial' %}
+                <span class="d-inline-block rounded-circle bg-warning" style="width:10px;height:10px;"></span>
+                <span class="small fw-semibold text-white">🟡 IA Parcial ({{ ai_mode.configured }}/{{ ai_mode.total }})</span>
+                {% else %}
+                <span class="d-inline-block rounded-circle bg-secondary" style="width:10px;height:10px;"></span>
+                <span class="small fw-semibold text-white">⚪ IA Offline</span>
+                {% endif %}
+            </div>
+            {% endif %}
+            <span class="badge bg-white text-dark fs-6 px-3 py-2">v6.0</span>
+            {% if ai_data %}
+            <span class="badge bg-white bg-opacity-25 fs-6 px-3 py-2">
+                <i class="fas fa-chart-line me-1"></i>{{ ai_data.estimated_cost_usd|floatformat:4 }} USD
+            </span>
+            {% endif %}
         </div>
     </div>
-
-    {% if stats %}
-    <div class="row g-3 mb-4">
-        <div class="col-md-3">
-            <div class="stat-card bg-primary bg-opacity-10">
-                <small class="text-muted">Análisis (30 días)</small>
-                <h3 class="mb-0">{{ stats.total_calls }}</h3>
+    {# ── AI Mode message ── #}
+    {% if ai_mode and ai_mode.status == 'offline' %}
+    <div class="mt-3 p-3 rounded-3" style="background: rgba(255,255,255,.12);">
+        <div class="d-flex align-items-start gap-2">
+            <span style="font-size:1.2rem;">⚡</span>
+            <div>
+                <strong>Modo offline FREE-FIRST</strong>
+                <p class="mb-0 small" style="opacity:.9;">
+                    No hay APIs de IA configuradas. 
+                    <strong>Data Agent</strong> y <strong>ColumnMatcher</strong> heurístico siguen funcionando. 
+                    Los formularios dinámicos, importaciones y usuarios no requieren IA. 
+                    Configura <code>GEMINI_API_KEY</code> en tu .env para habilitar OCR, Chat IA y análisis avanzados.
+                </p>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="stat-card bg-success bg-opacity-10">
-                <small class="text-muted">Exitosos</small>
-                <h3 class="mb-0">{{ stats.successful }}</h3>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stat-card bg-info bg-opacity-10">
-                <small class="text-muted">En caché</small>
-                <h3 class="mb-0">{{ stats.cached }}</h3>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stat-card bg-warning bg-opacity-10">
-                <small class="text-muted">Costo estimado</small>
-                <h3 class="mb-0">${{ stats.estimated_cost_usd|floatformat:4 }}</h3>
-            </div>
-        </div>
+    </div>
+    {% elif ai_mode and ai_mode.status == 'partial' %}
+    <div class="mt-3 p-3 rounded-3" style="background: rgba(255,255,255,.12);">
+        <p class="mb-0 small" style="opacity:.9;">
+            🟡 <strong>Modo parcial:</strong> {{ ai_mode.message }} 
+            {% for key, prov in ai_mode.providers.items %}
+                {% if prov.configured %}<span class="badge bg-success bg-opacity-50 ms-1">{{ prov.name }}</span>{% endif %}
+            {% endfor %}
+        </p>
     </div>
     {% endif %}
+</div>
 
-    <div class="row g-4">
-        <div class="col-md-4">
-            <a href="{% url 'document_intelligence:create_from_file' %}" class="text-decoration-none">
-                <div class="card di-card border-0 shadow-sm h-100">
-                    <div class="card-body text-center p-4">
-                        <div class="di-icon bg-primary bg-opacity-10 mx-auto mb-3">
-                            <span class="text-primary">📄</span>
-                        </div>
-                        <h5 class="card-title">Crear formulario con IA</h5>
-                        <p class="card-text text-muted small">Sube un Excel, CSV, PDF o imagen. La IA detecta campos y genera el formulario automáticamente.</p>
-                        <span class="badge bg-primary">Nuevo</span>
-                    </div>
+{# ── Stats Grid ── #}
+{% if ai_data %}
+<div class="row g-3 mb-4">
+    <div class="col-md-3 col-6">
+        <div class="stat-card card shadow-sm p-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="stat-icon bg-primary bg-opacity-10 text-primary">
+                    <i class="fas fa-file-alt"></i>
                 </div>
-            </a>
+                <div>
+                    <div class="stat-value">{{ ai_data.total_calls }}</div>
+                    <div class="stat-label">Documentos analizados</div>
+                </div>
+            </div>
         </div>
-
-        <div class="col-md-4">
-            <a href="{% url 'document_intelligence:scan_invoice' %}" class="text-decoration-none">
-                <div class="card di-card border-0 shadow-sm h-100">
-                    <div class="card-body text-center p-4">
-                        <div class="di-icon bg-success bg-opacity-10 mx-auto mb-3">
-                            <span class="text-success">🧾</span>
-                        </div>
-                        <h5 class="card-title">Escanear factura</h5>
-                        <p class="card-text text-muted small">Toma una foto o sube un PDF de una factura. La IA extrae todos los datos automáticamente.</p>
-                        <span class="badge bg-success">Nuevo</span>
-                    </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card card shadow-sm p-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="stat-icon bg-success bg-opacity-10 text-success">
+                    <i class="fas fa-check-circle"></i>
                 </div>
-            </a>
+                <div>
+                    <div class="stat-value">{{ ai_data.successful_calls }}</div>
+                    <div class="stat-label">Exitosos</div>
+                </div>
+            </div>
         </div>
-
-        <div class="col-md-4">
-            <a href="{% url 'document_intelligence:history' %}" class="text-decoration-none">
-                <div class="card di-card border-0 shadow-sm h-100">
-                    <div class="card-body text-center p-4">
-                        <div class="di-icon bg-info bg-opacity-10 mx-auto mb-3">
-                            <span class="text-info">📊</span>
-                        </div>
-                        <h5 class="card-title">Historial IA</h5>
-                        <p class="card-text text-muted small">Consulta el historial completo de análisis, tokens, costos y resultados.</p>
-                        <span class="badge bg-info">Historial</span>
-                    </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card card shadow-sm p-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="stat-icon bg-info bg-opacity-10 text-info">
+                    <i class="fas fa-database"></i>
                 </div>
-            </a>
+                <div>
+                    <div class="stat-value">{{ ai_data.cache_hit_rate|floatformat:1 }}%</div>
+                    <div class="stat-label">Cache hit rate</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="stat-card card shadow-sm p-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="stat-icon bg-warning bg-opacity-10 text-warning">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div>
+                    <div class="stat-value">{{ ai_data.avg_time_ms|floatformat:0 }}ms</div>
+                    <div class="stat-label">Tiempo promedio</div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
+{# ── Provider + Cache Row ── #}
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-transparent border-bottom-0 pt-3 px-4">
+                <h6 class="mb-0 fw-bold"><i class="fas fa-cloud me-2"></i>Proveedores IA</h6>
+            </div>
+            <div class="card-body px-4">
+                <div class="row g-2">
+                    {% for provider, count in ai_data.by_provider.items %}
+                    <div class="col-6">
+                        <div class="provider-card d-flex align-items-center gap-2">
+                            <div>
+                                {% if provider == "gemini" %}<span class="provider-status bg-primary"></span>
+                                {% elif provider == "deepseek" %}<span class="provider-status bg-success"></span>
+                                {% elif provider == "openrouter" %}<span class="provider-status bg-warning"></span>
+                                {% elif provider == "qwen" %}<span class="provider-status bg-info"></span>
+                                {% else %}<span class="provider-status bg-secondary"></span>
+                                {% endif %}
+                            </div>
+                            <div class="flex-grow-1">
+                                <small class="fw-semibold d-block">{{ provider|capfirst }}</small>
+                                <small class="text-muted">{{ count }} llamadas</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="col-12"><p class="text-muted small mb-0">Sin datos de proveedores aún.</p></div>
+                    {% endfor %}
+                </div>
+                {% if ai_data.best_providers %}
+                <hr class="my-2">
+                <small class="text-muted fw-semibold">🏆 Mejor proveedor por tarea:</small>
+                <div class="mt-1">
+                    {% for task, provider in ai_data.best_providers.items %}
+                    <span class="badge bg-light text-dark me-1 mb-1 border">
+                        {{ task }}: <strong>{{ provider }}</strong>
+                    </span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-header bg-transparent border-bottom-0 pt-3 px-4">
+                <h6 class="mb-0 fw-bold"><i class="fas fa-microchip me-2"></i>Cache por nivel</h6>
+            </div>
+            <div class="card-body px-4">
+                {% if ai_data.cache_by_level %}
+                <div class="table-responsive">
+                    <table class="table table-sm recent-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Nivel</th>
+                                <th class="text-end">Hits</th>
+                                <th class="text-end">Misses</th>
+                                <th class="text-end">TTL</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for level, stats in ai_data.cache_by_level.items %}
+                            <tr>
+                                <td><span class="badge bg-secondary bg-opacity-25 text-dark">{{ level }}</span></td>
+                                <td class="text-end">{{ stats.hits }}</td>
+                                <td class="text-end">{{ stats.misses }}</td>
+                                <td class="text-end">{{ stats.ttl }}s</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted small mb-0">Sin actividad de caché aún.</p>
+                {% endif %}
+                {% if ai_data.estimated_savings_usd > 0 %}
+                <div class="mt-2 p-2 bg-success bg-opacity-10 rounded-3 text-center">
+                    <small class="fw-semibold text-success">
+                        <i class="fas fa-dollar-sign me-1"></i>
+                        Ahorro estimado por caché: ${{ ai_data.estimated_savings_usd }}
+                    </small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-info d-flex align-items-center gap-3 mb-4 rounded-4 border-0 shadow-sm">
+    <i class="fas fa-info-circle fs-4"></i>
+    <div>
+        <strong>No hay estadísticas de IA aún</strong><br>
+        <small>
+            {% if ai_mode and ai_mode.status == 'offline' %}
+            Modo offline FREE-FIRST activo. Los datos aparecerán aquí después de analizar documentos con IA.
+            <a href="#" class="text-decoration-underline ms-1" onclick="alert('Configura GEMINI_API_KEY en tu archivo .env para habilitar la IA.'); return false;">¿Cómo habilitar IA?</a>
+            {% else %}
+            Los datos aparecerán aquí después de analizar documentos con IA.
+            {% endif %}
+        </small>
+    </div>
+</div>
+{% endif %}
+
+{# ── Navigation Grid ── #}
+<h5 class="fw-bold mb-3"><i class="fas fa-th-large me-2"></i>Módulos</h5>
+<div class="row g-3 mb-4">
+    <div class="col-md-3 col-6">
+        <a href="{% url 'document_intelligence:document_upload' %}" class="text-decoration-none">
+            <div class="nav-card card p-3 h-100 shadow-sm">
+                <div class="d-flex align-items-start gap-3">
+                    <div class="nav-icon bg-primary bg-opacity-10 text-primary">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-0">Analizar</h6>
+                        <p>Sube y analiza documentos con IA</p>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3 col-6">
+        <a href="{% url 'document_intelligence:scan_invoice' %}" class="text-decoration-none">
+            <div class="nav-card card p-3 h-100 shadow-sm">
+                <div class="d-flex align-items-start gap-3">
+                    <div class="nav-icon bg-success bg-opacity-10 text-success">
+                        <i class="fas fa-file-invoice"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-0">Facturas</h6>
+                        <p>Escanea y extrae facturas</p>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3 col-6">
+        <a href="{% url 'document_intelligence:ai_chat' %}" class="text-decoration-none">
+            <div class="nav-card card p-3 h-100 shadow-sm">
+                <div class="d-flex align-items-start gap-3">
+                    <div class="nav-icon bg-purple bg-opacity-10" style="background: rgba(139,92,246,.1) !important; color: #8b5cf6;">
+                        <i class="fas fa-comment-dots"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-0">Chat IA</h6>
+                        <p>Consulta documentos con lenguaje natural</p>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3 col-6">
+        <a href="{% url 'document_intelligence:ai_reports' %}" class="text-decoration-none">
+            <div class="nav-card card p-3 h-100 shadow-sm">
+                <div class="d-flex align-items-start gap-3">
+                    <div class="nav-icon bg-warning bg-opacity-10 text-warning">
+                        <i class="fas fa-chart-pie"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-0">Reportes</h6>
+                        <p>Reportes ejecutivos con IA</p>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3 col-6">
+        <a href="{% url 'document_intelligence:history' %}" class="text-decoration-none">
+            <div class="nav-card card p-3 h-100 shadow-sm">
+                <div class="d-flex align-items-start gap-3">
+                    <div class="nav-icon bg-info bg-opacity-10 text-info">
+                        <i class="fas fa-history"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-0">Historial</h6>
+                        <p>Todos los análisis realizados</p>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3 col-6">
+        <a href="#" class="text-decoration-none disabled-link" onclick="alert('Próximamente: Workflow Builder para automatizaciones.'); return false;">
+            <div class="nav-card card p-3 h-100 shadow-sm">
+                <div class="d-flex align-items-start gap-3">
+                    <div class="nav-icon bg-danger bg-opacity-10 text-danger">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-0">Automatizaciones</h6>
+                        <p>Workflows automáticos (próximamente)</p>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3 col-6">
+        <a href="{% url 'document_intelligence:ai_settings' %}" class="text-decoration-none">
+            <div class="nav-card card p-3 h-100 shadow-sm">
+                <div class="d-flex align-items-start gap-3">
+                    <div class="nav-icon bg-secondary bg-opacity-10 text-secondary">
+                        <i class="fas fa-sliders-h"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-0">Configuración</h6>
+                        <p>Proveedores, límites y caché</p>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-3 col-6">
+        <a href="{% url 'dynamic_forms:listar_formularios' %}" class="text-decoration-none">
+            <div class="nav-card card p-3 h-100 shadow-sm">
+                <div class="d-flex align-items-start gap-3">
+                    <div class="nav-icon" style="background: rgba(16,185,129,.1) !important; color: #10b981;">
+                        <i class="fas fa-table"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-0">Formularios</h6>
+                        <p>Dynamic Forms generados</p>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+
+{# ── Recent Activity ── #}
+<div class="card shadow-sm border-0 rounded-4">
+    <div class="card-header bg-transparent border-bottom-0 pt-3 px-4 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold"><i class="fas fa-clock me-2"></i>Actividad reciente</h6>
+        <a href="{% url 'document_intelligence:history' %}" class="btn btn-sm btn-outline-secondary">Ver todo</a>
+    </div>
+    <div class="card-body px-4 pb-4">
+        {% if recent_logs %}
+        <div class="table-responsive">
+            <table class="table recent-table mb-0">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Documento</th>
+                        <th>Proveedor</th>
+                        <th>Tokens</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in recent_logs %}
+                    <tr>
+                        <td class="text-nowrap">{{ log.created_at|date:"H:i" }}</td>
+                        <td>
+                            <span class="fw-medium">{{ log.document_name|truncatechars:28|default:"—" }}</span>
+                            {% if log.document_type %}<small class="text-muted d-block">{{ log.document_type }}</small>{% endif %}
+                        </td>
+                        <td><span class="badge bg-light text-dark border">{{ log.provider }}</span></td>
+                        <td>{{ log.total_tokens }}</td>
+                        <td>
+                            {% if log.success %}
+                                {% if log.cached %}<span class="badge bg-info">Cache</span>
+                                {% else %}<span class="badge bg-success">OK</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-danger" title="{{ log.error_message|truncatechars:60 }}">Error</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <div style="font-size: 3rem;" class="mb-2">📭</div>
+            <p class="text-muted mb-0">No hay actividad registrada aún.</p>
+            <a href="{% url 'document_intelligence:document_upload' %}" class="btn btn-primary mt-2">
+                <i class="fas fa-cloud-upload-alt me-1"></i>Analizar tu primer documento
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    'use strict';
+    // Tooltip initialization for dynamic content
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(el) {
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            new bootstrap.Tooltip(el);
+        }
+    });
+})();
+</script>
 {% endblock %}

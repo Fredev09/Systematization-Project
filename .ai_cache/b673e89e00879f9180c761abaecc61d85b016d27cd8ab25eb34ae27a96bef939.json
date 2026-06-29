@@ -1,0 +1,17 @@
+{
+  "key": "b673e89e00879f9180c761abaecc61d85b016d27cd8ab25eb34ae27a96bef939",
+  "data": {
+    "text": "¡Parce! Según la información de los \"Últimos 30 días\", el sistema de inteligencia artificial no ha tenido ningún movimiento este mes. Todo está en cero:\n\n*   **Documentos analizados:** 0\n*   **Exitosos:** 0 (0 fallos)\n*   **En caché:** 0 (hit rate: 0.0%)\n*   **Tokens totales:** 0\n*   **Costo estimado:** $0.000000\n*   **Tiempo promedio:** 0ms\n*   **Documentos únicos:** 0\n*   **OCRs realizados:** 0\n*   **Proveedor más usado:** No hay ninguno registrado.\n*   **Mejores proveedores por tarea:** No hay ninguno registrado.\n\nEn resumen, en lo que respecta a la actividad de IA, este mes no ha habido ningún cambio, pues no se ha registrado uso.\n\nPara las otras secciones, como los \"Formularios Dinámicos\" o los \"Usuarios del Sistema\", el documento solo nos muestra el estado actual, no hay datos de cómo estaban antes para saber si hubo cambios este mes. Lo que sí se ve es que el proveedor `gemini` está activo, pero sin requests ni tokens registrados.\n\nAh, y hay un error en la sección de \"FORMULARIOS\" que dice `name 'models' is not defined`.",
+    "json_data": null,
+    "model": "gemini-2.5-flash",
+    "provider": "gemini",
+    "usage": {
+      "prompt_tokens": 501,
+      "completion_tokens": 292,
+      "total_tokens": 1939
+    }
+  },
+  "created_at": 1782672694.2338276,
+  "provider": "gemini",
+  "model": "gemini-2.5-flash"
+}

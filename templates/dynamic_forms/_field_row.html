@@ -1,12 +1,12 @@
 {% load static %}
-{# ════════════════════════════════════════════════════════════════════
+{% comment %} ════════════════════════════════════════════════════════════════════
    _field_row.html — Fila única de campo para el editor reutilizable.
    
    Variables:
      - campo: Objeto Campo (None si es fila vacía)
      - index: int — índice numérico para IDs
      - prefix: str — prefijo para IDs (ej: "g", "e")
-   ════════════════════════════════════════════════════════════════════ #}
+   ════════════════════════════════════════════════════════════════════ {% endcomment %}
 
 {% with id_prefix=prefix|default:'' %}
 <div class="campo-fila row g-2 mb-2 align-items-center" data-index="{{ index }}">

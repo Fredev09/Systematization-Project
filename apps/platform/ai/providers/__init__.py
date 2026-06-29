@@ -84,7 +84,7 @@ def _build_config(
         ProviderType.QWEN: "QWEN_API_KEY",
     }
     model_attrs = {
-        ProviderType.GEMINI: ("GEMINI_MODEL", "gemini-2.0-flash"),
+        ProviderType.GEMINI: ("GEMINI_MODEL", "gemini-2.5-flash"),
         ProviderType.OPENROUTER: ("OPENROUTER_MODEL", "openai/gpt-4o-mini"),
         ProviderType.DEEPSEEK: ("DEEPSEEK_MODEL", "deepseek-chat"),
         ProviderType.QWEN: ("QWEN_MODEL", "qwen-plus"),

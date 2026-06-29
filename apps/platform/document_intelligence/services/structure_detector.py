@@ -188,7 +188,7 @@ class StructureDetector:
         for doc_type, keywords in _TYPE_SIGNATURES.items():
             matches = sum(1 for kw in keywords if kw in text)
             if matches > 0:
-                scores[doc_type] = matches / max(len(keywords) * 0.3, 1)
+                scores[doc_type] = matches / len(keywords)
 
         if not scores:
             return DocumentClassification(confidence=0.0)
@@ -230,11 +230,16 @@ class StructureDetector:
                 text_lower = response.text.lower().strip()
                 for doc_type in _TYPE_SIGNATURES:
                     if doc_type in text_lower:
+                        # Parse confidence from AI response if available
+                        import re as _re
+                        conf_match = _re.search(r'confian[zç]a[:\s]+([0-9.]+)', text_lower)
+                        conf_ai = float(conf_match.group(1)) if conf_match else 0.75
+                        conf_ai = min(max(conf_ai, 0.0), 1.0)
                         return DocumentClassification(
                             document_type=doc_type,
-                            confidence=0.85,
+                            confidence=conf_ai,
                             method="ai",
-                            explanation=f"AI classified this document as '{doc_type}'",
+                            explanation=f"AI classified this document as '{doc_type}' with {conf_ai:.0%} confidence",
                         )
 
         except Exception as e:

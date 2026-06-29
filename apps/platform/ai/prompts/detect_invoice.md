@@ -39,6 +39,7 @@ Lista todos los campos de datos que identificaste en la factura.
 - Ejemplo: "$1.500.000,50" = 1500000.50
 - No inventes datos que no estén presentes en la factura
 - Si un valor no se encuentra, déjalo como string vacío o 0.0
+- **CALIBRA confianza**: 0.95 solo para campos visibles y claramente identificables en la factura; 0.7-0.85 para valores inferidos o parcialmente legibles; nunca uses 0.95 por defecto.
 
 ## Formato de respuesta
 Responde ÚNICAMENTE con un JSON válido en este formato exacto:
@@ -64,10 +65,10 @@ Responde ÚNICAMENTE con un JSON válido en este formato exacto:
     {
       "name": "nombre_del_campo",
       "type": "tipo_sugerido",
-      "confidence": 0.95
+      "confidence": 0.88
     }
   ],
-  "confidence": 0.95,
+  "confidence": 0.92,
   "warnings": []
 }
 ```

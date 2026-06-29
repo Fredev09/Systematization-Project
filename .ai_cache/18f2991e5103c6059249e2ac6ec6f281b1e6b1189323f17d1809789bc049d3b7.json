@@ -1,0 +1,17 @@
+{
+  "key": "18f2991e5103c6059249e2ac6ec6f281b1e6b1189323f17d1809789bc049d3b7",
+  "data": {
+    "text": "¡Parce, el documento que me pasaste no tiene esa información!\n\nEste documento describe una \"Document Intelligence Platform\" y menciona que usa \"gemini\" como proveedor para el análisis de documentos (como el archivo `01_productos_validos.xlsx`). Pero no dice nada sobre la API o el modelo que yo estoy usando para conversar contigo en este chat.",
+    "json_data": null,
+    "model": "gemini-2.5-flash",
+    "provider": "gemini",
+    "usage": {
+      "prompt_tokens": 600,
+      "completion_tokens": 76,
+      "total_tokens": 996
+    }
+  },
+  "created_at": 1782674962.2816772,
+  "provider": "gemini",
+  "model": "gemini-2.5-flash"
+}

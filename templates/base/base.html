@@ -89,6 +89,13 @@
                     <span>Reportes</span>
                 </a>
 
+                <p class="menu-title">INTELIGENCIA</p>
+
+                <a href="{% url 'document_intelligence:dashboard' %}" class="menu-link {% if 'document_intelligence' in request.resolver_match.namespaces %}active{% endif %}">
+                    <i class="fas fa-brain"></i>
+                    <span>Document Intelligence</span>
+                </a>
+
                 <p class="menu-title">ADMINISTRACIÓN</p>
 
                 <a href="{% url 'usuarios' %}" class="menu-link {% if request.resolver_match.url_name == 'usuarios' %}active{% endif %}">

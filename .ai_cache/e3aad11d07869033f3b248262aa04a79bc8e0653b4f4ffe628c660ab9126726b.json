@@ -1,0 +1,17 @@
+{
+  "key": "e3aad11d07869033f3b248262aa04a79bc8e0653b4f4ffe628c660ab9126726b",
+  "data": {
+    "text": "¡Parce! Revisando el documento, no encuentro por ningún lado la API key de Gemini. Esa información no está incluida en las estadísticas ni en los detalles que me pasaste.",
+    "json_data": null,
+    "model": "gemini-2.5-flash",
+    "provider": "gemini",
+    "usage": {
+      "prompt_tokens": 570,
+      "completion_tokens": 37,
+      "total_tokens": 802
+    }
+  },
+  "created_at": 1782674931.2295957,
+  "provider": "gemini",
+  "model": "gemini-2.5-flash"
+}

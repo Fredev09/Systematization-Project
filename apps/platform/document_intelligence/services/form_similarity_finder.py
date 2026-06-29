@@ -14,11 +14,13 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from apps.platform.dynamic_forms.models import Campo, Formulario
+from apps.platform.dynamic_forms.column_matching import normalizar_columna
 
 logger = logging.getLogger(__name__)
 
 # Min similarity ratio to consider a form as "similar"
-MIN_SIMILARITY_THRESHOLD = 0.4
+# 0.6 = 60% field overlap is genuinely similar; lower values give false positives
+MIN_SIMILARITY_THRESHOLD = 0.6
 
 
 @dataclass
@@ -117,24 +119,11 @@ class FormSimilarityFinder:
 
     @staticmethod
     def _normalize_names(names: list[str]) -> list[str]:
-        """Normalize field names for comparison."""
+        """Normalize field names using the same algorithm as column_matching."""
         normalized = []
         for name in names:
             if not name:
                 continue
-            n = name.lower().strip()
-            # Remove common prefixes/suffixes
-            for prefix in ["_", "-"]:
-                n = n.strip(prefix)
-            # Normalize common variations
-            replacements = {
-                "código": "codigo",
-                "teléfono": "telefono",
-                "dirección": "direccion",
-                "identificación": "identificacion",
-                "cédula": "cedula",
-            }
-            for old, new in replacements.items():
-                n = n.replace(old, new)
+            n = normalizar_columna(name)
             normalized.append(n)
         return normalized

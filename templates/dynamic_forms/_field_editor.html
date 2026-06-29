@@ -1,17 +1,19 @@
 {% load static %}
-{# ════════════════════════════════════════════════════════════════════
+{% comment %}
+════════════════════════════════════════════════════════════════════════
    _field_editor.html — ÚNICO editor de campos reutilizable.
-   
-   Uso en templates:
-     {% include "dynamic_forms/_field_editor.html" with campos=campos formularios_disponibles=formularios_disponibles %}
-   
+
+   Uso:
+     include este archivo con: campos, formularios_disponibles, ocultar_header
+
    Variables esperadas en contexto:
      - campos: QuerySet o list de Campo (puede estar vacío)
      - formularios_disponibles: QuerySet de Formulario (para relaciones)
-     - mostrar_botones: bool (default True) — ocultar el header/footer si se incrusta
-   
+     - ocultar_header: bool (default False) — oculta header/footer si se incrusta
+
    Compatible con field-editor.js (drag & drop, serialización a JSON y POST).
-   ════════════════════════════════════════════════════════════════════ #}
+════════════════════════════════════════════════════════════════════════
+{% endcomment %}
 
 {% if not ocultar_header %}
 <div class="d-flex justify-content-between align-items-center mb-2">

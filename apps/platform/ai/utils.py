@@ -1,7 +1,8 @@
 """
 utils.py — Utility functions for the AI module.
 
-Helpers for document parsing, content hashing, and data extraction.
+Helpers for document parsing, content hashing, data extraction,
+and JSON-safe serialization for Django session storage.
 """
 
 from __future__ import annotations
@@ -12,12 +13,93 @@ import io
 import json
 import logging
 import re
-from pathlib import Path
+from datetime import datetime, date
+from decimal import Decimal
+from pathlib import Path, PurePath
 from typing import Any, Optional
+from uuid import UUID
 
 from openpyxl import load_workbook
 
 logger = logging.getLogger(__name__)
+
+
+def make_json_serializable(obj: Any, _seen: Optional[set] = None) -> Any:
+    """
+    Recursively convert an object tree to JSON-safe types for session storage.
+
+    Rules:
+      - None / str / int / float / bool → returned as-is.
+      - list / tuple → recursively serialized list.
+      - dict → recursively serialized keys and values.
+      - dataclass → fields dict via __dataclass_fields__.
+      - Path / PurePath → str().
+      - datetime / date → .isoformat().
+      - UUID → str().
+      - Decimal → float().
+      - Objects with .to_dict() → result of .to_dict() (serialized).
+      - Django Model instances → pk int (via .pk).
+      - bytes → str() (utf-8 decode, fallback to repr).
+      - Anything else → str() as last resort.
+    """
+    # Cycle detection — track objects by id()
+    _seen = _seen if _seen is not None else set()
+    obj_id = id(obj)
+    if obj_id in _seen:
+        return f"<circular: {type(obj).__name__}>"
+    _seen.add(obj_id)
+    try:
+        if obj is None or isinstance(obj, (str, int, float, bool)):
+            return obj
+
+        if isinstance(obj, (list, tuple)):
+            return [make_json_serializable(item, _seen) for item in obj]
+
+        if isinstance(obj, dict):
+            return {make_json_serializable(k, _seen): make_json_serializable(v, _seen) for k, v in obj.items()}
+
+        # Dataclass (check before generic hasattr)
+        if hasattr(obj, '__dataclass_fields__'):
+            return {
+                f.name: make_json_serializable(getattr(obj, f.name), _seen)
+                for f in obj.__dataclass_fields__.values()
+            }
+
+        # Path-like
+        if isinstance(obj, (Path, PurePath)):
+            return str(obj)
+
+        # datetime / date
+        if isinstance(obj, (datetime, date)):
+            return obj.isoformat()
+
+        # UUID
+        if isinstance(obj, UUID):
+            return str(obj)
+
+        # Decimal
+        if isinstance(obj, Decimal):
+            return float(obj)
+
+        # Objects with to_dict()
+        if hasattr(obj, 'to_dict') and callable(obj.to_dict):
+            return make_json_serializable(obj.to_dict(), _seen)
+
+        # Django Model instances (has .pk)
+        if hasattr(obj, '_meta') and hasattr(obj, 'pk'):
+            return obj.pk
+
+        # bytes
+        if isinstance(obj, bytes):
+            try:
+                return obj.decode('utf-8')
+            except (UnicodeDecodeError, UnicodeError):
+                return repr(obj)
+
+        # Last resort
+        return str(obj)
+    finally:
+        _seen.discard(obj_id)
 
 
 def extract_text_from_excel(file_path: str | Path, max_rows: int = 100) -> str:
@@ -80,14 +162,22 @@ def extract_text_from_pdf(file_path: str | Path, max_pages: int = 5) -> str:
         return f"[PDF file: {Path(file_path).name}] (extraction error: {e})"
 
 
-def file_to_base64(file_path: str | Path) -> tuple[str, str]:
+def file_to_base64(file_path: str | Path, max_size_mb: int = 20) -> tuple[str, str]:
     """
     Read a file and return (mime_type, base64_data).
+    Raises ValueError if file exceeds max_size_mb.
     """
     import base64
 
     path = Path(file_path)
     suffix = path.suffix.lower()
+
+    file_size = path.stat().st_size
+    if file_size > max_size_mb * 1024 * 1024:
+        raise ValueError(
+            f"File size ({file_size / 1024 / 1024:.1f} MB) exceeds maximum "
+            f"of {max_size_mb} MB for base64 encoding."
+        )
 
     mime_map = {
         ".jpg": "image/jpeg",

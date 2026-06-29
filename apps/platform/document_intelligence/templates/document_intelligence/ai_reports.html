@@ -1,0 +1,266 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block titulo %}Reportes IA — Document Intelligence{% endblock %}
+
+{% block estilos %}
+<style>
+.report-card { border-radius: 16px; border: 1px solid #e5e7eb; transition: all .25s ease; cursor: pointer; }
+.report-card:hover { border-color: #6366f1; transform: translateY(-3px); box-shadow: 0 8px 20px rgba(99,102,241,.12); }
+.report-icon { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; }
+.stat-card { border-radius: 16px; border: none; transition: all .25s ease; }
+.stat-card .stat-value { font-size: 1.8rem; font-weight: 800; }
+.stat-card .stat-label { font-size: .8rem; color: #6b7280; font-weight: 500; text-transform: uppercase; letter-spacing: .5px; }
+
+html.dark-mode .report-card { border-color: #334155; background: #1e293b; }
+html.dark-mode .report-card:hover { border-color: #818cf8; }
+html.dark-mode .stat-card { background: #1e293b !important; }
+html.dark-mode .stat-card .stat-label { color: #94a3b8; }
+</style>
+{% endblock %}
+
+{% block topbar_info %}
+<section class="topbar-icon"><i class="fas fa-chart-pie"></i></section>
+<section>
+    <strong>Reportes IA</strong>
+    <span>Reportes ejecutivos generados con inteligencia artificial</span>
+</section>
+{% endblock %}
+
+{% block contenido %}
+<div class="container py-2">
+    {# ── Header ── #}
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">📊 Reportes IA</h2>
+            <p class="text-muted mb-0">Genera reportes ejecutivos sobre formularios, registros e importaciones</p>
+        </div>
+        <div>
+            {% if ai_mode %}
+                {% if ai_mode.status == 'offline' %}
+                <span class="badge bg-secondary fs-6 px-3 py-2">⚪ Modo offline</span>
+                {% elif ai_mode.status == 'partial' %}
+                <span class="badge bg-warning text-dark fs-6 px-3 py-2">🟡 Parcial</span>
+                {% else %}
+                <span class="badge bg-success fs-6 px-3 py-2">🟢 IA Online</span>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    {# ── Offline Banner ── #}
+    {% if ai_mode and ai_mode.status == 'offline' %}
+    <div class="alert alert-secondary d-flex align-items-start gap-3 mb-4 rounded-4 border-0">
+        <span style="font-size:1.5rem;">⚡</span>
+        <div>
+            <strong>Modo offline FREE-FIRST</strong><br>
+            <small>
+                No hay APIs de IA configuradas. Los reportes se generan con datos reales del sistema.
+                Configura <code>GEMINI_API_KEY</code> en tu .env para reportes con análisis semántico profundo.
+            </small>
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── Stats Grid (datos reales del sistema) ── #}
+    {% if heuristic_data %}
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-6">
+            <div class="stat-card card shadow-sm p-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="report-icon bg-primary bg-opacity-10 text-primary" style="width:44px;height:44px;font-size:1.2rem;">
+                        <i class="fas fa-table"></i>
+                    </div>
+                    <div>
+                        <div class="stat-value">{{ heuristic_data.total_formularios }}</div>
+                        <div class="stat-label">Formularios</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="stat-card card shadow-sm p-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="report-icon bg-success bg-opacity-10 text-success" style="width:44px;height:44px;font-size:1.2rem;">
+                        <i class="fas fa-database"></i>
+                    </div>
+                    <div>
+                        <div class="stat-value">{{ heuristic_data.total_registros }}</div>
+                        <div class="stat-label">Registros</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="stat-card card shadow-sm p-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="report-icon bg-info bg-opacity-10 text-info" style="width:44px;height:44px;font-size:1.2rem;">
+                        <i class="fas fa-tags"></i>
+                    </div>
+                    <div>
+                        <div class="stat-value">{{ heuristic_data.total_campos }}</div>
+                        <div class="stat-label">Campos</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="stat-card card shadow-sm p-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="report-icon bg-warning bg-opacity-10 text-warning" style="width:44px;height:44px;font-size:1.2rem;">
+                        <i class="fas fa-upload"></i>
+                    </div>
+                    <div>
+                        <div class="stat-value">{{ heuristic_data.total_importaciones }}</div>
+                        <div class="stat-label">Importaciones</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── Top Forms ── #}
+    {% if heuristic_data.formularios_top %}
+    <div class="card shadow-sm border-0 rounded-4 mb-4">
+        <div class="card-header bg-transparent border-bottom-0 pt-3 px-4">
+            <h6 class="fw-bold mb-0"><i class="fas fa-trophy me-2 text-warning"></i>Formularios con más registros</h6>
+        </div>
+        <div class="card-body px-4 pt-0">
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Formulario</th>
+                            <th class="text-end">Registros</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for f in heuristic_data.formularios_top %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td><span class="fw-medium">{{ f.nombre }}</span></td>
+                            <td class="text-end"><span class="badge bg-primary bg-opacity-10 text-primary">{{ f.num_registros }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── Recent Imports ── #}
+    {% if heuristic_data.ultimas_importaciones %}
+    <div class="card shadow-sm border-0 rounded-4 mb-4">
+        <div class="card-header bg-transparent border-bottom-0 pt-3 px-4">
+            <h6 class="fw-bold mb-0"><i class="fas fa-clock me-2 text-info"></i>Últimas importaciones</h6>
+        </div>
+        <div class="card-body px-4 pt-0">
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>Archivo</th>
+                            <th class="text-end">Creados</th>
+                            <th class="text-end">Actualizados</th>
+                            <th class="text-end">Errores</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for imp in heuristic_data.ultimas_importaciones %}
+                        <tr>
+                            <td><span class="fw-medium">{{ imp.archivo_nombre|truncatechars:25 }}</span></td>
+                            <td class="text-end">{{ imp.creados }}</td>
+                            <td class="text-end">{{ imp.actualizados }}</td>
+                            <td class="text-end">{{ imp.errores }}</td>
+                            <td>
+                                {% if imp.estado == "completado" %}
+                                <span class="badge bg-success">Completado</span>
+                                {% elif imp.estado == "parcial" %}
+                                <span class="badge bg-warning text-dark">Parcial</span>
+                                {% else %}
+                                <span class="badge bg-danger">{{ imp.estado }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── IA History ── #}
+    {% if ia_history %}
+    <div class="card shadow-sm border-0 rounded-4 mb-4">
+        <div class="card-header bg-transparent border-bottom-0 pt-3 px-4 d-flex justify-content-between align-items-center">
+            <h6 class="fw-bold mb-0"><i class="fas fa-robot me-2 text-purple"></i>Historial de análisis IA</h6>
+        </div>
+        <div class="card-body px-4 pt-0">
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>Documento</th>
+                            <th>Proveedor</th>
+                            <th class="text-end">Tokens</th>
+                            <th class="text-end">Tiempo</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in ia_history %}
+                        <tr>
+                            <td><span class="fw-medium">{{ log.document_name|truncatechars:22|default:"—" }}</span></td>
+                            <td><span class="badge bg-light text-dark border">{{ log.provider|default:"—" }}</span></td>
+                            <td class="text-end">{{ log.total_tokens|default:"0" }}</td>
+                            <td class="text-end">{{ log.processing_time_ms|floatformat:0 }}ms</td>
+                            <td>
+                                {% if log.success %}
+                                <span class="badge bg-success">OK</span>
+                                {% else %}
+                                <span class="badge bg-danger">Error</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# ── Config prompt ── #}
+    {% if ai_mode and ai_mode.status == 'offline' %}
+    <div class="card shadow-sm border-0 rounded-4" style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%);">
+        <div class="card-body p-4 text-center">
+            <div style="font-size: 3rem;" class="mb-2">🔧</div>
+            <h4 class="text-white mb-2">Habilitar IA para reportes avanzados</h4>
+            <p class="text-white-50 mb-3">
+                Con Gemini Free obtendrás reportes con análisis semántico, detección de anomalías,
+                tendencias y recomendaciones accionables.
+            </p>
+            <div class="d-flex justify-content-center gap-2 flex-wrap">
+                <code class="px-3 py-2 rounded-3" style="background: rgba(255,255,255,.1); color: #a5b4fc; font-size: .85rem;">
+                    GEMINI_API_KEY=tu_api_key_aqui
+                </code>
+                <a href="https://aistudio.google.com/apikey" target="_blank" class="btn btn-primary">
+                    <i class="fas fa-external-link-alt me-1"></i> Obtener API Key
+                </a>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="text-center mt-4">
+        <a href="{% url 'document_intelligence:dashboard' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Volver al Dashboard
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

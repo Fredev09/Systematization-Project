@@ -186,6 +186,9 @@ class AIResponse:
 class ProviderConfig:
     """
     Configuration for an AI provider.
+    
+    SAFE: __repr__ y __str__ sanitizan api_key para evitar
+    exposición accidental en logs, excepciones o serialización.
     """
     provider_type: ProviderType = ProviderType.GEMINI
     api_key: str = ""
@@ -194,3 +197,14 @@ class ProviderConfig:
     max_tokens: int = 4096
     timeout: int = 30
     extra: dict[str, Any] = field(default_factory=dict)
+    
+    def __repr__(self) -> str:
+        return (
+            f"ProviderConfig(provider_type={self.provider_type.value}, "
+            f"api_key={'***' if self.api_key else ''}, "
+            f"model={self.model}, temperature={self.temperature}, "
+            f"max_tokens={self.max_tokens}, timeout={self.timeout})"
+        )
+    
+    def __str__(self) -> str:
+        return self.__repr__()

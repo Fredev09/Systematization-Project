@@ -70,7 +70,7 @@ class DeepSeekProvider(BaseAIProvider):
         for msg in messages:
             role = msg.get("role", "user")
             parts = msg.get("parts", [])
-            text_parts = [p["text"] for p in parts if "text" in p]
+            text_parts = [p["text"] for p in parts if isinstance(p, dict) and "text" in p]
             content = " ".join(text_parts) if text_parts else ""
             body["messages"].append({"role": role, "content": content})
 
@@ -96,7 +96,19 @@ class DeepSeekProvider(BaseAIProvider):
         if resp.status_code != 200:
             self._handle_http_error(resp.status_code, resp.text)
 
-        data = resp.json()
+        try:
+            data = resp.json()
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.error("[DEEPSEEK] Invalid JSON response: %s", e)
+            return {
+                "text": "",
+                "json_data": None,
+                "model": self.config.model,
+                "provider": ProviderType.DEEPSEEK.value,
+                "usage": {},
+                "success": False,
+                "error": f"Respuesta inválida del proveedor DeepSeek: {e}",
+            }
 
         text = ""
         usage: dict[str, int] = {}

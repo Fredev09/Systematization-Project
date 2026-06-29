@@ -85,6 +85,12 @@ class PipelineResult:
     processing_time_ms: float = 0.0
     cache_hit: bool = False
 
+    # Canonical records — single source of truth for extracted data
+    records: list[dict[str, str]] = field(default_factory=list)
+    records_count: int = 0
+    records_confidence: float = 0.0
+    records_reason: str = ""
+
 
 class DocumentIntelligencePipeline:
     """
@@ -119,7 +125,7 @@ class DocumentIntelligencePipeline:
     def run(self, config: PipelineConfig) -> PipelineResult:
         """Execute the complete pipeline."""
         self._t0 = time.perf_counter()
-        result = PipelineResult(step="init")
+        result = PipelineResult(success=True, step="init")
 
         try:
             # STEP 1: Extract
@@ -180,6 +186,31 @@ class DocumentIntelligencePipeline:
             return result
 
         result.extracted_doc = extracted
+
+        # For structured documents (Excel, CSV), convert rows to canonical records
+        if extracted.columns and extracted.rows:
+            try:
+                cols = extracted.columns
+                records = []
+                for row in extracted.rows:
+                    record = {}
+                    for i, col in enumerate(cols):
+                        val = row[i] if i < len(row) else ""
+                        if val is None:
+                            val = ""
+                        elif not isinstance(val, str):
+                            val = str(val)
+                        record[col] = val
+                    if any(v for v in record.values()):
+                        records.append(record)
+                result.records = records
+                result.records_count = len(records)
+                result.records_confidence = 1.0
+                result.records_reason = f"{len(records)} registros extraídos del archivo"
+            except Exception as e:
+                logger.warning("Records conversion failed: %s", e)
+                result.records_reason = f"Error al convertir registros: {e}"
+
         return result
 
     def _step_ocr(self, config: PipelineConfig, result: PipelineResult) -> PipelineResult:
@@ -214,7 +245,8 @@ class DocumentIntelligencePipeline:
 
             if response.success and response.text:
                 doc.raw_text = response.text
-                doc.confidence = max(doc.confidence, 0.85)
+                if len(response.text.strip()) > 50:
+                    doc.confidence = max(doc.confidence, 0.75)
                 logger.info("OCR completado para %s: %d caracteres",
                            config.file_name, len(response.text))
 
@@ -260,6 +292,15 @@ class DocumentIntelligencePipeline:
             use_cache=config.use_cache,
         )
         result.form_proposal = proposal
+
+        # Copy records from proposal (populated by AutoFormCreator for unstructured docs).
+        # For structured docs, records already set in _step_extract — skip.
+        if not result.records and proposal.records:
+            result.records = proposal.records
+            result.records_count = len(proposal.records)
+            result.records_confidence = proposal.records_confidence
+            result.records_reason = proposal.records_reason
+
         return result
 
     def _step_detect_relationships(self, config: PipelineConfig, result: PipelineResult) -> PipelineResult:

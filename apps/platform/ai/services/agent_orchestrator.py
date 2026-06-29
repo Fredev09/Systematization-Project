@@ -163,10 +163,17 @@ class AgentOrchestrator:
                 logger.info("Retry %d for task: %s", attempt, task[:80])
 
             for tool_name in reasoning.selected_tools:
-                tool_result = self.registry.execute(tool_name, exec_ctx)
+                try:
+                    tool_result = self.registry.execute(tool_name, exec_ctx)
+                except Exception as e:
+                    logger.exception("Tool '%s' raised unhandled exception", tool_name)
+                    tool_result = ToolResult(
+                        success=False,
+                        errors=[str(e)],
+                        data={},
+                    )
                 tool_results.append(tool_result)
 
-                # Update context with tool result
                 if tool_result.success and tool_result.data:
                     self._update_context_from_result(exec_ctx, tool_name, tool_result)
 

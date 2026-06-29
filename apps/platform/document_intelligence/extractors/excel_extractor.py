@@ -83,40 +83,42 @@ class ExcelExtractor(DocumentExtractor):
         return doc
 
     def _extract_sheet(self, ws, sheet_name: str) -> list[ExtractedTable]:
-        """Extract tables from a single worksheet."""
-        raw_rows = list(ws.iter_rows(values_only=True))
-        if not raw_rows:
-            return []
+        """Extract tables from a single worksheet (iterator-based, OOM-safe)."""
+        row_iter = ws.iter_rows(values_only=True)
 
-        # Detect header row
-        header_row_idx = 0
         headers: list[str] = []
-        for idx, row in enumerate(raw_rows[:20]):
-            if row and any(c is not None for c in row):
-                headers = [
-                    str(c).strip() if c is not None else "" for c in row
-                ]
-                # Filter out empty headers
-                valid_headers = [h for h in headers if h]
+        header_row_idx = 0
+
+        # Scan up to 20 rows to detect headers
+        preview_rows: list[tuple] = []
+        for idx, row in enumerate(row_iter):
+            if row is None:
+                continue
+            preview_rows.append(row)
+            if not headers and any(c is not None for c in row):
+                candidate = [str(c).strip() if c is not None else "" for c in row]
+                valid_headers = [h for h in candidate if h]
                 if len(valid_headers) >= 2:
+                    headers = candidate
                     header_row_idx = idx
                     break
+            if idx >= 19:
+                break
 
         if not headers:
             return []
 
-        # Determine data start
-        data_start = header_row_idx + 1
-        data_rows = raw_rows[data_start:MAX_ROWS_PER_SHEET]
-
-        # Clean and convert rows
+        # Continue reading from where the iterator left off
         cleaned_rows: list[list[str]] = []
-        for row in data_rows:
+        row_count = 0
+        for row in row_iter:
             if row is None:
                 continue
-            row_str = [
-                self._cell_to_str(c) for c in row
-            ]
+            row_count += 1
+            if row_count > MAX_ROWS_PER_SHEET:
+                logger.warning("Sheet '%s' truncated at %d rows", sheet_name, MAX_ROWS_PER_SHEET)
+                break
+            row_str = [self._cell_to_str(c) for c in row]
             if any(c for c in row_str):
                 cleaned_rows.append(row_str)
 
@@ -124,7 +126,7 @@ class ExcelExtractor(DocumentExtractor):
             name=sheet_name,
             headers=headers,
             rows=cleaned_rows,
-            row_count=len(cleaned_rows),
+            row_count=row_count,
             confidence=1.0,
         )
 

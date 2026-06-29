@@ -1,0 +1,17 @@
+{
+  "key": "e3353da27e5fe65d33a4410594701b30c6fce126abdacf7a9d1d74e96383ac79",
+  "data": {
+    "text": "productos\n0.98",
+    "json_data": null,
+    "model": "gemini-2.5-flash",
+    "provider": "gemini",
+    "usage": {
+      "prompt_tokens": 991,
+      "completion_tokens": 6,
+      "total_tokens": 1478
+    }
+  },
+  "created_at": 1782696198.5524864,
+  "provider": "gemini",
+  "model": "gemini-2.5-flash"
+}

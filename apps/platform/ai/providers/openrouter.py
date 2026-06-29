@@ -85,10 +85,19 @@ class OpenRouterProvider(BaseAIProvider):
                             "url": f"data:{mime};base64,{data}",
                         },
                     })
-            body["messages"].append({
-                "role": role,
-                "content": content_parts if len(content_parts) > 1 else content_parts[0]["text"],
-            })
+            if not content_parts:
+                body["messages"].append({"role": role, "content": ""})
+            elif len(content_parts) == 1:
+                single = content_parts[0]
+                body["messages"].append({
+                    "role": role,
+                    "content": single["text"] if "text" in single else single,
+                })
+            else:
+                body["messages"].append({
+                    "role": role,
+                    "content": content_parts,
+                })
 
         if response_mime_type == "application/json":
             body["response_format"] = {"type": "json_object"}
@@ -106,14 +115,26 @@ class OpenRouterProvider(BaseAIProvider):
             headers={
                 "Authorization": f"Bearer {self.config.api_key}",
                 "Content-Type": "application/json",
-                "HTTP-Referer": "https://codebuff.app",
+                "HTTP-Referer": "https://tonjeo.app",
             },
         )
 
         if resp.status_code != 200:
             self._handle_http_error(resp.status_code, resp.text)
 
-        data = resp.json()
+        try:
+            data = resp.json()
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.error("[OPENROUTER] Invalid JSON response: %s", e)
+            return {
+                "text": "",
+                "json_data": None,
+                "model": self.config.model,
+                "provider": ProviderType.OPENROUTER.value,
+                "usage": {},
+                "success": False,
+                "error": f"Respuesta inválida del proveedor OpenRouter: {e}",
+            }
 
         text = ""
         usage: dict[str, int] = {}

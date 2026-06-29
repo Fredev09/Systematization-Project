@@ -246,7 +246,7 @@ DEEPSEEK_API_KEY = config('DEEPSEEK_API_KEY', default='')
 QWEN_API_KEY = config('QWEN_API_KEY', default='')
 
 # Model overrides (leave empty to use provider defaults)
-GEMINI_MODEL = config('GEMINI_MODEL', default='gemini-2.0-flash')
+GEMINI_MODEL = config('GEMINI_MODEL', default='gemini-2.5-flash')
 OPENROUTER_MODEL = config('OPENROUTER_MODEL', default='openai/gpt-4o-mini')
 DEEPSEEK_MODEL = config('DEEPSEEK_MODEL', default='deepseek-chat')
 QWEN_MODEL = config('QWEN_MODEL', default='qwen-plus')

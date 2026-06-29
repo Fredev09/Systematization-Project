@@ -18,7 +18,7 @@ Para cada campo, determina:
 2. **obligatorio**: Si el campo debe ser obligatorio (true/false)
 3. **unico**: Si el campo debe ser único (true/false) — aplica para códigos, identificadores
 4. **identificador**: Si es el campo identificador principal del formulario (true/false)
-5. **confianza**: Tu nivel de confianza (0.0 a 1.0)
+5. **confianza**: Tu nivel de confianza (0.0 a 1.0). **CALIBRA** la confianza según la evidencia: 0.95 solo si nombre Y datos de ejemplo coinciden claramente; 0.7-0.85 si solo el nombre sugiere el tipo pero no hay datos de ejemplo; 0.5-0.6 si hay ambigüedad.
 6. **explicacion**: Breve explicación de por qué elegiste ese tipo
 
 ## Reglas importantes
@@ -30,6 +30,7 @@ Para cada campo, determina:
 - Números de teléfono son **telefono** (no número, no texto)
 - URLs son **url**
 - Si el valor parece una lista fija de opciones, usa **lista**
+- **NO uses 0.95 por defecto.** Varía la confianza según la claridad de la evidencia disponible.
 
 ## Formato de respuesta
 Responde ÚNICAMENTE con un JSON válido en este formato exacto:
@@ -42,7 +43,7 @@ Responde ÚNICAMENTE con un JSON válido en este formato exacto:
       "required": true,
       "unique": false,
       "is_identifier": false,
-      "confidence": 0.95,
+      "confidence": 0.87,
       "explanation": "Razón de la clasificación"
     }
   ]

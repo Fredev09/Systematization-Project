@@ -160,7 +160,7 @@
                        accept=".xlsx,.xls,.csv,.pdf,.jpg,.jpeg,.png,.webp,.gif,.bmp,.tiff,.txt,.json,.xml"
                        required>
                 <div>
-                    <button type="button" class="btn btn-primary px-4" onclick="document.getElementById('fileInput').click()">
+                    <button type="button" class="btn btn-primary px-4" id="selectFileBtn">
                         <i class='fas fa-folder-open'></i> Seleccionar archivo
                     </button>
                 </div>
@@ -495,7 +495,10 @@
             alert('Selecciona un formulario existente primero.');
             return;
         }
-        window.location.href = '/dynamic-forms/importar-excel/' + selectedSimilarId + '/';
+        var hidden = document.getElementById('use_existing_form_id');
+        if (hidden) hidden.value = selectedSimilarId;
+        var form = document.getElementById('form-editor');
+        if (form) form.submit();
     };
 
     window.dismissSimilar = function() {

@@ -329,7 +329,8 @@ class ConversationalDocuments:
     """
     
     def __init__(self, provider: Optional[BaseAIProvider] = None):
-        self.provider = provider or get_provider()
+        self._offline = provider is None
+        self.provider = provider
         self.classifier = QuestionClassifier()
         self.doc_context_builder = DocumentContextBuilder()
         self.prompt_composer = PromptComposer()
@@ -358,7 +359,42 @@ class ConversationalDocuments:
         t0 = time.perf_counter()
         
         qtype = self.classifier.classify(question)
-        
+
+        # ── Modo offline: sin proveedor IA disponible ──
+        if self._offline or self.provider is None:
+            elapsed_ms = (time.perf_counter() - t0) * 1000
+            return QuestionResult(
+                question=question,
+                question_type=qtype,
+                answer=(
+                    "⚡ **Modo offline FREE-FIRST activo**\n\n"
+                    "No hay ningún proveedor de IA configurado. "
+                    "El sistema sigue funcionando en modo offline.\n\n"
+                    "**✅ Sigue funcionando:**\n"
+                    "• Preguntas sobre datos del sistema (Data Agent) — "
+                    "ej: *\"¿Cuántos formularios hay?\"*\n"
+                    "• Subida de archivos Excel/CSV con extracción heurística\n"
+                    "• Formularios dinámicos, importaciones y usuarios\n"
+                    "• ColumnMatcher para matching de columnas\n\n"
+                    "**🔧 Para habilitar IA completa:**\n"
+                    "Configura GEMINI_API_KEY en tu archivo .env:\n"
+                    "```\nGEMINI_API_KEY=tu_api_key_aqui\n```\n\n"
+                    "Gemini Free es gratuito y no requiere tarjeta de crédito.\n\n"
+                    "**Alternativas gratuitas:**\n"
+                    "• DeepSeek: DEEPSEEK_API_KEY\n"
+                    "• Qwen: QWEN_API_KEY (Alibaba Cloud)\n"
+                    "• OpenRouter: OPENROUTER_API_KEY"
+                ),
+                confidence=1.0,
+                followup_questions=[
+                    "¿Cuántos formularios existen?",
+                    "¿Cuántos registros hay en total?",
+                    "¿Qué proveedores IA están disponibles?",
+                    "¿Cómo configuro una API Key?",
+                ],
+                processing_time_ms=elapsed_ms,
+            )
+
         # Build the prompt
         prompt = self._build_question_prompt(document, question, qtype)
         

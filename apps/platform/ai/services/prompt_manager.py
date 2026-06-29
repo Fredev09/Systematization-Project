@@ -123,16 +123,14 @@ class PromptManager:
     def _substitute(template: str, variables: dict[str, Any]) -> str:
         """
         Replace {{placeholders}} with values from variables dict.
-        Missing optional placeholders are replaced with empty string.
+        Raises KeyError if a placeholder is not found in variables.
         """
 
         def _replacer(match: re.Match) -> str:
             key = match.group(1).strip()
-            value = variables.get(key)
-            if value is None:
-                logger.warning("Unresolved placeholder: {{%s}}", key)
-                return ""
-            return str(value)
+            if key not in variables:
+                raise KeyError(key)
+            return str(variables[key])
 
         return re.sub(r"\{{(\w+)}}", _replacer, template)
 

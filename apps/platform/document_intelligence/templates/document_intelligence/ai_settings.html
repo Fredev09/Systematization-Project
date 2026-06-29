@@ -1,0 +1,163 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block titulo %}Configuración IA — Document Intelligence{% endblock %}
+
+{% block estilos %}
+<style>
+.settings-section { border-radius: 16px; border: 1px solid #e5e7eb; transition: all .2s; }
+.settings-section:hover { border-color: #d1d5db; }
+.provider-limit-row { padding: .75rem 0; border-bottom: 1px solid #f3f4f6; }
+.provider-limit-row:last-child { border-bottom: none; }
+
+html.dark-mode .settings-section { border-color: #334155; background: #1e293b; }
+html.dark-mode .provider-limit-row { border-bottom-color: #1e293b; }
+</style>
+{% endblock %}
+
+{% block topbar_info %}
+<section class="topbar-icon"><i class="fas fa-sliders-h"></i></section>
+<section>
+    <strong>Configuración IA</strong>
+    <span>Proveedores, límites y caché</span>
+</section>
+{% endblock %}
+
+{% block contenido %}
+<div class="container py-2">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">⚙️ Configuración IA</h2>
+            <p class="text-muted mb-0">Gestiona proveedores, límites de presupuesto y caché</p>
+        </div>
+        <a href="{% url 'document_intelligence:dashboard' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Volver
+        </a>
+    </div>
+
+    <div class="row g-4">
+        {# ── Budget Status ── #}
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 rounded-4 settings-section">
+                <div class="card-header bg-transparent border-bottom-0 pt-3 px-4">
+                    <h5 class="fw-bold mb-0"><i class="fas fa-coins me-2"></i>Presupuesto por Proveedor</h5>
+                    <small class="text-muted">Estado actual de los límites de cada proveedor</small>
+                </div>
+                <div class="card-body px-4 pb-4">
+                    {% if budget_status %}
+                        {% for provider, budget in budget_status.items %}
+                        <div class="provider-limit-row d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="provider-status" style="width: 10px; height: 10px; border-radius: 50%; display: inline-block;
+                                    {% if budget.enabled %}background: #10b981;{% else %}background: #ef4444;{% endif %}">
+                                </span>
+                                <strong>{{ provider|capfirst }}</strong>
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted d-block">{{ budget.total_requests }} requests</small>
+                                <small class="d-block">
+                                    {% if budget.enabled %}
+                                    <span class="badge bg-success">Activo</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">{{ budget.disabled_reason|default:"Inactivo" }}</span>
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                    <p class="text-muted small mb-0">Sin datos de presupuesto. Los proveedores se configuran automáticamente al primer uso.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {# ── Cache Status ── #}
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 rounded-4 settings-section">
+                <div class="card-header bg-transparent border-bottom-0 pt-3 px-4">
+                    <h5 class="fw-bold mb-0"><i class="fas fa-microchip me-2"></i>Estado del Caché</h5>
+                    <small class="text-muted">Rendimiento del Multi-Level Cache</small>
+                </div>
+                <div class="card-body px-4 pb-4">
+                    {% if cache_stats %}
+                    <div class="mb-3 text-center">
+                        <div class="display-6 fw-bold text-primary">{{ cache_stats.hit_rate }}%</div>
+                        <small class="text-muted">Hit rate general</small>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Nivel</th>
+                                    <th class="text-end">Hits</th>
+                                    <th class="text-end">Misses</th>
+                                    <th class="text-end">TTL</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for level, stats in cache_stats.by_level.items %}
+                                <tr>
+                                    <td><span class="badge bg-secondary">{{ level }}</span></td>
+                                    <td class="text-end">{{ stats.hits }}</td>
+                                    <td class="text-end">{{ stats.misses }}</td>
+                                    <td class="text-end">{{ stats.ttl_seconds }}s</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted small mb-0">Sin actividad de caché registrada.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ── Info section ── #}
+    <div class="card shadow-sm border-0 rounded-4 mt-4">
+        <div class="card-body p-4">
+            <h5 class="fw-bold mb-3"><i class="fas fa-info-circle me-2"></i>FREE-FIRST: Cómo funciona</h5>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="d-flex gap-2">
+                        <i class="fas fa-check-circle text-success mt-1"></i>
+                        <div>
+                            <strong>Proveedores gratuitos primero</strong>
+                            <p class="text-muted small mb-0">Gemini Free, DeepSeek Free, OpenRouter Free, Qwen Free. Sin necesidad de suscripciones de pago.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex gap-2">
+                        <i class="fas fa-check-circle text-success mt-1"></i>
+                        <div>
+                            <strong>Límites automáticos</strong>
+                            <p class="text-muted small mb-0">Cada proveedor tiene límites configurables por minuto, hora y día. Al alcanzarlos, se cambia automáticamente al siguiente.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex gap-2">
+                        <i class="fas fa-check-circle text-success mt-1"></i>
+                        <div>
+                            <strong>Cache inteligente</strong>
+                            <p class="text-muted small mb-0">El caché multinivel evita llamadas repetidas a la misma API. Los documentos, imágenes y OCRs se cachean con TTL configurables.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex gap-2">
+                        <i class="fas fa-check-circle text-success mt-1"></i>
+                        <div>
+                            <strong>Degradación graceful</strong>
+                            <p class="text-muted small mb-0">Si todos los proveedores alcanzan el límite o no hay internet, el sistema sigue funcionando con heurísticas locales, memoria y caché.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

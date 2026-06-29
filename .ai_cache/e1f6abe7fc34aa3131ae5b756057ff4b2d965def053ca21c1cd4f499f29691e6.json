@@ -1,0 +1,17 @@
+{
+  "key": "e1f6abe7fc34aa3131ae5b756057ff4b2d965def053ca21c1cd4f499f29691e6",
+  "data": {
+    "text": "```json\n{\n  \"fields\": [\n    {\n      \"name\": \"SKU\",\n      \"type\": \"texto\",\n      \"required\": true,\n      \"unique\": true,\n      \"is_identifier\": true,\n      \"confidence\": 1.0,\n      \"explanation\": \"Es un código alfanumérico único para identificar productos, actuando como el identificador principal.\"\n    },\n    {\n      \"name\": \"Nombre\",\n      \"type\": \"texto\",\n      \"required\": true,\n      \"unique\": false,\n      \"is_identifier\": false,\n      \"confidence\": 0.95,\n      \"explanation\": \"Campo descriptivo para el nombre del producto. Es obligatorio para identificar el producto, pero no necesariamente único.\"\n    },\n    {\n      \"name\": \"Precio\",\n      \"type\": \"moneda\",\n      \"required\": true,\n      \"unique\": false,\n      \"is_identifier\": false,\n      \"confidence\": 1.0,\n      \"explanation\": \"Representa el valor monetario del producto, con decimales. Es un campo fundamental para cualquier producto.\"\n    },\n    {\n      \"name\": \"Stock\",\n      \"type\": \"numero\",\n      \"required\": true,\n      \"unique\": false,\n      \"is_identifier\": false,\n      \"confidence\": 1.0,\n      \"explanation\": \"Cantidad entera de unidades disponibles del producto. Es obligatorio para la gestión de inventario.\"\n    },\n    {\n      \"name\": \"Fecha de Ingreso\",\n      \"type\": \"fecha\",\n      \"required\": true,\n      \"unique\": false,\n      \"is_identifier\": false,\n      \"confidence\": 1.0,\n      \"explanation\": \"Fecha en que el producto fue ingresado al inventario, en formato YYYY-MM-DD. Es importante para el seguimiento.\"\n    },\n    {\n      \"name\": \"Activo\",\n      \"type\": \"booleano\",\n      \"required\": true,\n      \"unique\": false,\n      \"is_identifier\": false,\n      \"confidence\": 1.0,\n      \"explanation\": \"Indica si el producto está activo o inactivo en el sistema, con valores TRUE/FALSE.\"\n    },\n    {\n      \"name\": \"Email\",\n      \"type\": \"email\",\n      \"required\": false,\n      \"unique\": false,\n      \"is_identifier\": false,\n      \"confidence\": 0.95,\n      \"explanation\": \"Dirección de correo electrónico asociada al producto o su proveedor. No es obligatorio para el producto en sí.\"\n    },\n    {\n      \"name\": \"URL\",\n      \"type\": \"url\",\n      \"required\": false,\n      \"unique\": false,\n      \"is_identifier\": false,\n      \"confidence\": 0.95,\n      \"explanation\": \"Enlace web relacionado con el producto. No es un campo obligatorio para la definición básica del producto.\"\n    },\n    {\n      \"name\": \"Descripción\",\n      \"type\": \"textarea\",\n      \"required\": false,\n      \"unique\": false,\n      \"is_identifier\": false,\n      \"confidence\": 0.95,\n      \"explanation\": \"Campo de texto largo para detalles adicionales del producto. Es útil, pero no estrictamente obligatorio.\"\n    }\n  ]\n}\n```",
+    "json_data": null,
+    "model": "gemini-2.5-flash",
+    "provider": "gemini",
+    "usage": {
+      "prompt_tokens": 1061,
+      "completion_tokens": 765,
+      "total_tokens": 3636
+    }
+  },
+  "created_at": 1782675591.1205714,
+  "provider": "gemini",
+  "model": "gemini-2.5-flash"
+}

@@ -27,21 +27,26 @@ class ProviderNotAvailable(AIError):
 
 class ProviderRateLimit(AIError):
     """Rate limit exceeded for the provider."""
-    def __init__(self, provider: str, retry_after: int = 0):
-        super().__init__(
-            f"Rate limit exceeded for '{provider}'. "
-            f"Retry after {retry_after}s" if retry_after
-            else f"Rate limit exceeded for '{provider}'."
-        )
+    def __init__(self, provider: str, retry_after: int = 0, detail: str = ""):
+        msg = f"Rate limit exceeded for '{provider}'."
+        if detail:
+            msg += f" {detail}"
+        if retry_after:
+            msg += f" Retry after {retry_after}s."
+        super().__init__(msg)
         self.provider = provider
         self.retry_after = retry_after
 
 
 class ProviderAuthError(AIError):
     """Authentication failed for the provider."""
-    def __init__(self, provider: str):
-        super().__init__(f"Authentication failed for provider '{provider}'."
-                        " Check your API key.")
+    def __init__(self, provider: str, detail: str = ""):
+        msg = f"Authentication failed for provider '{provider}'."
+        if detail:
+            msg += f" {detail}"
+        else:
+            msg += " Check your API key."
+        super().__init__(msg)
         self.provider = provider
 
 

@@ -1,9 +1,9 @@
 {% extends "base/base.html" %}
 {% load static %}
 
-{% block title %}Crear formulario con IA{% endblock %}
+{% block titulo %}Crear formulario con IA{% endblock %}
 
-{% block extra_css %}
+{% block estilos %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.css">
 <style>
     /* ── Layout ── */
@@ -73,7 +73,7 @@
 </style>
 {% endblock %}
 
-{% block content %}
+{% block contenido %}
 <div class="container di-review-container py-4">
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
@@ -295,12 +295,12 @@
 </div>
 {% endblock %}
 
-{% block extra_js %}
-{# ════════════════════════════════════════════════════════════════
+{% block scripts %}
+{% comment %} ════════════════════════════════════════════════════════════════
    JS específico de create_from_file:
    - Manejo de formularios similares
    - Sincronización del identificador principal con el select superior
-   ════════════════════════════════════════════════════════════════ #}
+   ════════════════════════════════════════════════════════════════ {% endcomment %}
 <script>
 (function() {
     'use strict';
@@ -319,7 +319,10 @@
             alert('Selecciona un formulario existente primero.');
             return;
         }
-        window.location.href = '/dynamic-forms/importar-excel/' + selectedSimilarId + '/';
+        var hidden = document.getElementById('use_existing_form_id');
+        if (hidden) hidden.value = selectedSimilarId;
+        var form = document.getElementById('form-editor');
+        if (form) form.submit();
     };
 
     window.dismissSimilar = function() {

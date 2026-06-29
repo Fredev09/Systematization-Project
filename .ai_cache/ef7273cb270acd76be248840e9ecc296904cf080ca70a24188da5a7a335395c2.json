@@ -1,0 +1,17 @@
+{
+  "key": "ef7273cb270acd76be248840e9ecc296904cf080ca70a24188da5a7a335395c2",
+  "data": {
+    "text": "```json\n{\n  \"fields\": [\n    {\n      \"name\": \"Nombre\",\n      \"type\": \"texto\",\n      \"required\": true,\n      \"unique\": true,\n      \"is_identifier\": true,\n      \"confidence\": 0.95,\n      \"explanation\": \"Es el nombre descriptivo del producto y actúa como identificador principal en ausencia de un ID explícito, por lo que debe ser único y obligatorio.\"\n    },\n    {\n      \"name\": \"Precio\",\n      \"type\": \"moneda\",\n      \"required\": true,\n      \"unique\": false,\n      \"is_identifier\": false,\n      \"confidence\": 0.95,\n      \"explanation\": \"Representa el valor monetario del producto. Aunque los ejemplos no incluyen el símbolo '$', el nombre del campo 'Precio' en un ERP implica un valor monetario.\"\n    },\n    {\n      \"name\": \"Cantidad\",\n      \"type\": \"numero\",\n      \"required\": true,\n      \"unique\": false,\n      \"is_identifier\": false,\n      \"confidence\": 0.95,\n      \"explanation\": \"Representa una cantidad numérica entera de unidades. Es obligatorio para el control de inventario o ventas.\"\n    }\n  ]\n}\n```",
+    "json_data": null,
+    "model": "gemini-2.5-flash",
+    "provider": "gemini",
+    "usage": {
+      "prompt_tokens": 565,
+      "completion_tokens": 288,
+      "total_tokens": 1826
+    }
+  },
+  "created_at": 1782681737.4811244,
+  "provider": "gemini",
+  "model": "gemini-2.5-flash"
+}

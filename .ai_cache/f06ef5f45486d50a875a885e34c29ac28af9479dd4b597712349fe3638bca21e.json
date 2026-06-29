@@ -1,0 +1,17 @@
+{
+  "key": "f06ef5f45486d50a875a885e34c29ac28af9479dd4b597712349fe3638bca21e",
+  "data": {
+    "text": "¡Claro que sí! Aquí te va una pregunta que se puede responder con la información del documento:\n\n---\n\n**Pregunta:**\n¿Cuántos documentos ha analizado la inteligencia artificial en los últimos 30 días, cuál fue el proveedor más usado y cuál es el tiempo promedio de análisis?\n\n**Respuesta:**\n¡De una! Con la información que me diste, te cuento que:\n\n*   En los últimos 30 días, la inteligencia artificial ha analizado **9 documentos**.\n*   El proveedor más usado para estos análisis fue **gemini**.\n*   El tiempo promedio de análisis es de **4691 milisegundos**.",
+    "json_data": null,
+    "model": "gemini-2.5-flash",
+    "provider": "gemini",
+    "usage": {
+      "prompt_tokens": 1510,
+      "completion_tokens": 140,
+      "total_tokens": 2968
+    }
+  },
+  "created_at": 1782682389.3498793,
+  "provider": "gemini",
+  "model": "gemini-2.5-flash"
+}

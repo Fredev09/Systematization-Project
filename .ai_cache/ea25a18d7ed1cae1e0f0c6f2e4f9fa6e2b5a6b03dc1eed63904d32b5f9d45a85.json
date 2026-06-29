@@ -1,0 +1,17 @@
+{
+  "key": "ea25a18d7ed1cae1e0f0c6f2e4f9fa6e2b5a6b03dc1eed63904d32b5f9d45a85",
+  "data": {
+    "text": "¡Hola! ¿En qué te puedo ayudar hoy con la información de la plataforma de inteligencia documental? Estoy aquí para responder tus preguntas.",
+    "json_data": null,
+    "model": "gemini-2.5-flash",
+    "provider": "gemini",
+    "usage": {
+      "prompt_tokens": 467,
+      "completion_tokens": 27,
+      "total_tokens": 524
+    }
+  },
+  "created_at": 1782672638.497205,
+  "provider": "gemini",
+  "model": "gemini-2.5-flash"
+}

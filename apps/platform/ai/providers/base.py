@@ -323,13 +323,72 @@ class BaseAIProvider(ABC):
         return [{"role": "user", "parts": parts}]
 
     def _handle_http_error(self, status_code: int, body: Any) -> None:
-        """Handle common HTTP error codes from providers."""
-        if status_code == 401 or status_code == 403:
-            raise ProviderAuthError(self.config.provider_type.value)
+        """
+        Handle common HTTP error codes from providers.
+        
+        Extrae el mensaje de error real del JSON de respuesta del provider
+        (ej: Google Gemini devuelve {"error": {"message": "..."}})
+        y lo incluye en la excepción para diagnóstico.
+        
+        SAFE: El body se trunca y sanitiza para evitar exponer
+        datos sensibles (API keys, tokens) en logs y excepciones.
+        """
+        body_str = str(body)[:500] if body else ""
+        
+        # Intentar extraer error.message del JSON del provider
+        error_message = ""
+        try:
+            import json
+            error_data = json.loads(body_str)
+            err_obj = error_data.get("error", {})
+            if isinstance(err_obj, dict):
+                error_message = err_obj.get("message", "")
+        except (json.JSONDecodeError, AttributeError, TypeError):
+            pass
+        
+        # Log completo a DEBUG para diagnóstico
+        if body_str:
+            logger.debug(
+                "Provider HTTP %d body: %s",
+                status_code,
+                body_str[:500],
+            )
+        
+        import re
+        body_safe = re.sub(
+            r'(api[_-]?key|authorization|bearer|token|secret|apikey)[=: ]+[^\s,;"]+',
+            r'\1=***',
+            body_str,
+            flags=re.IGNORECASE,
+        )[:200]
+        
+        if status_code == 400:
+            raise ProviderNotAvailable(
+                self.config.provider_type.value,
+                f"HTTP 400: {error_message or body_safe}",
+            )
+        elif status_code == 401 or status_code == 403:
+            raise ProviderAuthError(
+                self.config.provider_type.value,
+                detail=error_message,
+            )
+        elif status_code == 404:
+            raise ProviderNotAvailable(
+                self.config.provider_type.value,
+                f"HTTP 404: {error_message or 'Modelo/servicio no encontrado. Verifica el modelo configurado.'}",
+            )
         elif status_code == 429:
-            raise ProviderRateLimit(self.config.provider_type.value)
+            raise ProviderRateLimit(
+                self.config.provider_type.value,
+                detail=error_message or body_safe,
+            )
         elif status_code >= 500:
             raise ProviderNotAvailable(
                 self.config.provider_type.value,
-                f"HTTP {status_code}: {body}",
+                f"HTTP {status_code}: {error_message or body_safe}",
+            )
+        else:
+            raise ProviderNotAvailable(
+                self.config.provider_type.value,
+                f"HTTP {status_code}: {error_message or body_safe}",
             )

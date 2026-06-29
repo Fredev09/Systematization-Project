@@ -176,6 +176,109 @@ class FieldDetector:
 
         return []
 
+    def analyze_unstructured(
+        self,
+        raw_text: str,
+        use_cache: bool = True,
+    ) -> tuple[list[DetectedField], list[dict[str, str]], float, str]:
+        """
+        Analyze unstructured document text to detect fields AND extract
+        all data records in a SINGLE AI call.
+
+        For PDF, images, OCR output, and any document without structured
+        columns/rows. The AI returns both field definitions and records
+        in one JSON response.
+
+        Args:
+            raw_text: Full text content of the document.
+            use_cache: Whether to use cached AI results.
+
+        Returns:
+            Tuple of (fields, records, confidence, suggested_form_name).
+            fields: Detected field definitions.
+            records: Validated list of dict records.
+            confidence: Overall confidence of the analysis (0.0-1.0).
+            suggested_form_name: AI-suggested form name, or "".
+        """
+        if not raw_text or not raw_text.strip():
+            return [], [], 0.0, ""
+
+        prompt = self.pm.render(
+            "analyze_unstructured",
+            raw_content=raw_text[:50000],  # Limit to avoid token overflow
+        )
+
+        response = self.provider.generate_json(
+            prompt=prompt,
+            system_instruction=(
+                "Eres un analista de datos experto colombiano. "
+                "Analiza el documento y devuelve campos y registros. "
+                "Responde ÚNICAMENTE con JSON válido."
+            ),
+            use_cache=use_cache,
+        )
+
+        if not response.success or not response.json_data:
+            logger.warning("analyze_unstructured: AI returned no valid JSON")
+            return [], [], 0.0, ""
+
+        data = response.json_data
+
+        # Parse fields (same format as existing prompts)
+        fields = self._parse_fields(data, [])
+
+        # Parse records from AI response
+        raw_records = data.get("records", data.get("data", []))
+        records = self._validate_records(raw_records)
+
+        confidence = data.get("confidence", data.get("confianza", 0.0))
+        form_name = data.get("form_name", data.get("nombre_formulario", ""))
+
+        if not fields and not records:
+            logger.warning("analyze_unstructured: no fields or records in AI response")
+
+        return fields, records, confidence, form_name
+
+    @staticmethod
+    def _validate_records(records: Any) -> list[dict[str, str]]:
+        """
+        Validate and normalize records to a stable format.
+
+        Rules:
+          - All items must be dicts
+          - All keys must be strings
+          - All values must be strings (convert non-string)
+          - None values → ""
+          - Skip empty records (all values empty)
+          - Results are always serializable
+
+        Args:
+            records: Raw records from AI or structured extractor.
+
+        Returns:
+            Normalized list of dict[str, str].
+        """
+        if not isinstance(records, list):
+            return []
+
+        validated: list[dict[str, str]] = []
+        for record in records:
+            if not isinstance(record, dict):
+                continue
+            normalized: dict[str, str] = {}
+            for k, v in record.items():
+                if not isinstance(k, str):
+                    continue
+                if v is None:
+                    v = ""
+                elif not isinstance(v, str):
+                    v = str(v)
+                normalized[k] = v
+            # Skip completely empty records
+            if any(val for val in normalized.values()):
+                validated.append(normalized)
+        return validated
+
     # ──────────────────────────────────────────────
     # Internal helpers
     # ──────────────────────────────────────────────

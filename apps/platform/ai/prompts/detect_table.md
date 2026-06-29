@@ -15,7 +15,7 @@ Se te proporciona el contenido extraído de un documento. Debes identificar tabl
 2. Para cada tabla, extrae: nombre, encabezados, filas de ejemplo
 3. Identifica todos los campos/columnas presentes y sugiere tipos
 4. Proporciona metadatos útiles (número de filas, columnas, etc.)
-5. Calcula un nivel de confianza general
+5. Calcula un nivel de confianza general. **CALIBRA** la confianza según claridad de la estructura detectada. No uses 0.95 por defecto.
 6. Reporta cualquier advertencia (datos inconsistentes, celdas vacías, etc.)
 
 ## Formato de respuesta
@@ -28,7 +28,7 @@ Responde ÚNICAMENTE con un JSON válido en este formato exacto:
       "name": "Nombre de la tabla",
       "headers": ["col1", "col2"],
       "rows": [["val1", "val2"]],
-      "confidence": 0.95
+      "confidence": 0.85
     }
   ],
   "fields": [
@@ -38,7 +38,7 @@ Responde ÚNICAMENTE con un JSON válido en este formato exacto:
       "required": true,
       "unique": false,
       "is_identifier": false,
-      "confidence": 0.95,
+      "confidence": 0.87,
       "explanation": "Razón"
     }
   ],
@@ -47,7 +47,7 @@ Responde ÚNICAMENTE con un JSON válido en este formato exacto:
     "total_columns": 5,
     "has_headers": true
   },
-  "confidence": 0.9,
+  "confidence": 0.82,
   "warnings": []
 }
 ```
