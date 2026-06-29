@@ -1,0 +1,134 @@
+[
+  {
+    "plan_id": "test-1",
+    "question": "test import",
+    "pattern": "import_then_inventory",
+    "step_count": 3,
+    "success": true,
+    "total_duration_ms": 15000.0,
+    "completed_steps": 3,
+    "failed_steps": 0,
+    "tool_sequence": [
+      "create_form",
+      "import_records",
+      "inventory_queries"
+    ],
+    "error_message": "",
+    "timestamp": "2026-06-29T14:04:21.365975"
+  },
+  {
+    "plan_id": "test-2",
+    "question": "test form create",
+    "pattern": "create_then_import",
+    "step_count": 2,
+    "success": false,
+    "total_duration_ms": 5000.0,
+    "completed_steps": 1,
+    "failed_steps": 1,
+    "tool_sequence": [
+      "create_form",
+      "import_records"
+    ],
+    "error_message": "Import failed",
+    "timestamp": "2026-06-29T14:04:21.366977"
+  },
+  {
+    "plan_id": "test-1",
+    "question": "test import",
+    "pattern": "import_then_inventory",
+    "step_count": 3,
+    "success": true,
+    "total_duration_ms": 15000.0,
+    "completed_steps": 3,
+    "failed_steps": 0,
+    "tool_sequence": [
+      "create_form",
+      "import_records",
+      "inventory_queries"
+    ],
+    "error_message": "",
+    "timestamp": "2026-06-29T14:05:29.905142"
+  },
+  {
+    "plan_id": "test-2",
+    "question": "test form create",
+    "pattern": "create_then_import",
+    "step_count": 2,
+    "success": false,
+    "total_duration_ms": 5000.0,
+    "completed_steps": 1,
+    "failed_steps": 1,
+    "tool_sequence": [
+      "create_form",
+      "import_records"
+    ],
+    "error_message": "Import failed",
+    "timestamp": "2026-06-29T14:05:29.905719"
+  },
+  {
+    "plan_id": "test-1",
+    "question": "test import",
+    "pattern": "import_then_inventory",
+    "step_count": 3,
+    "success": true,
+    "total_duration_ms": 15000.0,
+    "completed_steps": 3,
+    "failed_steps": 0,
+    "tool_sequence": [
+      "create_form",
+      "import_records",
+      "inventory_queries"
+    ],
+    "error_message": "",
+    "timestamp": "2026-06-29T14:13:16.540034"
+  },
+  {
+    "plan_id": "test-2",
+    "question": "test form create",
+    "pattern": "create_then_import",
+    "step_count": 2,
+    "success": false,
+    "total_duration_ms": 5000.0,
+    "completed_steps": 1,
+    "failed_steps": 1,
+    "tool_sequence": [
+      "create_form",
+      "import_records"
+    ],
+    "error_message": "Import failed",
+    "timestamp": "2026-06-29T14:13:16.540748"
+  },
+  {
+    "plan_id": "test-1",
+    "question": "test import",
+    "pattern": "import_then_inventory",
+    "step_count": 3,
+    "success": true,
+    "total_duration_ms": 15000.0,
+    "completed_steps": 3,
+    "failed_steps": 0,
+    "tool_sequence": [
+      "create_form",
+      "import_records",
+      "inventory_queries"
+    ],
+    "error_message": "",
+    "timestamp": "2026-06-29T14:14:39.657297"
+  },
+  {
+    "plan_id": "test-2",
+    "question": "test form create",
+    "pattern": "create_then_import",
+    "step_count": 2,
+    "success": false,
+    "total_duration_ms": 5000.0,
+    "completed_steps": 1,
+    "failed_steps": 1,
+    "tool_sequence": [
+      "create_form",
+      "import_records"
+    ],
+    "error_message": "Import failed",
+    "timestamp": "2026-06-29T14:14:39.658042"
+  }
+]

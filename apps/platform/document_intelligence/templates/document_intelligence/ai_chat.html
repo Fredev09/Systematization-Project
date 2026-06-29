@@ -4,6 +4,7 @@
 {% block titulo %}Chat IA — Document Intelligence{% endblock %}
 
 {% block estilos %}
+<link rel="stylesheet" href="{% static 'css/document_intelligence/planner.css' %}">
 <style>
 .chat-container { max-width: 900px; margin: 0 auto; }
 .chat-header { text-align: center; padding: 1.5rem 1rem; }
@@ -27,11 +28,16 @@
 .followup-chip { display: inline-block; padding: .35rem .75rem; border-radius: 20px; border: 1px solid #6366f1; color: #6366f1; background: white; font-size: .8rem; cursor: pointer; transition: all .2s; margin: 2px; }
 .followup-chip:hover { background: #6366f1; color: white; }
 .context-bar { border-bottom: 1px solid #e5e7eb; background: #f9fafb; padding: .5rem 1rem; font-size: .8rem; }
+.source-badge { display: inline-block; padding: .15rem .5rem; border-radius: 10px; font-size: .7rem; font-weight: 600; margin-bottom: .4rem; }
+.bubble-content { min-height: 1.2em; }
+.meta-bar { margin-top: .5rem; display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.meta-item { font-size: .75rem; color: #6b7280; white-space: nowrap; }
+.cancel-btn { border: 1px solid #ef4444; color: #ef4444; background: white; border-radius: 20px; padding: .2rem .6rem; font-size: .75rem; cursor: pointer; transition: all .2s; }
+.cancel-btn:hover { background: #ef4444; color: white; }
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes typing { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
 
-/* ── Dark mode ── */
 html.dark-mode .chat-messages { background: #0f172a; border-color: #334155; }
 html.dark-mode .chat-message.ai .bubble { background: #1e293b; border-color: #334155; color: #e2e8f0; }
 html.dark-mode .chat-input-area { background: #1e293b; border-color: #334155; }
@@ -39,8 +45,10 @@ html.dark-mode .chat-input-area textarea { background: transparent; color: #e2e8
 html.dark-mode .followup-chip { border-color: #818cf8; color: #a5b4fc; background: #1e293b; }
 html.dark-mode .followup-chip:hover { background: #818cf8; color: #0f172a; }
 html.dark-mode .context-bar { background: #1e293b; border-color: #334155; color: #94a3b8; }
+html.dark-mode .cancel-btn { border-color: #f87171; color: #f87171; background: transparent; }
+html.dark-mode .cancel-btn:hover { background: #f87171; color: #0f172a; }
+html.dark-mode .meta-item { color: #9ca3af; }
 
-/* ── Responsive ── */
 @media (max-width: 768px) {
     .chat-message .bubble { max-width: 90%; font-size: .85rem; }
     .chat-container { padding: 0; }
@@ -59,7 +67,7 @@ html.dark-mode .context-bar { background: #1e293b; border-color: #334155; color:
 {% block contenido %}
 <div class="chat-container">
     <div class="chat-header">
-        <h2>💬 Chat IA</h2>
+        <h2>Chat IA</h2>
         <p class="text-muted mb-0">Pregunta sobre documentos, formularios, registros o genera reportes en lenguaje natural</p>
         {% if stats_summary %}
         <small class="text-muted d-block mt-1">{{ stats_summary }}</small>
@@ -67,7 +75,6 @@ html.dark-mode .context-bar { background: #1e293b; border-color: #334155; color:
     </div>
 
     <div class="card shadow-sm border-0 rounded-4">
-        {# ── Context indicator ── #}
         <div class="context-bar d-flex align-items-center gap-2 rounded-top-4">
             <i class="fas fa-database text-primary"></i>
             <span>
@@ -77,14 +84,13 @@ html.dark-mode .context-bar { background: #1e293b; border-color: #334155; color:
                 <span class="badge bg-light text-dark border me-1">{{ log.document_name|truncatechars:20 }}</span>
                 {% endfor %}
                 {% else %}
-                <em>Sin documentos analizados aún. Sube un documento para obtener respuestas específicas.</em>
+                <em>Sin documentos analizados aun. Sube un documento para obtener respuestas especificas.</em>
                 {% endif %}
             </span>
         </div>
 
-        {# ── Messages area ── #}
-        <div class="chat-messages" id="chatMessages">
-            <div class="chat-message ai">
+        <div class="chat-messages" id="chatMessages" role="log" aria-live="polite" aria-label="Mensajes del chat">
+            <div class="chat-message ai" role="article">
                 <div class="avatar bg-primary bg-opacity-10 text-primary">
                     <i class="fas fa-robot"></i>
                 </div>
@@ -94,30 +100,30 @@ html.dark-mode .context-bar { background: #1e293b; border-color: #334155; color:
                     <ul class="mb-0 mt-1 ps-3">
                         <li>Preguntar sobre documentos ya analizados</li>
                         <li>Consultar formularios y registros</li>
-                        <li>Generar resúmenes ejecutivos</li>
-                        <li>Encontrar anomalías e inconsistencias</li>
+                        <li>Generar resumenes ejecutivos</li>
+                        <li>Encontrar anomalias e inconsistencias</li>
                         <li>Analizar tendencias y KPIs</li>
                         <li>Responder sobre el uso de IA en la plataforma</li>
                     </ul>
                     <div class="mt-2">
-                        <span class="followup-chip" onclick="suggestPrompt('¿Cuántos documentos se han analizado?')">📊 ¿Cuántos documentos?</span>
-                        <span class="followup-chip" onclick="suggestPrompt('Genera un resumen ejecutivo de los análisis')">📝 Resumen ejecutivo</span>
-                        <span class="followup-chip" onclick="suggestPrompt('¿Qué proveedor IA ha tenido mejor rendimiento?')">⚡ Mejor proveedor</span>
-                        <span class="followup-chip" onclick="suggestPrompt('¿Qué errores frecuentes se han detectado?')">🔍 Errores frecuentes</span>
+                        <span class="followup-chip" onclick="suggestPrompt('¿Cuantos documentos se han analizado?')">¿Cuantos documentos?</span>
+                        <span class="followup-chip" onclick="suggestPrompt('Genera un resumen ejecutivo de los analisis')">Resumen ejecutivo</span>
+                        <span class="followup-chip" onclick="suggestPrompt('¿Que proveedor IA ha tenido mejor rendimiento?')">Mejor proveedor</span>
+                        <span class="followup-chip" onclick="suggestPrompt('¿Que errores frecuentes se han detectado?')">Errores frecuentes</span>
                     </div>
-                    <small class="text-muted d-block mt-2">¿En qué puedo ayudarte hoy?</small>
+                    <small class="text-muted d-block mt-2">¿En que puedo ayudarte hoy?</small>
                 </div>
             </div>
         </div>
 
-        {# ── Input area ── #}
         <div class="chat-input-area">
             <form id="chatForm" class="d-flex gap-2">
                 {% csrf_token %}
                 <textarea id="chatInput" class="form-control" rows="1"
-                          placeholder="Escribe tu pregunta aquí..." style="flex:1;"
-                          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
-                <button type="submit" class="btn btn-primary px-4" id="sendBtn">
+                          placeholder="Escribe tu pregunta aqui..." style="flex:1;"
+                          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"
+                          aria-label="Pregunta para el asistente"></textarea>
+                <button type="submit" class="btn btn-primary px-4" id="sendBtn" aria-label="Enviar mensaje">
                     <i class="fas fa-paper-plane"></i>
                 </button>
             </form>
@@ -128,6 +134,33 @@ html.dark-mode .context-bar { background: #1e293b; border-color: #334155; color:
         </div>
     </div>
 </div>
+
+{% comment %}
+Phase 13 — Planner Confirmation Modal (hidden by default)
+{% endcomment %}
+<div id="planConfirmModal" class="modal-plan-overlay" role="dialog" aria-modal="true" aria-labelledby="planConfirmTitle" style="display:none;">
+    <div class="modal-plan-box">
+        <h5 id="planConfirmTitle">Confirmar paso del plan</h5>
+        <p id="planConfirmMessage">El asistente necesita tu confirmacion para continuar.</p>
+
+        <div id="planConfirmDryRun" class="mb-3 p-3 bg-light rounded-3" style="font-size:.85rem;border:1px solid #e5e7eb;">
+            <strong><i class="fas fa-flask me-1"></i>Resumen de simulacion:</strong>
+            <div id="planConfirmDryRunContent" class="mt-1 text-muted"></div>
+        </div>
+
+        <div class="modal-plan-actions">
+            <button class="btn btn-sm btn-outline-secondary" onclick="cancelPlan()">
+                <i class="fas fa-times me-1"></i>Cancelar plan
+            </button>
+            <button class="btn btn-sm btn-outline-primary" onclick="editPlan()">
+                <i class="fas fa-pen me-1"></i>Editar
+            </button>
+            <button class="btn btn-sm btn-primary" id="planConfirmBtn" onclick="confirmPlanStep()">
+                <i class="fas fa-check me-1"></i>Continuar
+            </button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -135,126 +168,921 @@ html.dark-mode .context-bar { background: #1e293b; border-color: #334155; color:
 (function() {
     'use strict';
 
+    /* ═══════════════════════════════════════════════════════════════
+       Phase 13 — Tool Visual Identity
+       ═══════════════════════════════════════════════════════════════ */
+    var TOOL_META = {
+        import_records:    { icon: 'fa-file-import',    color: '#1d4ed8', label: 'Importar registros' },
+        create_form:       { icon: 'fa-plus-square',    color: '#15803d', label: 'Crear formulario' },
+        analyze_document:  { icon: 'fa-file-alt',       color: '#b45309', label: 'Analizar documento' },
+        search_records:    { icon: 'fa-search',         color: '#4338ca', label: 'Buscar registros' },
+        search_forms:      { icon: 'fa-search',         color: '#4338ca', label: 'Buscar formularios' },
+        export_records:    { icon: 'fa-file-excel',     color: '#be185d', label: 'Exportar registros' },
+        inventory_queries: { icon: 'fa-boxes',          color: '#0f766e', label: 'Consultar inventario' },
+        sales_queries:     { icon: 'fa-chart-line',     color: '#6d28d9', label: 'Consultar ventas' },
+        statistics:        { icon: 'fa-chart-bar',      color: '#c2410c', label: 'Estadisticas' },
+        query_documents:   { icon: 'fa-file-search',    color: '#374151', label: 'Consultar documentos' },
+    };
+
+    /* ═══════════════════════════════════════════════════════════════
+       Phase 13 — Plan State
+       ═══════════════════════════════════════════════════════════════ */
+    var currentPlan = null;         // Current plan data (steps, id, etc.)
+    var planHistory = [];           // Completed/failed plans stored in-memory
+    var activePlanStream = null;    // AbortController for plan_stream
+    var activePlanAbort = null;
+    var planTimers = {};            // step_num -> start time
+
+    /* ═══════════════════════════════════════════════════════════════
+       Existing chat state
+       ═══════════════════════════════════════════════════════════════ */
     var messagesEl = document.getElementById('chatMessages');
     var form = document.getElementById('chatForm');
     var input = document.getElementById('chatInput');
     var sendBtn = document.getElementById('sendBtn');
 
+    var currentController = null;
+    var isStreaming = false;
+    var _planCollectedText = '';
+    var _planTokenCount = 0;
+
     window.suggestPrompt = function(text) {
         input.value = text;
         sendMessage();
     };
-
-    // Exponer sendMessage globalmente para el inline onkeydown
     window.sendMessage = sendMessage;
 
+    /* ═══════════════════════════════════════════════════════════════
+       sendMessage — main chat send
+       ═══════════════════════════════════════════════════════════════ */
     function sendMessage() {
         var text = input.value.trim();
-        if (!text) return;
+        if (!text || isStreaming) return;
 
-        // Disable input while processing
         input.disabled = true;
         sendBtn.disabled = true;
-
-        // 1. Add user message
         addUserMessage(text);
         input.value = '';
 
-        // 2. Add AI typing indicator
-        var aiDiv = addTypingIndicator();
+        var aiDiv = addAIMessageContainer();
+        var bubbleContent = aiDiv.querySelector('.bubble-content');
+        var metaBar = aiDiv.querySelector('.meta-bar');
 
-        // 3. Call backend
-        fetch('{% url "document_intelligence:ai_chat_ask" %}', {
+        isStreaming = true;
+        currentController = new AbortController();
+        _planCollectedText = '';
+        _planTokenCount = 0;
+
+        var startTime = Date.now();
+        var planPausedData = null;
+
+        fetch('{% url "document_intelligence:ai_chat_stream" %}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': getCSRF(),
             },
             body: JSON.stringify({ question: text }),
+            signal: currentController.signal,
         })
-        .then(function(r) {
-            if (!r.ok) {
-                throw new Error('HTTP ' + r.status + ': ' + r.statusText);
-            }
-            return r.json();
-        })
-        .then(function(data) {
-            // ── Extraer texto: message (offline) o answer (online) ──
-            var texto = data.message || data.answer || '';
-            if (!texto) {
-                texto = 'No se pudo generar una respuesta.';
-            }
+        .then(function(response) {
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            var reader = response.body.getReader();
+            var decoder = new TextDecoder();
+            var buffer = '';
 
-            // ── Extraer chips sugeridos: suggestions (offline) o followups (online) ──
-            var chips = data.suggestions || data.followups || [];
-            var chipsHtml = '';
-            if (chips.length) {
-                chipsHtml = '<div class="mt-2">';
-                chips.forEach(function(f) {
-                    chipsHtml += '<span class="followup-chip" onclick="suggestPrompt(\'' + escapeHtml(f) + '\')">' + escapeHtml(f) + '</span>';
+            function readChunk() {
+                return reader.read().then(function(result) {
+                    if (result.done) return;
+
+                    buffer += decoder.decode(result.value, { stream: true });
+                    var lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+
+                    var currentEvent = '';
+                    var currentData = '';
+
+                    for (var i = 0; i < lines.length; i++) {
+                        var line = lines[i];
+                        if (line.startsWith('event: ')) {
+                            currentEvent = line.slice(7).trim();
+                        } else if (line.startsWith('data: ')) {
+                            currentData = line.slice(6);
+                        } else if (line === '') {
+                            if (currentEvent && currentData) {
+                                handleEvent(currentEvent, currentData, aiDiv, bubbleContent, metaBar);
+                            }
+                            currentEvent = '';
+                            currentData = '';
+                        }
+                    }
+
+                    return readChunk();
                 });
-                chipsHtml += '</div>';
             }
 
-            // ── Metadatos (opcionales, nunca NaN/undefined) ──
-            var confianza = data.confidence != null ? Math.round(data.confidence * 100) + '%' : '—';
-            var tiempo = data.processing_time_ms != null ? data.processing_time_ms + 'ms' : '—';
-            var modo = data.mode ? ' | ' + data.mode : '';
-            var metaHtml = '<div class="mt-2"><small class="text-muted">' +
-                '<i class="fas fa-robot me-1"></i>Confianza: ' + confianza + ' | ' + tiempo + modo +
-                '</small></div>';
-
-            // ── Formatear markdown-like y renderizar ──
-            var html = formatAnswer(escapeHtml(texto)) + chipsHtml + metaHtml;
-            updateBubble(aiDiv, html);
+            return readChunk();
         })
         .catch(function(err) {
-            updateBubble(aiDiv, '❌ Error de conexión: ' + err.message + '. Intenta de nuevo.');
+            if (err.name === 'AbortError') {
+                bubbleContent.innerHTML = renderMarkdown(_planCollectedText || 'Respuesta cancelada.');
+            } else {
+                bubbleContent.innerHTML = '<div class="text-danger"><i class="fas fa-exclamation-triangle me-1"></i>Error: ' + escapeHtml(err.message) + '</div>';
+            }
         })
         .finally(function() {
+            isStreaming = false;
+            currentController = null;
             input.disabled = false;
             sendBtn.disabled = false;
             input.focus();
+            var cancelBtn = aiDiv.querySelector('.cancel-btn');
+            if (cancelBtn) cancelBtn.style.display = 'none';
+            scrollBottom();
         });
     }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Unified SSE event handler
+       ═══════════════════════════════════════════════════════════════ */
+    function handleEvent(eventType, dataStr, aiDiv, bubbleContent, metaBar) {
+        var data;
+        try { data = JSON.parse(dataStr); } catch(e) { return; }
+
+        /* ── Plan events ── */
+        if (eventType === 'plan_paused') {
+            // Planner has created a multi-step plan awaiting confirmation
+            currentPlan = {
+                id: data.plan_id,
+                steps: data.steps || [],
+                currentStep: data.step_num || 1,
+                totalSteps: data.total_steps || 1,
+                paused: true,
+                confirmationToken: data.confirmation_token || '',
+                toolName: data.tool_name || '',
+            };
+            // Render plan timeline in the AI message bubble
+            renderPlanTimeline(aiDiv, currentPlan);
+            // Show confirmation modal
+            showPlanConfirmation(data);
+            return;
+        }
+
+        /* ── Regular streaming events ── */
+        if (eventType === 'status') {
+            var statusEl = aiDiv.querySelector('.status-text');
+            if (statusEl && data.status === 'generating') {
+                statusEl.textContent = 'Generando respuesta...';
+            }
+        } else if (eventType === 'source') {
+            var badge = aiDiv.querySelector('.source-badge');
+            if (badge) {
+                var label = 'IA';
+                var icon = 'fa-robot';
+                var cls = 'bg-primary bg-opacity-10 text-primary';
+                if (data.source === 'data_agent') {
+                    label = 'Base de Datos';
+                    icon = 'fa-database';
+                    cls = 'bg-success bg-opacity-10 text-success';
+                } else if (data.source === 'heuristic') {
+                    label = 'Heuristico';
+                    icon = 'fa-lightbulb';
+                    cls = 'bg-warning bg-opacity-10 text-warning';
+                } else if (data.source === 'ai_provider') {
+                    label = (data.provider || 'IA').charAt(0).toUpperCase() + (data.provider || 'IA').slice(1);
+                    icon = 'fa-brain';
+                    cls = 'bg-primary bg-opacity-10 text-primary';
+                } else if (data.source === 'tool') {
+                    label = (data.provider || 'Herramienta').charAt(0).toUpperCase() + (data.provider || 'Herramienta').slice(1);
+                    icon = 'fa-tools';
+                    cls = 'bg-info bg-opacity-10 text-info';
+                }
+                badge.className = 'source-badge ' + cls;
+                badge.innerHTML = '<i class="fas ' + icon + ' me-1"></i>' + label;
+            }
+        } else if (eventType === 'token') {
+            var txt = data.text || '';
+            _planCollectedText += txt;
+            _planTokenCount++;
+            bubbleContent.innerHTML = renderMarkdown(_planCollectedText);
+            scrollBottom();
+        } else if (eventType === 'meta') {
+            for (var j = 0; j < (data.followups || []).length; j++) {
+                var f = data.followups[j];
+                var chip = document.createElement('span');
+                chip.className = 'followup-chip';
+                chip.textContent = f;
+                chip.onclick = (function(t) { return function() { suggestPrompt(t); }; })(f);
+                metaBar.appendChild(chip);
+            }
+            var confEl = aiDiv.querySelector('.meta-confidence');
+            var timeEl = aiDiv.querySelector('.meta-time');
+            var tokensEl = aiDiv.querySelector('.meta-tokens');
+            if (confEl && data.confidence != null) {
+                confEl.textContent = Math.round(data.confidence * 100) + '% confianza';
+            }
+            if (timeEl && data.processing_time_ms != null) {
+                timeEl.textContent = data.processing_time_ms + 'ms';
+            }
+            if (tokensEl && data.token_count != null) {
+                tokensEl.textContent = data.token_count + ' tokens';
+            }
+
+            // If plan meta, update plan status
+            if (data.plan_id && data.plan_status) {
+                if (currentPlan) {
+                    currentPlan.status = data.plan_status;
+                    // Save to history if completed/failed/cancelled
+                    if (data.plan_status === 'completed' || data.plan_status === 'failed' || data.plan_status === 'cancelled') {
+                        savePlanToHistory(currentPlan);
+                        // Mark timeline as done
+                        var timeline = aiDiv.querySelector('.plan-card');
+                        if (timeline) {
+                            var badge = timeline.querySelector('.plan-status-badge');
+                            if (badge) {
+                                badge.textContent = getStatusLabel(data.plan_status);
+                                badge.className = 'plan-status-badge badge-' + data.plan_status;
+                            }
+                            var elapsed = timeline.querySelector('.plan-elapsed');
+                            if (elapsed) elapsed.textContent = data.processing_time_ms + 'ms';
+                        }
+                        // Update step cards to final states
+                        var cards = timeline ? timeline.querySelectorAll('.plan-step-card') : [];
+                        cards.forEach(function(card, idx) {
+                            var step = (currentPlan.steps || [])[idx];
+                            if (step && step.status) {
+                                updateStepCardStatus(card, step.status, '');
+                            }
+                        });
+                    }
+                }
+                // Store plan_id for potential resume/retry
+                if (data.plan_id) {
+                    window._lastPlanId = data.plan_id;
+                }
+            }
+        } else if (eventType === 'done') {
+            var m = data.metrics || {};
+            var latencyEl = aiDiv.querySelector('.meta-latency');
+            var tpsEl = aiDiv.querySelector('.meta-tps');
+            if (latencyEl && m.first_token_ms != null) {
+                latencyEl.textContent = m.first_token_ms + 'ms first token';
+            }
+            if (tpsEl && m.tokens_per_sec != null) {
+                tpsEl.textContent = m.tokens_per_sec + ' tok/s';
+            }
+            var intentEl = aiDiv.querySelector('.meta-intent');
+            if (intentEl && m.intent) {
+                intentEl.textContent = m.intent;
+            }
+            // Add feedback buttons
+            if (data.message_id) {
+                aiDiv.dataset.messageId = data.message_id;
+                addFeedbackButtons(aiDiv, data.message_id);
+            }
+        }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Phase 13 — Plan Timeline Rendering
+       ═══════════════════════════════════════════════════════════════ */
+
+    function renderPlanTimeline(aiDiv, plan) {
+        // Remove existing plan card if any
+        var existing = aiDiv.querySelector('.plan-card');
+        if (existing) existing.remove();
+
+        var steps = plan.steps || [];
+        var total = steps.length;
+
+        var container = document.createElement('div');
+        container.className = 'plan-card';
+        container.setAttribute('role', 'region');
+        container.setAttribute('aria-label', 'Plan de ejecucion');
+
+        // ── Progress ──
+        var completed = steps.filter(function(s) { return s.status === 'success' || s.status === 'completed'; }).length;
+
+        var progressHtml =
+            '<div class="plan-progress">' +
+                '<div class="progress-header">' +
+                    '<span class="progress-label"><i class="fas fa-tasks me-1"></i>Progreso del plan</span>' +
+                    '<span class="progress-count">' + completed + '/' + total + ' pasos</span>' +
+                '</div>' +
+                '<div class="progress" role="progressbar" aria-valuenow="' + completed + '" aria-valuemin="0" aria-valuemax="' + total + '">' +
+                    '<div class="progress-bar" id="planProgressBar" style="width:' + (total > 0 ? (completed / total * 100) : 0) + '%"></div>' +
+                '</div>' +
+            '</div>';
+
+        // ── Header ──
+        var headerHtml =
+            '<div class="plan-header">' +
+                '<span class="plan-title"><i class="fas fa-robot me-1 text-primary"></i>Plan de ejecucion</span>' +
+                '<span class="plan-status-badge badge-' + (plan.status || 'pending') + '">' + getStatusLabel(plan.status || 'pending') + '</span>' +
+                '<span class="plan-elapsed"></span>' +
+                '<button class="plan-resume-btn" style="display:none;" id="planResumeBtn" onclick="window._resumePlan()" aria-label="Reanudar plan">Reanudar</button>' +
+            '</div>';
+
+        // ── Timeline steps ──
+        var timelineHtml = '<div class="plan-timeline" role="list">';
+        for (var i = 0; i < steps.length; i++) {
+            var s = steps[i];
+            var st = s.status || 'pending';
+            var toolName = s.tool_name || '';
+            var meta = TOOL_META[toolName] || { icon: 'fa-cog', color: '#6b7280', label: toolName };
+            var desc = s.description || meta.label;
+            var stepTime = s.execution_time_ms ? (s.execution_time_ms + 'ms') : '';
+            var summary = s.result && s.result.summary ? s.result.summary : '';
+            var errorMsg = s.error_message || '';
+
+            timelineHtml +=
+                '<div class="plan-step-card status-' + st + '" data-step="' + (i + 1) + '" data-tool="' + toolName + '" role="listitem" aria-label="Paso ' + (i + 1) + ': ' + desc + '">' +
+                    '<div class="tool-icon tool-icon-sm tool-' + (toolName || 'unknown') + '"></div>' +
+                    '<div class="step-body">' +
+                        '<div class="step-header">' +
+                            '<span class="step-name">' + escapeHtml(desc) + '</span>' +
+                            '<span class="step-status-badge badge-' + st + '">' + getStatusLabel(st) + '</span>' +
+                            '<span class="step-time">' + stepTime + '</span>' +
+                        '</div>' +
+                        (summary ? '<div class="step-summary">' + escapeHtml(summary) + '</div>' : '') +
+                        (errorMsg ? '<div class="step-error"><i class="fas fa-exclamation-circle me-1"></i>' + escapeHtml(errorMsg) + '</div>' : '') +
+                        '<div class="step-actions"></div>' +
+                    '</div>' +
+                '</div>';
+        }
+        timelineHtml += '</div>';
+
+        // ── Metrics row ──
+        var metricsHtml =
+            '<div class="plan-metrics">' +
+                '<span class="plan-metric-item"><i class="fas fa-layer-group me-1"></i><span id="planMetricSteps">' + total + ' pasos</span></span>' +
+                '<span class="plan-metric-item"><i class="fas fa-clock me-1"></i><span id="planMetricTime">0ms</span></span>' +
+                '<span class="plan-metric-item"><i class="fas fa-check-circle text-success me-1"></i><span id="planMetricOk">0 exitosos</span></span>' +
+                '<span class="plan-metric-item"><i class="fas fa-times-circle text-danger me-1"></i><span id="planMetricFail">0 fallidos</span></span>' +
+            '</div>';
+
+        container.innerHTML = progressHtml + headerHtml + timelineHtml + metricsHtml;
+
+        // Insert plan card before the meta-bar
+        var bubble = aiDiv.querySelector('.bubble');
+        var metaBar = aiDiv.querySelector('.meta-bar');
+        if (bubble) {
+            if (metaBar) {
+                bubble.insertBefore(container, metaBar);
+            } else {
+                bubble.appendChild(container);
+            }
+        }
+
+        // Store refs for live updates
+        container._planId = plan.id;
+    }
+
+    function updateStepCardStatus(card, status, executionTime) {
+        // Remove old status classes
+        var statuses = ['pending','ready','running','completed','failed','skipped'];
+        for (var i = 0; i < statuses.length; i++) {
+            card.classList.remove('status-' + statuses[i]);
+        }
+        card.classList.add('status-' + status);
+
+        // Update badge
+        var badge = card.querySelector('.step-status-badge');
+        if (badge) {
+            badge.textContent = getStatusLabel(status);
+            badge.className = 'step-status-badge badge-' + status;
+        }
+
+        // Update time
+        if (executionTime) {
+            var timeEl = card.querySelector('.step-time');
+            if (timeEl) timeEl.textContent = executionTime + 'ms';
+        }
+    }
+
+    function getStatusLabel(status) {
+        var labels = {
+            'pending': 'Pendiente',
+            'ready': 'Listo',
+            'running': 'Ejecutando',
+            'completed': 'Completado',
+            'success': 'Completado',
+            'failed': 'Fallido',
+            'skipped': 'Saltado',
+            'paused': 'Pausado',
+            'cancelled': 'Cancelado',
+        };
+        return labels[status] || status;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Phase 13 — Confirmation Modal
+       ═══════════════════════════════════════════════════════════════ */
+
+    function showPlanConfirmation(data) {
+        var modal = document.getElementById('planConfirmModal');
+        var msgEl = document.getElementById('planConfirmMessage');
+        var dryRunContent = document.getElementById('planConfirmDryRunContent');
+
+        // Build message explaining what needs confirmation
+        var steps = data.steps || [];
+        var step = steps[data.step_num - 1] || {};
+        var toolName = step.tool_name || data.tool_name || '';
+        var meta = TOOL_META[toolName] || { label: toolName };
+        var desc = step.description || meta.label;
+
+        msgEl.textContent = 'Se necesita tu confirmacion para ejecutar: "' + desc + '". ¿Deseas continuar?';
+
+        // Show dry-run summary
+        var summary = step.result && step.result.summary ? step.result.summary :
+                      (step.summary || '');
+        if (summary) {
+            dryRunContent.textContent = summary;
+            dryRunContent.parentElement.style.display = 'block';
+        } else {
+            dryRunContent.parentElement.style.display = 'none';
+        }
+
+        // Store confirmation data
+        modal._planId = data.plan_id;
+        modal._stepNum = data.step_num;
+        modal._confirmationToken = data.confirmation_token || step.confirmation_token || '';
+
+        modal.style.display = 'flex';
+        document.getElementById('planConfirmBtn').focus();
+    }
+
+    window.confirmPlanStep = function() {
+        var modal = document.getElementById('planConfirmModal');
+        var planId = modal._planId;
+        var token = modal._confirmationToken;
+        modal.style.display = 'none';
+
+        if (!planId) return;
+
+        // Call confirm API
+        fetch('/document-intelligence/plan/' + encodeURIComponent(planId) + '/confirm/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRF(),
+            },
+            body: JSON.stringify({ confirmation_token: token }),
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(resp) {
+            if (resp.status === 'resumed') {
+                // Connect to plan_stream to get live updates
+                connectPlanStream(planId);
+            } else if (resp.error) {
+                alert('Error: ' + resp.error);
+            }
+        })
+        .catch(function(err) {
+            alert('Error de red: ' + err.message);
+        });
+    };
+
+    window.cancelPlan = function() {
+        var modal = document.getElementById('planConfirmModal');
+        var planId = modal._planId;
+        modal.style.display = 'none';
+
+        if (!planId) return;
+
+        fetch('/document-intelligence/plan/' + encodeURIComponent(planId) + '/cancel/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRF(),
+            },
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(resp) {
+            // Plan cancelled - update UI
+            if (currentPlan) {
+                currentPlan.status = 'cancelled';
+                savePlanToHistory(currentPlan);
+            }
+        })
+        .catch(function() {});
+    };
+
+    window.editPlan = function() {
+        var modal = document.getElementById('planConfirmModal');
+        modal.style.display = 'none';
+        // Future: show step editor before confirming
+    };
+
+    /* ═══════════════════════════════════════════════════════════════
+       Phase 13 — Plan Stream (SSE for resume/retry)
+       ═══════════════════════════════════════════════════════════════ */
+
+    function connectPlanStream(planId) {
+        if (activePlanAbort) {
+            activePlanAbort.abort();
+        }
+        activePlanAbort = new AbortController();
+
+        var url = '/document-intelligence/plan/' + encodeURIComponent(planId) + '/stream/';
+        var collectedText = '';
+        var tokenCount = 0;
+
+        fetch(url, {
+            method: 'GET',
+            headers: { 'Accept': 'text/event-stream' },
+            signal: activePlanAbort.signal,
+        })
+        .then(function(response) {
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            var reader = response.body.getReader();
+            var decoder = new TextDecoder();
+            var buffer = '';
+
+            function readChunk() {
+                return reader.read().then(function(result) {
+                    if (result.done) return;
+
+                    buffer += decoder.decode(result.value, { stream: true });
+                    var lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+
+                    var currentEvent = '';
+                    var currentData = '';
+
+                    for (var i = 0; i < lines.length; i++) {
+                        var line = lines[i];
+                        if (line.startsWith('event: ')) {
+                            currentEvent = line.slice(7).trim();
+                        } else if (line.startsWith('data: ')) {
+                            currentData = line.slice(6);
+                        } else if (line === '') {
+                            if (currentEvent && currentData) {
+                                handlePlanStreamEvent(currentEvent, currentData);
+                            }
+                            currentEvent = '';
+                            currentData = '';
+                        }
+                    }
+
+                    return readChunk();
+                });
+            }
+
+            return readChunk();
+        })
+        .catch(function(err) {
+            if (err.name !== 'AbortError') {
+                console.error('Plan stream error:', err);
+            }
+        });
+    }
+
+    function handlePlanStreamEvent(eventType, dataStr) {
+        var data;
+        try { data = JSON.parse(dataStr); } catch(e) { return; }
+
+        var planCard = document.querySelector('.plan-card');
+        if (!planCard) return;
+
+        // Update metrics refs
+        var metricSteps = document.getElementById('planMetricSteps');
+        var metricTime = document.getElementById('planMetricTime');
+        var metricOk = document.getElementById('planMetricOk');
+        var metricFail = document.getElementById('planMetricFail');
+        var progressBar = document.getElementById('planProgressBar');
+        var progressLabel = document.querySelector('.progress-label');
+        var progressCount = document.querySelector('.progress-count');
+        var statusBadge = planCard.querySelector('.plan-status-badge');
+        var elapsed = planCard.querySelector('.plan-elapsed');
+        var resumeBtn = document.getElementById('planResumeBtn');
+        var stepCards = planCard.querySelectorAll('.plan-step-card');
+
+        if (eventType === 'plan_step') {
+            // Update step card to running
+            var idx = (data.step_num || 1) - 1;
+            if (stepCards[idx]) {
+                updateStepCardStatus(stepCards[idx], 'running', '');
+                stepCards[idx].querySelector('.step-summary').textContent = 'Ejecutando...';
+            }
+            if (statusBadge) {
+                statusBadge.textContent = 'Ejecutando';
+                statusBadge.className = 'plan-status-badge badge-running';
+            }
+            // Hide resume button during execution
+            if (resumeBtn) resumeBtn.style.display = 'none';
+
+        } else if (eventType === 'plan_step_done') {
+            var idx2 = (data.step_num || 1) - 1;
+            if (stepCards[idx2]) {
+                var finalStatus = data.success ? 'completed' : 'failed';
+                updateStepCardStatus(stepCards[idx2], finalStatus, (data.execution_time_ms || '').toString());
+                var summary = data.summary || '';
+                stepCards[idx2].querySelector('.step-summary').textContent = summary;
+                if (!data.success && data.error_message) {
+                    var errorDiv = stepCards[idx2].querySelector('.step-error');
+                    if (!errorDiv) {
+                        errorDiv = document.createElement('div');
+                        errorDiv.className = 'step-error';
+                        stepCards[idx2].querySelector('.step-body').appendChild(errorDiv);
+                    }
+                    errorDiv.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i>' + escapeHtml(data.error_message || '');
+                }
+            }
+            // Update metrics
+            updatePlanMetrics();
+
+        } else if (eventType === 'plan_paused') {
+            if (statusBadge) {
+                statusBadge.textContent = 'Pausado';
+                statusBadge.className = 'plan-status-badge badge-paused';
+            }
+            if (resumeBtn) {
+                resumeBtn.style.display = 'inline-block';
+                window._resumePlan = function() {
+                    fetch('/document-intelligence/plan/' + encodeURIComponent(currentPlan ? currentPlan.id : '') + '/resume/', {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': getCSRF() },
+                    })
+                    .then(function(r) { return r.json(); })
+                    .then(function(resp) {
+                        if (resp.status === 'resumed') {
+                            if (resumeBtn) resumeBtn.style.display = 'none';
+                            connectPlanStream(currentPlan ? currentPlan.id : '');
+                        }
+                    })
+                    .catch(function() {});
+                };
+            }
+
+        } else if (eventType === 'plan_step_confirmation') {
+            // Show confirmation modal for this step
+            showPlanConfirmation({
+                plan_id: data.plan_id,
+                step_num: data.step_num,
+                total_steps: stepCards.length,
+                confirmation_token: data.confirmation_token,
+                tool_name: data.tool_name,
+                steps: currentPlan ? currentPlan.steps : [],
+            });
+
+        } else if (eventType === 'plan_complete') {
+            if (statusBadge) {
+                statusBadge.textContent = 'Completado';
+                statusBadge.className = 'plan-status-badge badge-completed';
+            }
+            if (metricTime && data.total_duration_ms) {
+                metricTime.textContent = data.total_duration_ms + 'ms';
+            }
+            if (elapsed) elapsed.textContent = data.total_duration_ms + 'ms';
+            updatePlanMetrics();
+            // Save to history
+            if (currentPlan) {
+                currentPlan.status = 'completed';
+                savePlanToHistory(currentPlan);
+            }
+
+        } else if (eventType === 'plan_failed') {
+            if (statusBadge) {
+                statusBadge.textContent = 'Fallido';
+                statusBadge.className = 'plan-status-badge badge-failed';
+            }
+            if (currentPlan) {
+                currentPlan.status = 'failed';
+                savePlanToHistory(currentPlan);
+            }
+            // Show retry buttons on failed step
+            var failedIdx = (data.step_num || currentPlan ? currentPlan.currentStep : 1) - 1;
+            if (stepCards[failedIdx]) {
+                var actions = stepCards[failedIdx].querySelector('.step-actions');
+                if (actions) {
+                    actions.innerHTML =
+                        '<button class="btn-step-retry" onclick="window._retryStep(' + (failedIdx + 1) + ')" aria-label="Reintentar paso"><i class="fas fa-redo me-1"></i>Reintentar</button>' +
+                        '<button class="btn-step-skip" onclick="window._skipStep(' + (failedIdx + 1) + ')" aria-label="Saltar paso"><i class="fas fa-forward me-1"></i>Saltar</button>' +
+                        '<button class="btn-step-abort" onclick="window._abortPlan()" aria-label="Abortar plan"><i class="fas fa-ban me-1"></i>Abortar</button>';
+                }
+            }
+            updatePlanMetrics();
+
+        } else if (eventType === 'plan_cancelled') {
+            if (statusBadge) {
+                statusBadge.textContent = 'Cancelado';
+                statusBadge.className = 'plan-status-badge badge-cancelled';
+            }
+            if (currentPlan) {
+                currentPlan.status = 'cancelled';
+                savePlanToHistory(currentPlan);
+            }
+            if (resumeBtn) resumeBtn.style.display = 'none';
+
+        } else if (eventType === 'token') {
+            // Token events go to the bubble text (handled by main SSE handler)
+
+        } else if (eventType === 'meta') {
+            if (metricTime && data.processing_time_ms) {
+                metricTime.textContent = data.processing_time_ms + 'ms';
+            }
+            var planStatusMeta = data.plan_status;
+            if (planStatusMeta && statusBadge) {
+                statusBadge.textContent = getStatusLabel(planStatusMeta);
+                statusBadge.className = 'plan-status-badge badge-' + planStatusMeta;
+            }
+
+        } else if (eventType === 'done') {
+            // Stream ended
+            if (activePlanAbort) {
+                activePlanAbort = null;
+            }
+            updatePlanMetrics();
+        }
+
+        function updatePlanMetrics() {
+            var cards = stepCards;
+            var okCount = 0, failCount = 0;
+            cards.forEach(function(c) {
+                if (c.classList.contains('status-completed')) okCount++;
+                if (c.classList.contains('status-failed')) failCount++;
+            });
+            if (metricOk) metricOk.textContent = okCount + ' exitosos';
+            if (metricFail) metricFail.textContent = failCount + ' fallidos';
+
+            var total = cards.length;
+            var done = okCount + failCount;
+            if (progressCount) progressCount.textContent = done + '/' + total + ' pasos';
+            if (progressBar) progressBar.style.width = (total > 0 ? (done / total * 100) : 0) + '%';
+            if (progressBar) progressBar.setAttribute('aria-valuenow', done);
+        }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Phase 13 — Retry / Skip / Abort (called from inline onclick)
+       ═══════════════════════════════════════════════════════════════ */
+
+    window._retryStep = function(stepNum) {
+        var planId = currentPlan ? currentPlan.id : window._lastPlanId;
+        if (!planId) return;
+
+        // Remove retry buttons
+        var cards = document.querySelectorAll('.plan-step-card');
+        cards.forEach(function(c) {
+            var actions = c.querySelector('.step-actions');
+            if (actions) actions.innerHTML = '';
+            var errorEl = c.querySelector('.step-error');
+            if (errorEl) errorEl.remove();
+        });
+
+        fetch('/document-intelligence/plan/' + encodeURIComponent(planId) + '/retry/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRF(),
+            },
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(resp) {
+            if (resp.status === 'ready') {
+                connectPlanStream(planId);
+            } else if (resp.error) {
+                alert('Error: ' + resp.error);
+            }
+        })
+        .catch(function(err) {
+            alert('Error de red: ' + err.message);
+        });
+    };
+
+    window._skipStep = function(stepNum) {
+        // Future: implement skip via API
+        // For now, skip by retrying and using different params
+        if (confirm('Saltar este paso puede afectar el resultado final. ¿Continuar?')) {
+            window._retryStep(stepNum);
+        }
+    };
+
+    window._abortPlan = function() {
+        if (confirm('¿Seguro que deseas cancelar el plan?')) {
+            cancelPlan();
+        }
+    };
+
+    window._resumePlan = function() {
+        var planId = currentPlan ? currentPlan.id : window._lastPlanId;
+        if (!planId) return;
+        var resumeBtn = document.getElementById('planResumeBtn');
+        if (resumeBtn) resumeBtn.style.display = 'none';
+
+        fetch('/document-intelligence/plan/' + encodeURIComponent(planId) + '/resume/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCSRF() },
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(resp) {
+            if (resp.status === 'resumed') {
+                connectPlanStream(planId);
+            } else if (resp.error) {
+                if (resumeBtn) resumeBtn.style.display = 'inline-block';
+            }
+        })
+        .catch(function() {
+            if (resumeBtn) resumeBtn.style.display = 'inline-block';
+        });
+    };
+
+    /* ═══════════════════════════════════════════════════════════════
+       Phase 13 — Plan History
+       ═══════════════════════════════════════════════════════════════ */
+
+    function savePlanToHistory(plan) {
+        // Keep last 5 plans in memory
+        planHistory.push({
+            id: plan.id,
+            steps: plan.steps || [],
+            status: plan.status || 'unknown',
+            time: Date.now(),
+        });
+        if (planHistory.length > 5) {
+            planHistory.shift();
+        }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Existing helpers
+       ═══════════════════════════════════════════════════════════════ */
 
     function addUserMessage(text) {
         var div = document.createElement('div');
         div.className = 'chat-message user';
+        div.setAttribute('role', 'article');
         div.innerHTML = '<div class="avatar bg-primary text-white"><i class="fas fa-user"></i></div>' +
             '<div class="bubble">' + escapeHtml(text) + '</div>';
         messagesEl.appendChild(div);
         scrollBottom();
     }
 
-    function addTypingIndicator() {
+    function addAIMessageContainer() {
         var div = document.createElement('div');
         div.className = 'chat-message ai';
-        div.innerHTML = '<div class="avatar bg-primary bg-opacity-10 text-primary"><i class="fas fa-robot"></i></div>' +
-            '<div class="bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>';
+        div.setAttribute('role', 'article');
+        div.innerHTML =
+            '<div class="avatar bg-primary bg-opacity-10 text-primary"><i class="fas fa-robot"></i></div>' +
+            '<div class="bubble">' +
+                '<span class="source-badge bg-primary bg-opacity-10 text-primary"><i class="fas fa-robot me-1"></i>Procesando...</span>' +
+                '<div class="bubble-content">' +
+                    '<div class="typing-dots"><span></span><span></span><span></span>' +
+                    ' <span class="status-text" style="font-size:.8rem;color:#6b7280;margin-left:8px;">Analizando...</span></div>' +
+                '</div>' +
+                '<div class="meta-bar">' +
+                    '<div class="d-flex flex-wrap gap-2 align-items-center">' +
+                        '<span class="meta-item meta-confidence"><i class="fas fa-check-circle me-1"></i><span>-</span></span>' +
+                        '<span class="meta-item meta-time"><i class="fas fa-clock me-1"></i><span>-</span></span>' +
+                        '<span class="meta-item meta-tokens"><i class="fas fa-font me-1"></i><span>-</span></span>' +
+                        '<span class="meta-item meta-latency"><i class="fas fa-bolt me-1"></i><span>-</span></span>' +
+                        '<span class="meta-item meta-tps"><i class="fas fa-tachometer-alt me-1"></i><span>-</span></span>' +
+                        '<span class="meta-item meta-intent"><i class="fas fa-tag me-1"></i><span>-</span></span>' +
+                        '<button class="cancel-btn ms-2" onclick="cancelStream()"><i class="fas fa-stop me-1"></i>Cancelar</button>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
         messagesEl.appendChild(div);
         scrollBottom();
         return div;
     }
 
-    function updateBubble(div, html) {
-        var bubble = div.querySelector('.bubble');
-        if (bubble) bubble.innerHTML = html;
-        scrollBottom();
-    }
+    window.cancelStream = function() {
+        if (currentController) {
+            currentController.abort();
+        }
+    };
 
-    function formatAnswer(text, data) {
-        if (!text) return '<em>No se pudo generar una respuesta.</em>';
+    /* ── Markdown renderer ── */
+    function renderMarkdown(text) {
+        if (!text) return '<em>Esperando respuesta...</em>';
+        var html = escapeHtml(text);
 
-        // Convert markdown-like formatting to HTML
-        var html = text
-            .replace(/### (.+)/g, '<h6 class="fw-bold mt-2 mb-1">$1</h6>')
-            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.+?)\*/g, '<em>$1</em>')
-            .replace(/\n- (.+)/g, '<br>• $1')
-            .replace(/\n\n/g, '<br><br>')
-            .replace(/\n/g, '<br>');
-
+        html = html.replace(/```(\w*)\n([\s\S]*?)```/g, function(m, lang, code) {
+            return '<pre style="background:#1e293b;color:#e2e8f0;padding:.75rem;border-radius:8px;overflow-x:auto;font-size:.8rem;margin:.5rem 0;"><code>' + code.trim() + '</code></pre>';
+        });
+        html = html.replace(/`([^`]+)`/g, '<code style="background:#f1f5f9;padding:.15rem .4rem;border-radius:4px;font-size:.85rem;">$1</code>');
+        html = html.replace(/^### (.+)$/gm, '<h6 class="fw-bold mt-2 mb-1">$1</h6>');
+        html = html.replace(/^## (.+)$/gm, '<h5 class="fw-bold mt-2 mb-1">$1</h5>');
+        html = html.replace(/^# (.+)$/gm, '<h4 class="fw-bold mt-2 mb-1">$1</h4>');
+        html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+        html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+        html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+        html = html.replace(/^\|(.+)\|$/gm, function(m, rowContent) {
+            var cells = rowContent.split('|').map(function(c) { return c.trim(); });
+            var isHeader = /[-]+/.test(cells.join(''));
+            if (isHeader) return '';
+            var cellHtml = cells.map(function(c) { return '<td>' + c + '</td>'; }).join('');
+            return '<table class="table table-sm table-bordered mb-2" style="font-size:.85rem;"><tr>' + cellHtml + '</tr></table>';
+        });
+        html = html.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+        html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ol>$&</ol>');
+        html = html.replace(/^[-*]\s+(.+)$/gm, '<li>$1</li>');
+        html = html.replace(/^---$/gm, '<hr class="my-2">');
+        html = html.replace(/\n\n/g, '<br><br>');
+        html = html.replace(/\n/g, '<br>');
         return html;
     }
 
@@ -263,27 +1091,135 @@ html.dark-mode .context-bar { background: #1e293b; border-color: #334155; color:
     }
 
     function escapeHtml(text) {
-        var div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        var d = document.createElement('div');
+        d.textContent = text;
+        return d.innerHTML;
+    }
+
+    /* ── Feedback UI (Phase 11) ── */
+    function addFeedbackButtons(container, messageId) {
+        var feedbackDiv = document.createElement('div');
+        feedbackDiv.className = 'feedback-bar mt-2 d-flex align-items-center gap-2';
+        feedbackDiv.style.opacity = '0.7';
+        feedbackDiv.innerHTML =
+            '<small class="text-muted me-1">¿Util?</small>' +
+            '<button class="btn btn-sm btn-outline-success px-2 py-0 feedback-btn" data-msg="' + messageId + '" data-rating="1" title="Util">👍</button>' +
+            '<button class="btn btn-sm btn-outline-danger px-2 py-0 feedback-btn" data-msg="' + messageId + '" data-rating="-1" title="No util">👎</button>' +
+            '<small class="feedback-status text-muted ms-1" style="font-size:.75rem;"></small>';
+
+        var bubble = container.querySelector('.bubble');
+        if (bubble) bubble.appendChild(feedbackDiv);
+
+        feedbackDiv.querySelectorAll('.feedback-btn').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                var rating = parseInt(this.dataset.rating);
+                var msgId = this.dataset.msg;
+                sendFeedback(msgId, rating, feedbackDiv);
+            });
+        });
+    }
+
+    function sendFeedback(messageId, rating, feedbackDiv) {
+        var data = { message_id: messageId, rating: rating };
+        var statusEl = feedbackDiv.querySelector('.feedback-status');
+        if (rating < 0) {
+            showFeedbackReasonDialog(messageId, rating, feedbackDiv);
+            return;
+        }
+        statusEl.textContent = 'Enviando...';
+        fetch('{% url "document_intelligence:feedback_create" %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+            body: JSON.stringify(data),
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(resp) {
+            if (resp.id) {
+                statusEl.textContent = '✓ Gracias!';
+                feedbackDiv.style.opacity = '0.4';
+                feedbackDiv.querySelectorAll('.feedback-btn').forEach(function(b) { b.disabled = true; });
+            } else {
+                statusEl.textContent = 'Error';
+            }
+        })
+        .catch(function() { statusEl.textContent = 'Error de red'; });
+    }
+
+    function sendFeedbackWithReason(messageId, rating, reason, feedbackDiv) {
+        var data = { message_id: messageId, rating: rating, reason: reason || '' };
+        var statusEl = feedbackDiv.querySelector('.feedback-status');
+        statusEl.textContent = 'Enviando...';
+        fetch('{% url "document_intelligence:feedback_create" %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRF() },
+            body: JSON.stringify(data),
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(resp) {
+            if (resp.id) {
+                statusEl.textContent = '✓ Gracias por tu retroalimentacion!';
+                feedbackDiv.style.opacity = '0.4';
+                feedbackDiv.querySelectorAll('.feedback-btn').forEach(function(b) { b.disabled = true; });
+            } else { statusEl.textContent = 'Error al enviar'; }
+        })
+        .catch(function() { statusEl.textContent = 'Error de red'; });
+    }
+
+    function showFeedbackReasonDialog(messageId, rating, feedbackDiv) {
+        var existing = document.getElementById('feedbackDialog');
+        if (existing) existing.remove();
+
+        var overlay = document.createElement('div');
+        overlay.id = 'feedbackDialog';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;justify-content:center;';
+        overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+
+        var reasons = [
+            { val: 'incorrect', label: 'Informacion incorrecta' },
+            { val: 'incomplete', label: 'Respuesta incompleta' },
+            { val: 'slow', label: 'Demasiado lento' },
+            { val: 'hallucination', label: 'Alucinacion' },
+            { val: 'bad_format', label: 'Formato incorrecto' },
+            { val: 'unhelpful', label: 'No fue util' },
+            { val: 'other', label: 'Otro' },
+        ];
+
+        var html = '<div style="background:white;border-radius:16px;padding:1.5rem;max-width:400px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2);" role="dialog" aria-modal="true" aria-labelledby="feedbackDialogTitle">';
+        html += '<h6 id="feedbackDialogTitle" class="fw-bold mb-3">¿Que problema encontraste?</h6>';
+        reasons.forEach(function(r) {
+            html += '<div class="form-check mb-2"><input class="form-check-input feedback-reason" type="radio" name="reason" value="' + r.val + '" id="reason_' + r.val + '"><label class="form-check-label" for="reason_' + r.val + '">' + r.label + '</label></div>';
+        });
+        html += '<div class="mt-3 d-flex gap-2">';
+        html += '<button class="btn btn-sm btn-secondary" onclick="this.closest(\'#feedbackDialog\').remove()">Cancelar</button>';
+        html += '<button class="btn btn-sm btn-primary" id="submitFeedbackReason">Enviar</button>';
+        html += '</div></div>';
+
+        overlay.innerHTML = html;
+        document.body.appendChild(overlay);
+
+        document.getElementById('submitFeedbackReason').addEventListener('click', function() {
+            var selected = document.querySelector('.feedback-reason:checked');
+            var reason = selected ? selected.value : '';
+            overlay.remove();
+            sendFeedbackWithReason(messageId, rating, reason, feedbackDiv);
+        });
     }
 
     function getCSRF() {
-        var input = document.querySelector('[name=csrfmiddlewaretoken]');
-        return input ? input.value : '';
+        var el = document.querySelector('[name=csrfmiddlewaretoken]');
+        return el ? el.value : '';
     }
 
-    // Form submit handler
     form.addEventListener('submit', function(e) {
         e.preventDefault();
         sendMessage();
     });
 
-    // Auto-resize textarea
     input.addEventListener('input', function() {
         this.style.height = 'auto';
         this.style.height = Math.min(this.scrollHeight, 120) + 'px';
     });
+
 })();
 </script>
 {% endblock %}

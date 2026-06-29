@@ -518,6 +518,357 @@ class SmartLearner:
         key = form_name.lower().strip()
         return self._hidden_fields.get(key, [])
 
+    # ── Import Recording (Phase 7) ──
+
+    def record_import(
+        self,
+        form_name: str,
+        rows_imported: int,
+        rows_failed: int,
+        rows_ignored: int,
+        file_name: str = "",
+        success: bool = True,
+    ) -> None:
+        """Record that an import operation was performed."""
+        key = f"import:{form_name.lower().strip()}:{datetime.now().strftime('%Y%m')}"
+        import_data = {
+            "form_name": form_name,
+            "rows_imported": rows_imported,
+            "rows_failed": rows_failed,
+            "rows_ignored": rows_ignored,
+            "file_name": file_name,
+            "success": success,
+            "timestamp": datetime.now().isoformat(),
+        }
+        # Store in a lightweight dict (kept in memory + persisted)
+        if not hasattr(self, "_import_log"):
+            self._import_log = {}
+            # Load existing
+            path = self.memory_dir / "import_log.json"
+            if path.exists():
+                try:
+                    self._import_log = json.loads(path.read_text(encoding="utf-8"))
+                except (json.JSONDecodeError, OSError):
+                    pass
+        self._import_log[key] = import_data
+        try:
+            from apps.platform.ai.utils import make_json_serializable
+            data = make_json_serializable(self._import_log)
+            (self.memory_dir / "import_log.json").write_text(
+                json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+        except OSError as e:
+            logger.warning("SmartLearner: failed to save import log: %s", e)
+        logger.info(
+            "SmartLearner: import '%s': %d creados, %d fallos, %d ignorados",
+            form_name, rows_imported, rows_failed, rows_ignored,
+        )
+
+    # ── Chat Recording (Phase 7) ──
+
+    def record_chat(
+        self,
+        question: str,
+        answer: str,
+        intent_type: str = "",
+        sub_intent: str = "",
+        was_ai: bool = False,
+        confidence: float = 0.0,
+        response_time_ms: float = 0.0,
+        success: bool = True,
+        provider: str = "",
+    ) -> None:
+        """Record a chat interaction for learning."""
+        if not hasattr(self, "_chat_log"):
+            self._chat_log = []
+            path = self.memory_dir / "chat_log.json"
+            if path.exists():
+                try:
+                    self._chat_log = json.loads(path.read_text(encoding="utf-8"))
+                except (json.JSONDecodeError, OSError):
+                    pass
+        entry = {
+            "question": question[:200],
+            "answer": answer[:200],
+            "intent_type": intent_type,
+            "sub_intent": sub_intent,
+            "was_ai": was_ai,
+            "confidence": confidence,
+            "response_time_ms": response_time_ms,
+            "success": success,
+            "provider": provider,
+            "timestamp": datetime.now().isoformat(),
+        }
+        self._chat_log.append(entry)
+        # Keep last 1000 entries
+        if len(self._chat_log) > 1000:
+            self._chat_log = self._chat_log[-1000:]
+        try:
+            from apps.platform.ai.utils import make_json_serializable
+            data = make_json_serializable(self._chat_log)
+            (self.memory_dir / "chat_log.json").write_text(
+                json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+        except OSError as e:
+            logger.warning("SmartLearner: failed to save chat log: %s", e)
+
+    # ── Tool Execution Recording (FASE 11) ──
+
+    def record_tool_execution(
+        self,
+        tool_name: str,
+        intent_type: str,
+        success: bool,
+        execution_time_ms: float,
+        requires_confirmation: bool = False,
+        confirmed: bool = False,
+        error_message: str = "",
+    ) -> None:
+        """Record a tool execution for learning."""
+        key = f"{tool_name}:{intent_type}"
+        if not hasattr(self, "_tool_executions"):
+            self._tool_executions = {}
+            self._load_tool_executions()
+        if key not in self._tool_executions:
+            self._tool_executions[key] = {
+                "tool_name": tool_name,
+                "intent_type": intent_type,
+                "runs": 0,
+                "success_count": 0,
+                "fail_count": 0,
+                "total_time_ms": 0.0,
+                "avg_time_ms": 0.0,
+                "confirmation_count": 0,
+                "last_used": "",
+            }
+        perf = self._tool_executions[key]
+        perf["runs"] += 1
+        if success:
+            perf["success_count"] += 1
+        else:
+            perf["fail_count"] += 1
+        perf["total_time_ms"] += execution_time_ms
+        perf["avg_time_ms"] = perf["total_time_ms"] / perf["runs"]
+        perf["last_used"] = datetime.now().isoformat()
+        if requires_confirmation:
+            perf["confirmation_count"] = perf.get("confirmation_count", 0) + 1
+        self._save_tool_executions()
+        logger.info(
+            "SmartLearner: tool '%s' en '%s': %s (%d runs, %.0fms avg)",
+            tool_name, intent_type,
+            "OK" if success else "FAIL",
+            perf["runs"], perf["avg_time_ms"],
+        )
+
+    def _load_tool_executions(self) -> None:
+        path = self.memory_dir / "tool_executions.json"
+        if path.exists():
+            try:
+                self._tool_executions = json.loads(path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                self._tool_executions = {}
+
+    def _save_tool_executions(self) -> None:
+        path = self.memory_dir / "tool_executions.json"
+        from apps.platform.ai.utils import make_json_serializable
+        try:
+            data = make_json_serializable(self._tool_executions)
+            path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        except OSError as e:
+            logger.warning("SmartLearner: failed to save tool executions: %s", e)
+
+    def get_tool_stats(self) -> dict[str, Any]:
+        """Get tool execution statistics."""
+        return dict(getattr(self, "_tool_executions", {}))
+
+    def get_best_tool_for(self, intent_type: str) -> str:
+        """Get the most successful tool for an intent type."""
+        candidates = {
+            k: v for k, v in getattr(self, "_tool_executions", {}).items()
+            if k.endswith(f":{intent_type}")
+        }
+        if not candidates:
+            return ""
+        by_success = sorted(
+            candidates.items(),
+            key=lambda kv: kv[1]["success_count"] / max(kv[1]["runs"], 1),
+            reverse=True,
+        )
+        return by_success[0][1]["tool_name"] if by_success else ""
+
+    # ── Plan Recording (FASE 12) ──
+
+    def record_plan(
+        self,
+        plan_id: str,
+        question: str,
+        pattern: str,
+        step_count: int,
+        success: bool,
+        total_duration_ms: float,
+        completed_steps: int,
+        failed_steps: int,
+        tool_sequence: list[str],
+        error_message: str = "",
+    ) -> None:
+        """Record a plan execution for learning."""
+        if not hasattr(self, "_plan_log"):
+            self._plan_log = []
+            self._load_plan_log()
+
+        entry = {
+            "plan_id": plan_id,
+            "question": question[:200],
+            "pattern": pattern,
+            "step_count": step_count,
+            "success": success,
+            "total_duration_ms": total_duration_ms,
+            "completed_steps": completed_steps,
+            "failed_steps": failed_steps,
+            "tool_sequence": tool_sequence,
+            "error_message": error_message[:200] if error_message else "",
+            "timestamp": datetime.now().isoformat(),
+        }
+        self._plan_log.append(entry)
+
+        # Keep last 500 plans
+        if len(self._plan_log) > 500:
+            self._plan_log = self._plan_log[-500:]
+
+        self._save_plan_log()
+
+        logger.info(
+            "SmartLearner: plan '%s' (%s): %s, %d steps, %.0fms",
+            plan_id[:8], pattern,
+            "OK" if success else "FAIL",
+            step_count, total_duration_ms,
+        )
+
+    def get_plan_stats(self) -> dict[str, Any]:
+        """Get plan execution statistics."""
+        plans = getattr(self, "_plan_log", [])
+        if not plans:
+            self._load_plan_log()
+            plans = getattr(self, "_plan_log", [])
+
+        if not plans:
+            return {
+                "total_plans": 0,
+                "success_rate": 0.0,
+                "avg_steps": 0.0,
+                "avg_duration_ms": 0.0,
+                "common_patterns": {},
+                "common_tool_sequences": [],
+                "most_used_tools": {},
+            }
+
+        total = len(plans)
+        successful = sum(1 for p in plans if p["success"])
+        avg_steps = sum(p["step_count"] for p in plans) / total
+        avg_duration = sum(p["total_duration_ms"] for p in plans) / total
+
+        # Most common patterns
+        patterns: dict[str, int] = {}
+        for p in plans:
+            pat = p.get("pattern", "single")
+            patterns[pat] = patterns.get(pat, 0) + 1
+
+        # Most used tools across all plans
+        tool_usage: dict[str, int] = {}
+        for p in plans:
+            for tool_name in p.get("tool_sequence", []):
+                tool_usage[tool_name] = tool_usage.get(tool_name, 0) + 1
+
+        # Most common tool sequences
+        sequence_counts: dict[str, int] = {}
+        for p in plans:
+            seq_key = " -> ".join(p.get("tool_sequence", []))
+            if seq_key:
+                sequence_counts[seq_key] = sequence_counts.get(seq_key, 0) + 1
+        top_sequences = sorted(sequence_counts.items(), key=lambda x: -x[1])[:10]
+
+        return {
+            "total_plans": total,
+            "success_rate": round(successful / total * 100, 1),
+            "avg_steps": round(avg_steps, 1),
+            "avg_duration_ms": round(avg_duration, 1),
+            "common_patterns": dict(sorted(patterns.items(), key=lambda x: -x[1])[:10]),
+            "common_tool_sequences": [{"sequence": seq, "count": c} for seq, c in top_sequences],
+            "most_used_tools": dict(sorted(tool_usage.items(), key=lambda x: -x[1])[:15]),
+        }
+
+    def _load_plan_log(self) -> None:
+        path = self.memory_dir / "plan_log.json"
+        if path.exists():
+            try:
+                self._plan_log = json.loads(path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                self._plan_log = []
+
+    def _save_plan_log(self) -> None:
+        path = self.memory_dir / "plan_log.json"
+        from apps.platform.ai.utils import make_json_serializable
+        try:
+            data = make_json_serializable(self._plan_log)
+            path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        except OSError as e:
+            logger.warning("SmartLearner: failed to save plan log: %s", e)
+
+    # ── Feedback Recording (FASE 11) ──
+
+    def record_feedback(
+        self,
+        message_id: int,
+        rating: int,
+        provider: str = "",
+        intent_type: str = "",
+        reason: str = "",
+    ) -> None:
+        """Record user feedback on an assistant response."""
+        if not hasattr(self, "_feedback_log"):
+            self._feedback_log = []
+            path = self.memory_dir / "feedback_log.json"
+            if path.exists():
+                try:
+                    self._feedback_log = json.loads(path.read_text(encoding="utf-8"))
+                except (json.JSONDecodeError, OSError):
+                    pass
+        entry = {
+            "message_id": message_id,
+            "rating": rating,
+            "provider": provider,
+            "intent_type": intent_type,
+            "reason": reason,
+            "timestamp": datetime.now().isoformat(),
+        }
+        self._feedback_log.append(entry)
+        if len(self._feedback_log) > 2000:
+            self._feedback_log = self._feedback_log[-2000:]
+        try:
+            from apps.platform.ai.utils import make_json_serializable
+            data = make_json_serializable(self._feedback_log)
+            (self.memory_dir / "feedback_log.json").write_text(
+                json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+        except OSError as e:
+            logger.warning("SmartLearner: failed to save feedback log: %s", e)
+
+        # If negative feedback with a specific provider, update provider performance
+        if rating < 0 and provider:
+            self.record_provider_run(
+                provider=provider,
+                task_type=intent_type or "chat",
+                confidence=0.3,  # Penalize
+                time_ms=0,
+                success=False,
+            )
+
+        logger.info(
+            "SmartLearner: feedback '%s' en msg=%d: '%s' (provider=%s)",
+            "👍" if rating > 0 else "👎",
+            message_id, reason or "sin motivo", provider,
+        )
+
     # ── Apply to Suggestions ──
 
     def apply_to_fields(

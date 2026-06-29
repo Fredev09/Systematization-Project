@@ -89,6 +89,7 @@ from .offline_first import (
     OperationMode,
     get_offline_first_engine,
 )
+from .planner import Plan, PlanStep, StepStatus, TaskPlanner
 from .prompt_versioning import (
     PromptOptimizer,
     PromptVersion,
@@ -164,6 +165,10 @@ __all__ = [
     "OfflineFirstEngine",
     "OperationMode",
     "get_offline_first_engine",
+    "Plan",
+    "PlanStep",
+    "StepStatus",
+    "TaskPlanner",
     "PromptOptimizer",
     "PromptVersion",
     "PromptVersionManager",

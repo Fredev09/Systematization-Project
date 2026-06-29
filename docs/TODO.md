@@ -149,3 +149,7 @@ Validación: `check`, limpieza de `__pycache__`, `makemigrations --check`.
 | R15 | Tablas sin ID interno, identificador principal primero | Alta | ✅ Completado |
 | R16 | Servicios de infraestructura: obtener_identificador_principal, buscar_por_identificador, upsert_por_identificador | Alta | ✅ Completado |
 | R18 | Phase 4 — AI Assistant: ValorCampo, form aliases, conversation memory, business context | Alta | ✅ Completado |
+| R19 | Phase 10 — Persistent Conversations & Memory (ConversationManager, 7 CRUD views, auto-summarization) | Alta | ✅ Completado |
+| R20 | Phase 11 — User Feedback & Continuous Learning (SmartLearner feedback/tool tracking, ConversationAnalytics, feedback API, dashboard API, adaptive provider routing, template UI) | Alta | ✅ Completado |
+| R21 | Phase 12 — AI Planner & Multi-Step Tool Execution (TaskPlanner, ExecutionEngine, 7 patterns, SSE events, plan lifecycle) | Alta | ✅ Completado |
+| R22 | Phase 13 — AI Planner Frontend & Execution Timeline (planner.css, plan timeline, step cards, progress bar, confirmation modal, retry UI, history) | Alta | ✅ Completado |

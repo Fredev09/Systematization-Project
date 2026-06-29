@@ -80,6 +80,111 @@ class BaseAIProvider(ABC):
         ...
 
     # ──────────────────────────────────────────────
+    # Streaming interface
+    # ──────────────────────────────────────────────
+
+    def stream_chat(
+        self,
+        system_instruction: str,
+        messages: list[dict[str, Any]],
+    ):
+        """
+        Stream a chat response token by token.
+
+        Yields strings (text chunks) as they arrive from the provider.
+        Default implementation wraps _call_api() in a single yield.
+        Providers that support native streaming SHOULD override this.
+
+        Args:
+            system_instruction: System prompt text.
+            messages: List of dicts with 'role' and 'parts' keys.
+
+        Yields:
+            str: text chunks as they arrive.
+        """
+        result = self._call_api(
+            system_instruction=system_instruction,
+            messages=messages,
+        )
+        text = result.get("text", "")
+        if text:
+            # Yield in word-sized chunks for progressive rendering
+            words = text.split(" ")
+            for i, word in enumerate(words):
+                yield word + (" " if i < len(words) - 1 else "")
+            yield "\n\n"
+
+    def _stream_openai_compatible(
+        self,
+        api_url: str,
+        api_key: str,
+        body: dict[str, Any],
+        provider_name: str,
+        extra_headers: dict[str, str] | None = None,
+    ):
+        """
+        Stream helper for OpenAI-compatible APIs (DeepSeek, OpenRouter, Qwen).
+
+        These APIs all use the same SSE streaming format:
+          data: {"choices":[{"delta":{"content":"..."}}]}
+          data: [DONE]
+
+        Args:
+            api_url: Full URL endpoint.
+            api_key: Bearer token.
+            body: Request body dict (must NOT have stream=True — added here).
+            provider_name: For logging.
+            extra_headers: Optional extra HTTP headers.
+
+        Yields:
+            str: text chunks.
+        """
+        import json as _json
+
+        body = dict(body)
+        body["stream"] = True
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        if extra_headers:
+            headers.update(extra_headers)
+
+        import requests as _requests
+        resp = _requests.post(
+            api_url,
+            json=body,
+            headers=headers,
+            timeout=self.config.timeout,
+            stream=True,
+        )
+
+        if resp.status_code != 200:
+            self._handle_http_error(resp.status_code, resp.text)
+            return
+
+        for line in resp.iter_lines(decode_unicode=True):
+            if not line:
+                continue
+            if line.startswith("data: "):
+                data_str = line[6:]
+                if data_str.strip() == "[DONE]":
+                    break
+                try:
+                    data = _json.loads(data_str)
+                    choices = data.get("choices", [])
+                    if choices:
+                        delta = choices[0].get("delta", {})
+                        content = delta.get("content", "")
+                        if content:
+                            yield content
+                except (_json.JSONDecodeError, KeyError, IndexError, TypeError):
+                    continue
+
+        resp.close()
+
+    # ──────────────────────────────────────────────
     # Public interface (with caching)
     # ──────────────────────────────────────────────
 

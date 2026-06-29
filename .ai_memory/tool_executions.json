@@ -1,0 +1,35 @@
+{
+  "export_records:export": {
+    "tool_name": "export_records",
+    "intent_type": "export",
+    "runs": 2,
+    "success_count": 2,
+    "fail_count": 0,
+    "total_time_ms": 2401.0,
+    "avg_time_ms": 1200.5,
+    "confirmation_count": 0,
+    "last_used": "2026-06-29T13:50:13.300084"
+  },
+  "import_records:import": {
+    "tool_name": "import_records",
+    "intent_type": "import",
+    "runs": 2,
+    "success_count": 2,
+    "fail_count": 0,
+    "total_time_ms": 6800.4,
+    "avg_time_ms": 3400.2,
+    "confirmation_count": 0,
+    "last_used": "2026-06-29T13:50:13.300971"
+  },
+  "search_forms:search": {
+    "tool_name": "search_forms",
+    "intent_type": "search",
+    "runs": 2,
+    "success_count": 0,
+    "fail_count": 2,
+    "total_time_ms": 1000.0,
+    "avg_time_ms": 500.0,
+    "confirmation_count": 0,
+    "last_used": "2026-06-29T13:50:13.301356"
+  }
+}

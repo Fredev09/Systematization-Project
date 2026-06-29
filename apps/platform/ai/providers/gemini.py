@@ -165,3 +165,68 @@ class GeminiProvider(BaseAIProvider):
             "success": True,
             "error": None,
         }
+
+    def stream_chat(
+        self,
+        system_instruction: str,
+        messages: list[dict[str, Any]],
+    ):
+        """
+        Stream Gemini response using server-sent events (alt=sse).
+        """
+        import json as _json
+        import requests as _requests
+
+        url = (
+            f"{GEMINI_API_BASE}/{self.config.model}:streamGenerateContent"
+        )
+
+        body: dict[str, Any] = {
+            "contents": messages,
+            "generationConfig": {
+                "temperature": self.config.temperature,
+                "maxOutputTokens": self.config.max_tokens,
+            },
+        }
+
+        if system_instruction:
+            body["systemInstruction"] = {
+                "parts": [{"text": system_instruction}]
+            }
+
+        resp = _requests.post(
+            url,
+            json=body,
+            timeout=self.config.timeout,
+            stream=True,
+            headers={
+                "Content-Type": "application/json",
+                "X-Goog-Api-Key": self.config.api_key,
+            },
+        )
+
+        if resp.status_code != 200:
+            self._handle_http_error(resp.status_code, resp.text)
+            return
+
+        for line in resp.iter_lines(decode_unicode=True):
+            if not line:
+                continue
+            if line.startswith("data: "):
+                data_str = line[6:]
+                if data_str.strip() == "[DONE]":
+                    break
+                try:
+                    data = _json.loads(data_str)
+                    candidates = data.get("candidates", [])
+                    if candidates:
+                        content = candidates[0].get("content", {})
+                        parts = content.get("parts", [])
+                        for part in parts:
+                            text_chunk = part.get("text", "")
+                            if text_chunk:
+                                yield text_chunk
+                except (_json.JSONDecodeError, KeyError, IndexError, TypeError):
+                    continue
+
+        resp.close()

@@ -145,3 +145,40 @@ class DeepSeekProvider(BaseAIProvider):
             "success": True,
             "error": None,
         }
+
+    def stream_chat(
+        self,
+        system_instruction: str,
+        messages: list[dict[str, Any]],
+    ):
+        """
+        Stream DeepSeek response using OpenAI-compatible SSE.
+        """
+        url = f"{DEEPSEEK_API_BASE}/chat/completions"
+
+        body: dict[str, Any] = {
+            "model": self.config.model,
+            "messages": [],
+            "temperature": self.config.temperature,
+            "max_tokens": self.config.max_tokens,
+        }
+
+        if system_instruction:
+            body["messages"].append({
+                "role": "system",
+                "content": system_instruction,
+            })
+
+        for msg in messages:
+            role = msg.get("role", "user")
+            parts = msg.get("parts", [])
+            text_parts = [p["text"] for p in parts if isinstance(p, dict) and "text" in p]
+            content = " ".join(text_parts) if text_parts else ""
+            body["messages"].append({"role": role, "content": content})
+
+        yield from self._stream_openai_compatible(
+            api_url=url,
+            api_key=self.config.api_key,
+            body=body,
+            provider_name="deepseek",
+        )

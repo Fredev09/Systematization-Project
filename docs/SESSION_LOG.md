@@ -1233,3 +1233,370 @@ Auditoría y corrección de 4 bugs abiertos en el módulo IA y Document Intellig
 
 ### Próximo paso
 Phase 5 — SmartLearner/MemoryLearner wiring: conectar los métodos `record_*` que tienen callers reales en producción; demostrar dónde debería ocurrir el aprendizaje antes de conectar.
+
+---
+
+## [2026-06-29] Phase 6 — End-to-End Validation & Import Reliability
+
+### Trabajo realizado
+
+Validación completa del flujo de importación del módulo Document Intelligence, con pruebas unitarias (79 tests) y E2E (12 escenarios en base de datos real).
+
+**Bug fixes:** 4 issues corregidos.
+
+1. **`.xls` in ALLOWED_EXTENSIONS pero rechazado por ExcelExtractor** — `views.py` permitía `.xls` en `ALLOWED_EXTENSIONS` pero `ExcelExtractor` usa openpyxl (solo `.xlsx`). Fix: removido `.xls` de `ALLOWED_EXTENSIONS`.
+
+2. **CSV import usaba mapeo posicional** — `_handle_import_data()` en `views.py` mapeaba columnas CSV por índice (columna 0 → campo 0), no por nombre. Fix: reemplazado con `ColumnMatcher.match_all()` + `ColumnMatcher.build_mapping()`.
+
+3. **Non-structured docs (PDF/Image/Text) usaban mapeo posicional** — Mismo patrón roto para documentos no estructurados. Fix: reemplazado con `ColumnMatcher` cuando hay records disponibles.
+
+4. **2 bugs en test_e2e_import.py** — `Campo` importado después de su uso (UnboundLocalError) y aserción UTF-8 verificaba campo incorrecto. Fix: mover import, corregir aserción.
+
+**Archivos creados:**
+
+- `apps/platform/document_intelligence/test_data_generators.py` — Generadores reutilizables de documentos de prueba: xlsx, csv, pdf, image, json. 5 conjuntos de datos: estándar, caracteres especiales, tipos de datos, UTF-8, booleanos.
+- `test_e2e_import.py` — Validador E2E contra DB real. 12 escenarios: Excel, CSV, JSON, special chars, data types, UTF-8, duplicate columns, empty values, required fields, PDF, Image, ColumnMatcher edge cases.
+- `test_edge_case_documents.py` — Generador de 16 archivos de prueba en `.tmp_uploads/` para testing manual vía UI.
+
+**Archivos modificados:**
+
+- `apps/platform/document_intelligence/views.py` — 3 fixes: ALLOWED_EXTENSIONS, CSV mapping, non-structured mapping.
+- `test_e2e_import.py` — 2 bug fixes: import de Campo, aserción UTF-8.
+
+**Resultados de pruebas:**
+
+- **79 unit tests** (unittest.TestCase, sin DB): 79/79 PASS, 0.73s
+- **12 E2E tests** (DB real, 42 individual checks): 12/12 PASS, all 42 checks green
+- `python manage.py check`: 0 issues
+- `python manage.py makemigrations --check`: No changes detected
+
+**Escenarios E2E cubiertos:**
+
+1. Excel Basic Import — 3 rows, 5 columns, full import pipeline
+2. CSV Import — same data via CSV with ColumnMatcher
+3. JSON Import — JSON extract + import
+4. Special Characters — café, ümlaut, русский, 中文
+5. Data Types — integers, decimals, currency, booleans, dates
+6. UTF-8 — €, ¥, ©, ®, ∆ symbols
+7. Duplicate Columns — detection without errors
+8. Empty Values — partial empty fields still import
+9. Required Field Validation — missing required field rejected
+10. PDF Import — extract (text placeholder without PyMuPDF)
+11. Image Import — extract (base64 placeholder without OCR)
+12. ColumnMatcher Edge Cases — empty cols, long names, numeric headers, lowercase, trimmed
+
+**Environment limitations documented:**
+
+- PyMuPDF (fitz) NOT installed → PDF text extraction via placeholder only
+- chardet NOT installed → CSV encoding detection falls back to utf-8
+- ImageExtractor does NO OCR locally → relies entirely on AI provider
+- PDF/Image structured import requires AI provider (Gemini)
+
+### Archivos modificados
+- `apps/platform/document_intelligence/views.py` — ALLOWED_EXTENSIONS removido `.xls`; `_handle_import_data` usa ColumnMatcher para CSV y non-structured docs.
+- `test_e2e_import.py` — Fix imports y aserciones; emojis reemplazados por ASCII para compatibilidad PowerShell.
+
+### Archivos creados
+- `apps/platform/document_intelligence/test_data_generators.py` — 160 líneas, 5 conjuntos de datos + 6 generadores.
+- `test_e2e_import.py` — 859 líneas, 12 tests E2E, 42 checks.
+- `test_edge_case_documents.py` — Generador de 16 documentos de prueba.
+
+### Decisiones importantes
+- **Unit tests sin DB**: Se usa `unittest.TestCase` (no Django TestCase) para que los extractores se prueben sin base de datos, evitando el bloqueo de migraciones legacy.
+- **E2E standalone script**: `test_e2e_import.py` ejecuta contra DB real y limpia sus propios datos. No puede ser un TestCase de Django por el bloqueo preexistente de migraciones.
+- **ColumnMatcher universal**: Todos los tipos de documentos (Excel, CSV, non-structured) usan ahora ColumnMatcher para mapeo de columnas, eliminando el frágil mapeo posicional.
+
+### Problemas encontrados
+- **PowerShell no imprime emojis**: `charmap` codec no soporta ✅/❌. Fix: usar ASCII `[PASS]`/`[FAIL]` cuando encoding no es UTF-8.
+- **PyMuPDF no instalado**: `PDFExtractor` retorna texto placeholder, no hay extracción de tablas. Documentado como limitación del entorno.
+
+### Próximo paso sugerido
+- Procesar Phase 5 wiring de SmartLearner/MemoryLearner.
+- Instalar PyMuPDF y chardet para mejorar extracción PDF y detección de encoding CSV.
+- Evaluar si las pruebas E2E deben integrarse en CI.
+
+---
+
+## [2026-06-29] Phase 7 — AI Assistant Intelligence & Heuristic Engine
+
+### Trabajo realizado
+
+Transformación completa del chatbot IA de un simple proxy AI a un asistente inteligente con 4 capas de decisión:
+
+**DecisionEngine.classify_chat()** — Nuevo `ChatIntent` dataclass con 15+ intents: count, list, search, compare, top, bottom, trend, average, sum, max, min, latest, oldest, exists, statistics, group. Clasifica preguntas sin llamar al proveedor AI. Detecta form aliases (producto → Productos, venta → Ventas, etc.) y params como fecha, límite, filtro.
+
+**ai_chat_ask() reescrita** — Flujo unificado: OfflineFirstEngine → DecisionEngine.classify_chat() → Data Agent (heuristic/ORM) / Document Question / Form Creation / AI Provider. Cache deshabilitado en modo conversacional.
+
+**_try_data_query() reescrita** — Ahora consume `ChatIntent` directamente como parámetro tipado, en vez de llamar a `_detect_data_intent()`. `_detect_data_intent()` queda como código muerto (no eliminado).
+
+**SmartLearner 7 métodos conectados:**
+- `record_provider_run()` — después de cada respuesta AI.
+- `record_prompt_run()` — disponible para tracking futuro.
+- `record_form_creation()` — después de crear formulario en `_handle_create_form()`.
+- `record_field_preference()` — por cada campo durante creación de formulario.
+- `record_import()` — nuevo método añadido, llamado después de importar en `_handle_import_data()`.
+- `record_chat()` — nuevo método añadido, llamado después de cada respuesta (heurística, ORM o AI).
+
+**MemoryLearner 6 métodos conectados:**
+- `learn_rename()`, `learn_identifier()`, `learn_type_correction()`, `learn_field_order()`, `learn_catalog_options()`, `learn_form_name()` — todos llamados desde `_handle_create_form()` durante la creación manual de formularios.
+
+**OfflineFirstEngine integrado** — `ai_chat_ask()` verifica conectividad antes de llamar al proveedor AI; cuando está offline, responde con sugerencias de data query.
+
+**Métricas internas** — `_chat_metrics` acumulador en memoria con: total_questions, heuristic_answers, orm_answers, ai_answers, total_time_ms, by_provider, by_intent, fallback_used. Resumen loggeado cada 10 preguntas.
+
+### Validaciones ejecutadas
+- `python manage.py check` — 0 issues.
+- `python manage.py makemigrations --check` — No changes detected.
+- 79 unit tests (extractors, column matching) — 79/79 PASS, 0.783s.
+- 12 E2E tests (import pipeline) — 12/12 PASS, 42/42 checks.
+- Syntax error corregido (`_chat_metrics` colocado entre decorator y función def).
+
+### Archivos modificados
+- `apps/platform/ai/services/decision_engine.py` — Nuevo `ChatIntent` dataclass + `classify_chat()` con 15+ intents, model keywords, form alias patterns.
+- `apps/platform/ai/services/smart_learner.py` — Nuevos métodos `record_import()` y `record_chat()` con persistencia JSON en `.ai_memory/`.
+- `apps/platform/document_intelligence/views.py` — `ai_chat_ask()` reescrita con OfflineFirstEngine + DecisionEngine + SmartLearner + MemoryLearner + métricas. `_try_data_query()` reescrita para consumir `ChatIntent`. Hooks de aprendizaje en `_handle_create_form()` y `_handle_import_data()`.
+
+### Decisiones importantes
+- **DecisionEngine.classify_chat() es la ÚNICA ruta de detección de intent**: `_detect_data_intent()` en views.py es código muerto pero preservado como referencia.
+- **SmartLearner persiste en JSON**: `.ai_memory/` directory con archivos por tipo. Sin cambios de esquema DB.
+- **Métricas en memoria**: sin almacenamiento persistente ni dashboard. Se loggean cada 10 preguntas a nivel DEBUG.
+- **MemoryLearner aprende pasivamente**: todos los hooks están en `_handle_create_form()` — no se necesita un "modo aprendizaje" separado.
+
+### Problemas encontrados
+- **SyntaxError post-merge**: `_chat_metrics` colocado entre `@login_required` y la función decorada. Corregido moviendo las variables ANTES del decorador.
+- **Limitación preexistente**: test database no puede crearse desde cero por migraciones legacy que referencian modelos eliminados.
+- **PyMuPDF/chardet no instalados**: extracción PDF limitada a placeholder; detección de encoding CSV usa utf-8 por defecto.
+
+### Próximo paso sugerido
+- Implementar streaming SSE para el chatbot (eliminar polling actual).
+- Persistir historial de conversación en DB en vez de sesión.
+- Soporte multi-thread de chat (múltiples conversaciones simultáneas).
+- Dashboard de métricas de IA (aciertos/fallos por intent, latencia por proveedor).
+- UI de feedback (thumbs up/down) para entrenar SmartLearner.
+
+---
+
+## [2026-06-29] Phase 11 — User Feedback & Continuous Learning
+
+### Trabajo realizado
+
+Implementación completa del sistema de feedback y aprendizaje continuo para el asistente IA:
+
+**ConversationFeedback model:**
+- Modelo en `apps/platform/ai/models.py` con: `conversation` (FK), `message` (FK), `user` (FK), `rating` (+1/-1), `reason` (CharField con 8 choices), `comment` (TextField), `created_at`/`updated_at`, 4 índices compuestos.
+- Migración `ai.0003` creada y aplicada.
+- `ConversationFeedbackAdmin` con display de iconos de rating.
+- Método `get_stats(days=30)` agregado como classmethod (total, thumbs_up/down, score %, reason_breakdown, by_provider).
+
+**SmartLearner extension:**
+- `record_feedback(message_id, rating, provider, intent_type, reason)` — guarda en `feedback_log.json` y penaliza al proveedor en caso de rating negativo (via `record_provider_run` con `confidence=0.3, success=False`).
+- `record_tool_execution(tool_name, intent_type, success, execution_time_ms, error_message)` — tracking de ejecuciones por herramienta con métricas de éxito/fallo/tiempo.
+- `get_tool_stats()` — retorna diccionario completo con runs, success_rate, avg_time.
+- `get_best_tool_for(intent_type)` — retorna tool_name con mejor success_rate para ese intent.
+
+**Feedback API (4 endpoints JSON, require login):**
+- `POST /chat/feedback/` — `feedback_create`: upsert por `user+message`, guarda en DB y en SmartLearner, penaliza proveedor si rating negativo.
+- `PATCH /chat/feedback/<id>/` — `feedback_update`: actualiza reason/comment.
+- `DELETE /chat/feedback/<id>/delete/` — `feedback_delete`: soft-delete opcional.
+- `GET /chat/feedback/stats/` — `feedback_stats`: agregados por periodo con desglose por proveedor.
+
+**Dashboard API (4 endpoints JSON, require is_staff):**
+- `GET /dashboard/metrics/` — KPIs globales con routing distribution.
+- `GET /dashboard/providers/` — efectividad por proveedor con avg rating.
+- `GET /dashboard/tools/` — estadísticas de uso de herramientas.
+- `GET /dashboard/feedback/` — resumen de feedback.
+
+**ConversationAnalytics service:**
+- `apps/platform/ai/services/conversation_analytics.py` con 8 métodos: `get_overall_metrics()`, `get_repeated_questions()`, `get_abandoned_conversations()`, `get_follow_up_stats()`, `get_conversation_length_stats()`, `get_provider_effectiveness()`, `get_tool_usage_stats()`.
+
+**Frontend feedback UI:**
+- `message_id` agregado al evento SSE `done` en `ai_chat_stream`.
+- Template `ai_chat.html` actualizado con:
+  - `addFeedbackButtons()` — renderiza 👍/👎 al final de cada respuesta del asistente.
+  - `sendFeedback()` — envía feedback positivo; abre diálogo modal para negativo.
+  - `showFeedbackReasonDialog()` — modal con 6 razones + opción "Otro".
+  - `sendFeedbackWithReason()` — envía razón + rating negativo al endpoint.
+
+**Adaptive Behaviour:**
+- `ProviderRouter.get_best_provider_for()` ya prioriza el mejor proveedor histórico de SmartLearner (sin cambios necesarios).
+- Feedback negativo penaliza automáticamente al proveedor (baja `confidence` en `record_provider_run`).
+
+### Archivos creados
+- `apps/platform/ai/services/conversation_analytics.py` — 173 líneas.
+
+### Archivos modificados
+- `apps/platform/ai/models.py` — ConversationFeedback model + get_stats().
+- `apps/platform/ai/migrations/0003_conversationfeedback.py` — migración creada.
+- `apps/platform/ai/admin.py` — ConversationFeedbackAdmin.
+- `apps/platform/ai/services/smart_learner.py` — record_feedback, record_tool_execution, get_tool_stats, get_best_tool_for.
+- `apps/platform/document_intelligence/views.py` — feedback_create/update/delete/stats, dashboard_metrics/providers/tools/feedback, last_message_id en stream().
+- `apps/platform/document_intelligence/urls.py` — 8 nuevas rutas.
+- `apps/platform/document_intelligence/templates/document_intelligence/ai_chat.html` — feedback buttons, reason dialog, message_id wiring, getCSRF, escapeHtml.
+- `docs/TODO.md` — R20 marcado completado.
+
+### Decisiones importantes
+- **Feedback dual storage**: DB (ConversationFeedback) para analytics y API queries; SmartLearner JSON (`feedback_log.json`) para aprendizaje persistente entre reinicios.
+- **Negative feedback penaliza automáticamente**: `record_feedback()` llama a `record_provider_run(confidence=0.3, success=False)` para que ProviderRouter baje la prioridad del proveedor.
+- **Upsert por user+message**: Si el mismo usuario vuelve a votar el mismo mensaje, se actualiza en vez de crear duplicado (PATCH semantics en la API).
+- **Frontend sin modificar streaming**: Los controles de feedback se agregan dinámicamente desde el evento `done` con el `message_id` del mensaje almacenado.
+- **Sin nuevos proveedores IA ni cambios en Tool System**: Todo el aprendizaje es adaptativo sobre los proveedores existentes.
+
+### Validaciones
+- `python manage.py check` — 0 issues.
+- `python manage.py makemigrations --check` — No changes detected.
+- Prueba funcional de SmartLearner: record_tool_execution (3 tools, stats correctos), record_feedback (almacenado, provider penalizado), get_best_tool_for (correcto).
+- Prueba funcional de ConversationFeedback: get_stats con by_provider, score 100%, reason_breakdown correcto.
+- Prueba funcional de ConversationAnalytics: 8 métodos ejecutados sin errores, métricas consistentes.
+- `getCSRF()` function exists in template (confirmado por grep).
+
+### Próximo paso sugerido
+- Dashboard visual (panel frontend para KPIs de IA).
+- Streaming SSE para respuestas largas (ya existe, pero no usa el `message_id` para feedback en tiempo real).
+- Exportación de analytics a Excel/PDF.
+
+### Trabajo realizado
+
+Refactorización completa del backend del asistente IA, eliminando toda la duplicación de lógica de enrutamiento y centralizando el flujo de decisión en `DecisionEngine`:
+
+**1. Centralización de datos de routing en `decision_engine.py`**
+
+Todo el routing data ahora vive exclusivamente en `decision_engine.py`:
+- `_DATA_AGENT_MODELS` — whitelist de 22 keywords → modelos Django
+- `_DATA_AGENT_LABELS` — 8 nombres de clase → etiquetas display
+- `_FORM_ALIASES` — 8 keywords de negocio → nombres de formularios dinámicos
+- `_CHAT_INTENT_PATTERNS` — 16 intents con patrones regex expandidos
+- `_CHAT_MODEL_KEYWORDS` — 8 modelos detectables por keyword
+- `_GENERIC_DATA_PATTERNS` — 17 patrones de detección genérica
+- Funciones públicas: `get_data_agent_models()`, `get_data_agent_labels()`, `get_form_aliases()`
+
+**2. Eliminación de duplicados en `views.py`**
+
+Eliminados ~180 líneas de datos duplicados:
+- `_DATA_AGENT_MODELS` → importado de `decision_engine`
+- `_FORM_ALIASES` → importado de `decision_engine`
+- `_DATA_AGENT_LABELS` → importado de `decision_engine`
+- `_DATA_INTENTS` (9 intents) → eliminado (reemplazado por `_CHAT_INTENT_PATTERNS`)
+- `_detect_data_intent()` (98 líneas) → eliminado (código muerto, reemplazado por `classify_chat()`)
+
+**3. Expansión de `classify_chat()` — 16 intents + parámetros mejorados**
+
+- **Nuevo intent `filter`**: detecta "filtrar", "con error", "activos", "inactivos", "pendientes", etc.
+- **Nuevo intent `sum`**: detecta "suma", "ingresos", "cuánto cuesta", etc.
+- **Nuevo intent `average`**: ya existía
+- **Nuevo intent `max`/`min`**: patrones expandidos ("más caro", "barato", "record")
+- **Nuevo intent `oldest`**: patrones expandidos ("primeros registros")
+- **Nuevo intent `exists`**: patrones expandidos
+- **Combined filters**: `params["filters"]` como lista de dicts con field/op/value
+- **Aggregation field detection**: detecta "precio", "stock", "total", "cantidad" para sum/avg/max/min
+- **Implicit date ranges**: trend/compare → date_range="month"; latest/oldest → limit=5
+- **Date range aplicado via `date_range` param**: month/week/today/year con timezone-aware calculation
+
+**4. Upgrade de `_execute_safe_query()` — 16 intents soportados**
+
+Nuevos handlers:
+- `filter` — combined filters + list (limit 20)
+- `oldest` — oldest items ascending by date
+- `exists` — boolean existence check + count
+- `sum` — EAV-aware aggregation sobre ValorCampo (numérico) + fallback a model field Sum
+- `average` — EAV-aware average + fallback a model field Avg
+- `max`/`min` — EAV-aware con `__icontains` + fallback a Max/Min + fallback a list item
+- `bottom` — reverse of `top` (order_by("count"))
+- `statistics` — renamed from `stats` with time-based stats
+- `latest` — renamed alias for `list` with default date order
+
+Mejoras transversales:
+- `date_range` param → timezone-aware date filtering
+- `filters` combined filters → múltiples filtros simultáneos
+- `pending` flag → filtro ImportLog por estado pendiente
+- Helper `_format_items()` extracto para evitar duplicación de lógica de formato
+- EAV queries para Registro: sum/avg/max/min leen `ValorCampo` directamente
+
+**5. Routing metrics**
+
+`_chat_metrics` ya existía (Phase 7). Se preserva y ahora registra:
+- heuristic_answers: document_question, form_creation
+- orm_answers: todos los data_query sub_intents
+- ai_answers: general_chat con AI provider
+- by_intent: desglose por sub_intent
+- by_provider: provider usado
+- fallback_used: conteo de fallbacks
+
+### Validaciones ejecutadas
+- `python manage.py check` — 0 issues.
+- `python manage.py makemigrations --check` — No changes detected.
+- 79 unit tests (extractors, column matching) — 79/79 PASS, 0.794s.
+- 12 E2E tests (import pipeline) — 12/12 PASS, 42/42 checks.
+
+### Archivos modificados
+- `apps/platform/ai/services/decision_engine.py` — Nueva sección CENTRALIZED ROUTING DATA con `_DATA_AGENT_MODELS`, `_DATA_AGENT_LABELS`, `_FORM_ALIASES`, `get_data_agent_models()`, `get_data_agent_labels()`, `get_form_aliases()`. `_CHAT_INTENT_PATTERNS` expandido a 16 intents. `classify_chat()` mejorado con combined filters, aggregate field detection, implicit date ranges.
+- `apps/platform/document_intelligence/views.py` — Eliminados `_DATA_AGENT_MODELS`, `_FORM_ALIASES`, `_DATA_AGENT_LABELS`, `_DATA_INTENTS`, `_detect_data_intent()`. Importados desde `decision_engine`. `_execute_safe_query()` reescrito con 16 intents, EAV aggregation, combined filters, date_range support.
+
+### Decisiones importantes
+- **decision_engine.py es la ÚNICA fuente de verdad para routing data**: views.py importa todo desde `decision_engine`. Cualquier nuevo modelo, alias o patrón de intent se agrega solo en `decision_engine.py`.
+- **`_detect_data_intent()` eliminado completamente**: ya no era llamado por nadie desde Phase 7. Su reemplazo `classify_chat()` es la única ruta de detección.
+- **EAV aggregation via ValorCampo directo**: Para sum/avg/max/min sobre Registro con form_filter, se consulta `ValorCampo.objects.filter(campo=..., registro__in=qs)` directamente, con conversión a float. Esto evita tener que cargar todos los valores en memoria.
+- **Combined filters como lista de dicts**: `params["filters"] = [{"field": "success", "op": "exact", "value": False}]` permite encadenar múltiples filtros sin conflicto entre claves del dict.
+- **Backward compatibility total**: `_execute_safe_query()` mantiene su firma exacta `(intent, model_key, params)`. Parámetros nuevos (`date_range`, `filters`, `pending`, `aggregate_field`) son aditivos.
+
+### Problemas encontrados
+- **Duplicados triples en decision_engine.py**: El archivo tenía 3 copias de `_CHAT_MODEL_KEYWORDS` y `_GENERIC_DATA_PATTERNS` (una de la Fase 3 original, otra de la Fase 7, otra de la re-centralización). Corregido eliminando las copias redundantes.
+
+### Próximo paso sugerido
+- Agregar vista de historial de planes en la conversación (plan history expandible)
+- Dashboard de métricas de IA (aciertos/fallos por intent, latencia por proveedor).
+
+---
+
+## [2026-06-29] Phase 13 — AI Planner Frontend & Execution Timeline
+
+### Trabajo realizado
+
+Interfaz visual completa para el sistema de planes multi-paso del asistente IA:
+
+**planner.css** — Identidad visual de herramientas + timeline + tarjetas de paso:
+- `tool-icon` con 10 variantes de iconos/colores por herramienta (import, create_form, analyze_document, search_records/forms, export, inventory, sales, statistics, query_documents).
+- `plan-step-card` con 6 estados visuales (pending, ready, running, completed, failed, skipped) usando colores de borde izquierdo + dots animados.
+- `plan-progress` barra de progreso con gradiente, contador de pasos completados/totales.
+- `plan-header` con badge de estado y botón de reanudar.
+- `plan-metrics` con contadores de pasos exitosos/fallidos.
+- Modal de confirmación (`modal-plan-overlay` + `modal-plan-box`) con sección de dry-run.
+- Dark mode completo para todos los componentes.
+- Responsive: los step cards y modal se adaptan a mobile.
+
+**ai_chat.html** — Template actualizado con toda la lógica frontend:
+- `TOOL_META` diccionario con 10 herramientas (icono FA, color hex, etiqueta).
+- `renderPlanTimeline()` — Renderiza el plan card completo (progress bar + header + timeline steps + metrics) insertado dentro del bubble del mensaje AI.
+- `updateStepCardStatus()` — Actualiza estado visual de un step card individual.
+- `showPlanConfirmation()` — Modal de confirmación con resumen de dry-run.
+- `connectPlanStream()` — Conexión SSE al endpoint `plan/<id>/stream/` para live updates de resume/retry.
+- `handlePlanStreamEvent()` — Procesa 8 eventos: `plan_step`, `plan_step_done`, `plan_paused`, `plan_step_confirmation`, `plan_complete`, `plan_failed`, `plan_cancelled`, `plan_retry`. Cada evento actualiza el timeline en tiempo real.
+- Retry UI: botones inline en step cards fallidos (Reintentar, Saltar, Abortar) con handlers `_retryStep`, `_skipStep`, `_abortPlan`.
+- `_resumePlan` — Reanuda plan pausado vía API + reconecta plan_stream.
+- `savePlanToHistory()` — Almacena últimos 5 planes en memoria.
+- Todas las funciones expuestas globalmente via `window.*` para onclick desde HTML.
+- ARIA: `role="log"` en chat-messages, `role="list"` en timeline, `role="listitem"` en steps, `aria-live="polite"`, `aria-modal`, `aria-label` en inputs y botones.
+- Feedback buttons (Phase 11, preservados sin cambios).
+- Fix: `collectedText`/`tokenCount` movidos a scope del IIFE para visibilidad desde handleEvent.
+
+**plan_stream backend** — Modificado para yield eventos recolectados como SSE:
+- `capture()` callback colecciona eventos durante `execute_plan()`.
+- Todos los eventos se re-emiten como SSE antes del resumen de texto, permitiendo al frontend actualizar el timeline paso a paso.
+
+### Archivos creados
+- `static/css/document_intelligence/planner.css` — 210 líneas, todos los estilos del planner timeline.
+
+### Archivos modificados
+- `apps/platform/document_intelligence/templates/document_intelligence/ai_chat.html` — ~1225 líneas, template completo con planner UI, timeline, modal, retry, history, métricas, ARIA.
+- `apps/platform/document_intelligence/views.py` — `plan_stream()` modificado para yield eventos recolectados como SSE.
+
+### Decisiones importantes
+- **Capture-and-replay para SSE**: Los eventos de `execute_plan()` se capturan en una lista y se re-emiten como SSE antes del texto resumen. Esto permite que el frontend reciba todos los eventos del plan de golpe vs. requerir un streaming en tiempo real con threads.
+- **Timeline dentro del bubble del mensaje**: El plan card se inserta dentro del bubble del mensaje AI (entre contenido y meta-bar), manteniendo el contexto de la conversación.
+- **Sin polling**: Todo el timeline se actualiza vía eventos SSE. No hay temporizadores ni polling.
+- **In-memory history**: Los planes completados/fallidos se almacenan en `planHistory[]` en memoria (máx 5). Sin persistencia DB para evitar migraciones.
+
+### Validaciones
+- `python manage.py check` — 0 issues.
+- `python manage.py makemigrations --check` — No changes detected.
+- 79 unit tests (extractors, column matching) — 79/79 PASS.
+- Planner unit test — 6/6 PASS (create_plan single/multi-step, serialization, SmartLearner stats).

@@ -23,6 +23,7 @@ FREE-FIRST priority: NO usar IA a menos que sea realmente necesario.
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
@@ -30,6 +31,218 @@ from typing import Any, Optional
 from apps.platform.ai.types import FieldType
 
 logger = logging.getLogger(__name__)
+
+
+# ======================================================================
+# ChatIntent — Clasificación de preguntas del chat
+# ======================================================================
+
+@dataclass
+class ChatIntent:
+    """Resultado de clasificación de una pregunta del chat."""
+    intent_type: str = "unknown"
+    # 'data_query', 'document_question', 'form_creation', 'general_chat', 'search', 'unknown'
+    sub_intent: str = ""
+    # 'count', 'list', 'search', 'compare', 'top', 'bottom', 'trend',
+    # 'average', 'sum', 'max', 'min', 'latest', 'oldest', 'exists',
+    # 'statistics', 'group'
+    target_model: str = ""
+    # Model key from _DATA_AGENT_MODELS
+    form_alias: str = ""
+    # Form name from _FORM_ALIASES
+    params: dict = field(default_factory=dict)
+    # Filters, limits, order, date filters
+    confidence: float = 0.0
+    can_answer_without_ai: bool = False
+    explanation: str = ""
+
+
+# ======================================================================
+# CENTRALIZED ROUTING DATA — single source of truth
+# ======================================================================
+# All routing constants live here. views.py imports from this file.
+# ======================================================================
+
+# Model whitelist: keyword → dotted model path for safe ORM access
+_DATA_AGENT_MODELS: dict[str, str] = {
+    "formulario": "apps.platform.dynamic_forms.models.Formulario",
+    "formularios": "apps.platform.dynamic_forms.models.Formulario",
+    "campo": "apps.platform.dynamic_forms.models.Campo",
+    "campos": "apps.platform.dynamic_forms.models.Campo",
+    "registro": "apps.platform.dynamic_forms.models.Registro",
+    "registros": "apps.platform.dynamic_forms.models.Registro",
+    "valor": "apps.platform.dynamic_forms.models.ValorCampo",
+    "valores": "apps.platform.dynamic_forms.models.ValorCampo",
+    "importacion": "apps.platform.dynamic_forms.models.ImportLog",
+    "importaciones": "apps.platform.dynamic_forms.models.ImportLog",
+    "auditoria": "apps.platform.dynamic_forms.models.ImportAudit",
+    "auditorias": "apps.platform.dynamic_forms.models.ImportAudit",
+    "factura": "apps.platform.ai.models.AIAnalysisLog",
+    "facturas": "apps.platform.ai.models.AIAnalysisLog",
+    "analisis": "apps.platform.ai.models.AIAnalysisLog",
+    "analisis_ia": "apps.platform.ai.models.AIAnalysisLog",
+    "documento": "apps.platform.ai.models.AIAnalysisLog",
+    "documentos": "apps.platform.ai.models.AIAnalysisLog",
+    "usuario": "__user_model__",
+    "usuarios": "__user_model__",
+    "user": "__user_model__",
+    "users": "__user_model__",
+}
+
+# Model class name → display label for human-readable responses
+_DATA_AGENT_LABELS: dict[str, str] = {
+    "Formulario": "formularios",
+    "Campo": "campos",
+    "Registro": "registros",
+    "ValorCampo": "valores",
+    "ImportLog": "importaciones",
+    "ImportAudit": "auditorías",
+    "AIAnalysisLog": "análisis",
+    "User": "usuarios",
+}
+
+# Business keyword → dynamic form name mapping for Registro queries
+# "¿Cuántos productos?" → Registro.objects.filter(formulario__nombre="Productos")
+_FORM_ALIASES: dict[str, str] = {
+    "producto": "Productos",
+    "productos": "Productos",
+    "venta": "Ventas",
+    "ventas": "Ventas",
+    "cliente": "Clientes",
+    "clientes": "Clientes",
+    "inventario": "MovimientosInventario",
+    "movimiento": "MovimientosInventario",
+    "movimientos": "MovimientosInventario",
+}
+
+# ======================================================================
+# Public accessors (views.py uses these instead of internal vars)
+# ======================================================================
+
+def get_data_agent_models() -> dict[str, str]:
+    return dict(_DATA_AGENT_MODELS)
+
+def get_data_agent_labels() -> dict[str, str]:
+    return dict(_DATA_AGENT_LABELS)
+
+def get_form_aliases() -> dict[str, str]:
+    return dict(_FORM_ALIASES)
+
+
+# ======================================================================
+# Chat Intent Detection Patterns
+# ======================================================================
+
+# Patrones de detección de intents para el chat
+_GENERIC_DATA_PATTERNS: list[str] = [
+    "cuantos", "cuantas", "cuanto", "cuanta", "list", "lista", "listar",
+    "muestrame", "muéstrame", "mostrar", "ver", "dime", "consulta",
+    "busca", "buscar", "encuentra", "encontrar", "todos", "todas",
+    "existe", "existen", "hay", "cuales", "cuales son", "quien",
+    "quienes", "registros", "formularios", "campos", "valores",
+    "importacion", "exporta", "exportar",
+]
+
+_CHAT_MODEL_KEYWORDS: dict[str, list[str]] = {
+    "formulario": ["formulario", "formularios", "form", "forms"],
+    "campo": ["campo", "campos", "field", "fields"],
+    "registro": ["registro", "registros", "record", "records"],
+    "valor": ["valor", "valores", "value", "values"],
+    "importacion": ["importacion", "importaciones", "import"],
+    "analisis": ["analisis", "analisis", "analysis", "documento"],
+    "usuario": ["usuario", "usuarios", "user", "users"],
+    "producto": ["producto", "productos", "product"],
+    "venta": ["venta", "ventas", "sale", "sales"],
+    "cliente": ["cliente", "clientes", "client"],
+}
+
+_CHAT_INTENT_PATTERNS: dict[str, list[str]] = {
+    "count": [
+        r"\bcu[aá]ntos?\b", r"\bcu[aá]ntas?\b", r"\bcu[aá]nto\b",
+        r"\btotal de\b", r"\bn[uú]mero de\b", r"\bcantidad\b",
+        r"\bcu[aá]ntos\s+hay\b",
+    ],
+    "list": [
+        r"\blist[ao]\w*\b", r"\bmu[ée]str[ae]\w*\b", r"\bdime\b",
+        r"\bcu[aá]les son\b", r"\bqu[eé] hay\b", r"\bmu[ée]strame\b",
+        r"\btodos\w*\s+los\b", r"\blos\s+\w+\s+registrados?\b",
+    ],
+    "search": [
+        r"\bb[uú]squed[ai]\b", r"\bbusc[ao]\w*\b", r"\bencontr[ai]\w*\b",
+    ],
+    "filter": [
+        r"\bfiltr[ai]\w*\b", r"\bfiltro\b", r"\bque\s+(fall[oó]|fallar[oó]|fallid[oas])\b",
+        r"\bcon\s+error\b", r"\bactivos?\b", r"\binactivos?\b",
+        r"\bcon\s+problemas?\b", r"\bpendientes?\b",
+    ],
+    "compare": [
+        r"\bcompar[ai]\w*\b", r"\bcomparaci[oó]n\b", r"\bvs\b",
+        r"\bversus\b", r"\bdiferencias?\b", r"\bdistint[oas]\b",
+    ],
+    "top": [
+        r"\btop\b", r"\bm[aá]s\s+(grande|alto|caro|vendido|com[úu]n|frecuente)\b",
+        r"\bmayor(es)?\b", r"\bprimeros?\b", r"\bprincipales?\b",
+        r"\bsuperior(es)?\b",
+    ],
+    "bottom": [
+        r"\bmenos\s+(grande|alto|caro|vendido|com[úu]n|frecuente)\b",
+        r"\bmenor(es)?\b", r"\bpeor(es)?\b", r"\binferior(es)?\b",
+        r"\bm[íi]nimo\b", r"\bm[íi]nimos?\b",
+    ],
+    "trend": [
+        r"\btendenci[ai]\b", r"\bevoluci[oó]n\b", r"\bcambi[oó]\b",
+        r"\bcrecimient[oó]\b", r"\bdisminuci[oó]n\b",
+        r"\baument[oó]\b", r"\bgr[aá]fic[oai]\b",
+    ],
+    "average": [
+        r"\bpromedi[oó]\b", r"\bmedi[ao]\b", r"\bmedia aritm[ée]tica\b",
+        r"\bpromedio de\b",
+    ],
+    "sum": [
+        r"\bsum[ao]\b", r"\bsumatoria\b", r"\bsumar\b",
+        r"\bcu[aá]nto\s+(cuesta|vale|suma|gan[ao])\b",
+        r"\bingres[oó]\b", r"\bingresos?\b",
+    ],
+    "max": [
+        r"\bm[aá]xim[oas]\b", r"\bel\s+m[aá]s\s+(grande|alto|caro|largo|nuevo|reciente)\b",
+        r"\br[ée]cord\b",
+        r"\bm[aá]s\s+car[oao]\b",
+    ],
+    "min": [
+        r"\bm[íi]nim[oas]\b", r"\bel\s+menos\s+(grande|alto|caro|largo|nuevo|reciente)\b",
+        r"\bbarat[oao]\b",
+    ],
+    "latest": [
+        r"\b[uú]ltim[oas]\b", r"\breciente(s)?\b", r"\breci[eé]n\b",
+        r"\bnuev[oas]\b",
+    ],
+    "oldest": [
+        r"\bprimer[oa]\s+(registro|venta|producto|cliente|formulario|importaci[oó]n)\b",
+        r"\bm[aá]s\s+antigu[oas]\b", r"\bantigu[oas]\b",
+        r"\bprimeros?\s+registro\w*\b",
+    ],
+    "exists": [
+        r"\bexiste?\b", r"\bhay\s+(un|una|alg[uú]n|alguna)\b",
+        r"\btengo\s+(alg[uú]n|alguna|un)\b", r"\btiene\b",
+        r"\bexiste\s+alg[uú]n\b",
+    ],
+    "statistics": [
+        r"\bestad[ií]stic[ao]?\b", r"\bkpi\b", r"\bindicador(es)?\b",
+        r"\bpanel\b", r"\bresumen?\b", r"\breporte?\b",
+        r"\bdashboard\b",
+    ],
+    "group": [
+        r"\bagrup[ai]\w*\b", r"\bgrupo\b", r"\bgrupos\b",
+        r"\bpor tipo\b", r"\bpor categor[ií]a\b",
+        r"\bagrupad[oas]\b", r"\bclasific[ai]\w*\b",
+    ],
+}
+
+
+def _safe_int_match(q: str, pattern: str, default: int = 0) -> int:
+    """Extract first integer from regex match in question."""
+    m = re.search(pattern, q, re.IGNORECASE)
+    return int(m.group(1)) if m else default
 
 
 # ======================================================================
@@ -305,6 +518,224 @@ class AIDecisionEngine:
             confidence=0.5,
             suggested_task_type="general",
         )
+
+
+    # ════════════════════════════════════════════════════════════════
+    # Chat Intent Classification (Phase 7)
+    # ════════════════════════════════════════════════════════════════
+
+    def classify_chat(self, question: str) -> ChatIntent:
+        """
+        Clasifica una pregunta del chat en un intent estructurado.
+
+        Retorna ChatIntent con tipo, subtipo, modelo objetivo, alias
+        de formulario, parámetros y confianza.
+
+        No llama a IA — solo heurísticas.
+        """
+        q = question.lower().strip()
+        result = ChatIntent(explanation="Intento no detectado")
+
+        # ── STEP 0: Detectar si es pregunta de datos genérica ──
+        is_data_question = any(p in q for p in _GENERIC_DATA_PATTERNS)
+
+        # ── STEP 1: Detectar sub_intent (más específico) ──
+        matched_intents = []
+        for intent_name, patterns in _CHAT_INTENT_PATTERNS.items():
+            if any(re.search(p, q) for p in patterns):
+                matched_intents.append(intent_name)
+
+        # ── STEP 2: Detectar target model ──
+        target_model = ""
+        for model_key, keywords in _CHAT_MODEL_KEYWORDS.items():
+            if any(kw in q for kw in keywords):
+                target_model = model_key
+                break
+
+        # ── STEP 3: Detectar form alias ──
+        form_alias_found = ""
+        if not target_model:
+            for alias, fname in _FORM_ALIASES.items():
+                if alias in q:
+                    form_alias_found = fname
+                    target_model = "registro"
+                    break
+
+        # ── STEP 4: Extraer parámetros ──
+        params = {}
+        if form_alias_found:
+            params["form_filter"] = form_alias_found
+
+        # Limit detection
+        limit = _safe_int_match(q, r"(?:top|primeros?|[uú]ltimos?|primer[oa]s?)\s*(\d+)")
+        if limit:
+            params["limit"] = limit
+
+        # Combined filter detection — supports multiple simultaneous filters
+        filters = []
+
+        # Failure/error filter
+        for fail_word in ["falló", "fallo", "fallido", "fallaron", "error", "errores", "failed"]:
+            if fail_word in q:
+                filters.append({"field": "success", "op": "exact", "value": False})
+                break
+
+        # Active/inactive filter
+        activo_in_q = "activo" in q or "activos" in q
+        inactivo_in_q = "inactivo" in q or "inactivos" in q
+        if activo_in_q and not inactivo_in_q:
+            if form_alias_found:
+                filters.append({"field": "activo", "op": "exact", "value": "Sí"})
+            else:
+                params["filter_activo"] = True
+        elif inactivo_in_q:
+            if form_alias_found:
+                filters.append({"field": "activo", "op": "exact", "value": "No"})
+
+        # Escaped comma filter — "con problemas", "pendientes"
+        for status_word in ["pendientes", "pendiente"]:
+            if status_word in q:
+                params["pending"] = True
+                break
+
+        if filters:
+            params["filters"] = filters
+
+        # Date filter
+        if "este mes" in q or "del mes" in q or "mensual" in q:
+            params["date_range"] = "month"
+        elif "esta semana" in q or "de la semana" in q:
+            params["date_range"] = "week"
+        elif "hoy" in q:
+            params["date_range"] = "today"
+        elif "este año" in q or "anual" in q:
+            params["date_range"] = "year"
+
+        # Order / sort detection
+        if "más registros" in q or "más campos" in q:
+            params["order"] = "-count"
+        if "menos registros" in q or "menos campos" in q:
+            params["order"] = "count"
+
+        # Aggregation field detection (for sum, average, max, min)
+        for word in ["precio", "precios", "total", "totales", "stock",
+                      "valor", "valores", "cantidad", "costos", "costo",
+                      "ingreso", "ingresos", "ventas", "venta"]:
+            if word in q:
+                if "sum" in matched_intents or "average" in matched_intents:
+                    params["aggregate_field"] = word
+                break
+
+        # Implicit date range for trend/compare/latest
+        if "trend" in matched_intents or "compare" in matched_intents:
+            if "date_range" not in params:
+                params["date_range"] = "month"
+        if "latest" in matched_intents or "last" in matched_intents:
+            if "limit" not in params:
+                params["limit"] = 5
+        if "oldest" in matched_intents:
+            if "limit" not in params:
+                params["limit"] = 5
+
+        # ── STEP 5: Determinar intent_type ──
+        intent_type = "unknown"
+        can_answer_without_ai = False
+
+        # Form creation
+        if re.search(r"\b(crea?|genera?|nuev[oa])\b.*\b(formulario|form)\b", q):
+            intent_type = "form_creation"
+            result.explanation = "Detección de creación de formulario"
+            result.confidence = 0.85
+            result.params = params
+            result.form_alias = form_alias_found
+            return result
+
+        # Document question
+        if re.search(r"\b(resume?|resumir|analiza|analizar|eval[uú]a|explica|interpreta)\b", q):
+            intent_type = "document_question"
+            result.explanation = "Pregunta sobre análisis/documento"
+            result.confidence = 0.75
+            result.params = params
+            result.form_alias = form_alias_found
+            return result
+
+        # Data query detection
+        has_form_alias = bool(form_alias_found)
+        has_model = bool(target_model)
+        has_sub_intent = len(matched_intents) > 0
+
+        if has_model and has_sub_intent:
+            # Strong signal: explicit model + explicit intent
+            intent_type = "data_query"
+            can_answer_without_ai = True
+            result.confidence = 0.9
+            result.explanation = f"Modelo '{target_model}' + intent '{matched_intents[0]}'"
+        elif is_data_question and has_model:
+            intent_type = "data_query"
+            can_answer_without_ai = True
+            result.confidence = 0.8
+            result.explanation = f"Pregunta genérica de datos + modelo '{target_model}'"
+        elif is_data_question and has_sub_intent:
+            intent_type = "data_query"
+            can_answer_without_ai = True
+            result.confidence = 0.7
+            result.explanation = f"Pregunta genérica de datos + intent '{matched_intents[0]}'"
+        elif has_form_alias and has_sub_intent:
+            intent_type = "data_query"
+            can_answer_without_ai = True
+            result.confidence = 0.75
+            target_model = "registro"
+            result.explanation = f"Alias '{form_alias_found}' + intent '{matched_intents[0]}'"
+        elif is_data_question:
+            intent_type = "data_query"
+            can_answer_without_ai = True
+            if not target_model:
+                target_model = "registro"
+            result.confidence = 0.6
+            result.explanation = "Pregunta genérica de datos (modelo default)"
+
+        # Search (fallback de data_query que busca en todo)
+        if intent_type == "unknown" and "busca" in q or "encuentra" in q or "dónde" in q or "cómo encuentro" in q:
+            intent_type = "search"
+            can_answer_without_ai = True
+            result.confidence = 0.65
+            target_model = "registro"
+            result.explanation = "Búsqueda genérica"
+
+        # ── STEP 6: Determinar sub_intent final ──
+        if matched_intents:
+            # Priority ordering
+            intent_priority = [
+                "exists", "count", "sum", "average", "max", "min",
+                "top", "bottom", "compare", "trend", "statistics",
+                "latest", "oldest", "list", "search", "group",
+            ]
+            for prio in intent_priority:
+                if prio in matched_intents:
+                    result.sub_intent = prio
+                    break
+            if not result.sub_intent and matched_intents:
+                result.sub_intent = matched_intents[0]
+        elif is_data_question:
+            result.sub_intent = "list"
+
+        # ── STEP 7: Set target model default ──
+        if not target_model and result.sub_intent in ("count", "list", "statistics"):
+            target_model = "registro"
+
+        result.intent_type = intent_type
+        result.target_model = target_model
+        result.form_alias = form_alias_found
+        result.params = params
+        result.can_answer_without_ai = can_answer_without_ai
+
+        if intent_type == "unknown":
+            result.intent_type = "general_chat"
+            result.confidence = 0.3
+            result.explanation = "Intento no detectado → general_chat"
+            result.can_answer_without_ai = False
+
+        return result
 
 
 # Singleton

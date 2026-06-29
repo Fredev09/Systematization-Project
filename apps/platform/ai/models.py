@@ -235,3 +235,304 @@ class AIAnalysisLog(models.Model):
                 .annotate(count=models.Count("id"))
             ),
         }
+
+
+class Conversation(models.Model):
+    """
+    Persistent conversation thread for the AI chat assistant.
+
+    Each conversation belongs to a single user and contains
+    multiple messages. Supports archiving, pinning, and auto-summarization.
+    """
+
+    class Meta:
+        verbose_name = "Conversacion"
+        verbose_name_plural = "Conversaciones"
+        ordering = ["-last_message_at", "-updated_at"]
+        indexes = [
+            models.Index(fields=["user", "-last_message_at"]),
+            models.Index(fields=["user", "archived"]),
+            models.Index(fields=["user", "pinned"]),
+        ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="ai_conversations",
+    )
+    title = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="Auto-generated or user-provided conversation title",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_message_at = models.DateTimeField(
+        default=timezone.now,
+        help_text="Timestamp of the last message",
+    )
+    archived = models.BooleanField(default=False)
+    pinned = models.BooleanField(default=False)
+    summary = models.TextField(
+        blank=True, default="",
+        help_text="Latest auto-generated summary of the conversation",
+    )
+    metadata_json = models.TextField(
+        blank=True, default="{}",
+        help_text="JSON metadata for extensibility",
+    )
+    message_count = models.IntegerField(default=0)
+
+    def __str__(self) -> str:
+        return self.title or f"Conversacion #{self.id}"
+
+
+class ConversationMessage(models.Model):
+    """
+    Individual message within a conversation.
+
+    Supports user, assistant, system, and tool roles with
+    full metadata for source tracking and performance monitoring.
+    """
+
+    class Meta:
+        verbose_name = "Mensaje de conversacion"
+        verbose_name_plural = "Mensajes de conversacion"
+        ordering = ["created_at"]
+        indexes = [
+            models.Index(fields=["conversation", "created_at"]),
+            models.Index(fields=["role"]),
+        ]
+
+    ROLES = [
+        ("user", "Usuario"),
+        ("assistant", "Asistente"),
+        ("system", "Sistema"),
+        ("tool", "Herramienta"),
+    ]
+
+    conversation = models.ForeignKey(
+        Conversation,
+        on_delete=models.CASCADE,
+        related_name="messages",
+    )
+    role = models.CharField(
+        max_length=20,
+        choices=ROLES,
+        help_text="Quien envio el mensaje",
+    )
+    content = models.TextField(
+        blank=True, default="",
+        help_text="Contenido del mensaje",
+    )
+
+    # AI metadata (only for assistant/tool messages)
+    intent = models.CharField(
+        max_length=100, blank=True, default="",
+        help_text="Tipo de intent detectado",
+    )
+    provider = models.CharField(
+        max_length=50, blank=True, default="",
+        help_text="Provider slug (gemini, deepseek, tool, data_agent)",
+    )
+    source = models.CharField(
+        max_length=30, blank=True, default="",
+        help_text="Source: ai, tool, data_agent, heuristic",
+    )
+    confidence = models.FloatField(default=0.0)
+    execution_time = models.FloatField(
+        default=0.0,
+        help_text="Execution time in milliseconds",
+    )
+    token_count = models.IntegerField(default=0)
+
+    # Tool metadata (only for tool messages)
+    tool_name = models.CharField(
+        max_length=100, blank=True, default="",
+        help_text="Nombre de la herramienta (solo role=tool)",
+    )
+    tool_success = models.BooleanField(default=True)
+    tool_dry_run = models.BooleanField(default=False)
+    tool_confirmation = models.BooleanField(default=False)
+
+    # Timestamps
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Cuando se envio el mensaje",
+    )
+
+    metadata_json = models.TextField(
+        blank=True, default="{}",
+        help_text="JSON metadata adicional",
+    )
+
+    def __str__(self) -> str:
+        return f"[{self.created_at:%H:%M}] {self.role}: {self.content[:60]}"
+
+
+class ConversationSummary(models.Model):
+    """
+    Auto-generated summary of a conversation at a point in time.
+
+    New summaries are generated when a conversation exceeds
+    the configurable message threshold (default: 30).
+    """
+
+    class Meta:
+        verbose_name = "Resumen de conversacion"
+        verbose_name_plural = "Resumenes de conversacion"
+        ordering = ["-generated_at"]
+
+    conversation = models.ForeignKey(
+        Conversation,
+        on_delete=models.CASCADE,
+        related_name="summaries",
+    )
+    summary = models.TextField(
+        help_text="Resumen generado automaticamente",
+    )
+    message_count = models.IntegerField(
+        default=0,
+        help_text="Numero de mensajes al generar el resumen",
+    )
+    generated_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="Cuando se genero el resumen",
+    )
+    metadata_json = models.TextField(
+        blank=True, default="{}",
+    )
+
+    def __str__(self) -> str:
+        return f"Resumen #{self.id} ({self.message_count} msg, {self.generated_at:%Y-%m-%d})"
+
+
+class ConversationFeedback(models.Model):
+    """
+    User feedback on individual assistant messages.
+
+    Each assistant response can receive optional thumbs-up or thumbs-down
+    feedback with a reason. This drives SmartLearner improvements and
+    dashboard analytics.
+    """
+
+    class Meta:
+        verbose_name = "Retroalimentacion"
+        verbose_name_plural = "Retroalimentaciones"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["conversation", "created_at"]),
+            models.Index(fields=["message", "user"]),
+            models.Index(fields=["user", "created_at"]),
+            models.Index(fields=["rating"]),
+        ]
+
+    REASONS = [
+        ("", "Sin motivo"),
+        ("incorrect", "Informacion incorrecta"),
+        ("incomplete", "Respuesta incompleta"),
+        ("slow", "Demasiado lento"),
+        ("hallucination", "Alucinacion"),
+        ("bad_format", "Formato incorrecto"),
+        ("unhelpful", "No fue util"),
+        ("other", "Otro"),
+    ]
+
+    conversation = models.ForeignKey(
+        Conversation,
+        on_delete=models.CASCADE,
+        related_name="feedbacks",
+    )
+    message = models.ForeignKey(
+        ConversationMessage,
+        on_delete=models.CASCADE,
+        related_name="feedbacks",
+        help_text="The assistant message being rated",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="ai_feedbacks",
+    )
+    rating = models.SmallIntegerField(
+        choices=[(1, "👍 Util"), (-1, "👎 No util")],
+        help_text="+1 for thumbs up, -1 for thumbs down",
+    )
+    reason = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        choices=REASONS,
+        help_text="Reason for negative feedback",
+    )
+    comment = models.TextField(
+        blank=True,
+        default="",
+        help_text="Optional free-text comment",
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="When feedback was submitted",
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        help_text="Last modification time",
+    )
+
+    def __str__(self) -> str:
+        return (
+            f"[{'👍' if self.rating > 0 else '👎'}] "
+            f"Msg #{self.message_id} ({self.get_reason_display()})"
+        )
+
+    @classmethod
+    def get_stats(cls, user=None, days: int = 30) -> dict:
+        """
+        Get aggregate feedback statistics.
+
+        Args:
+            user: Optional user filter.
+            days: Lookback period in days.
+
+        Returns:
+            Dict with totals, score, breakdown, and per-provider stats.
+        """
+        from datetime import timedelta
+        from django.db.models import Count, Avg, Q
+        from django.utils import timezone
+
+        since = timezone.now() - timedelta(days=days)
+        qs = cls.objects.filter(created_at__gte=since)
+        if user:
+            qs = qs.filter(user=user)
+
+        total = qs.count()
+        thumbs_up = qs.filter(rating=1).count()
+        thumbs_down = qs.filter(rating=-1).count()
+
+        return {
+            "period_days": days,
+            "total": total,
+            "thumbs_up": thumbs_up,
+            "thumbs_down": thumbs_down,
+            "score": round((thumbs_up / total * 100) if total else 0.0, 1),
+            "reason_breakdown": dict(
+                qs.filter(rating=-1)
+                .values_list("reason")
+                .annotate(count=Count("id"))
+            ),
+            "by_provider": [
+                {
+                    "provider": item["message__provider"],
+                    "avg_rating": round(float(item["avg_rating"] or 0.0), 2),
+                    "count": item["count"],
+                }
+                for item in qs.values("message__provider")
+                .annotate(
+                    avg_rating=Avg("rating"),
+                    count=Count("id"),
+                )
+                .filter(message__provider__gt="")
+            ],
+        }

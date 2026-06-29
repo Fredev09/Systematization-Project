@@ -171,3 +171,62 @@ class OpenRouterProvider(BaseAIProvider):
             "success": True,
             "error": None,
         }
+
+    def stream_chat(
+        self,
+        system_instruction: str,
+        messages: list[dict[str, Any]],
+    ):
+        """
+        Stream OpenRouter response using OpenAI-compatible SSE.
+        """
+        url = f"{OPENROUTER_API_BASE}/chat/completions"
+
+        body: dict[str, Any] = {
+            "model": self.config.model,
+            "messages": [],
+            "temperature": self.config.temperature,
+            "max_tokens": self.config.max_tokens,
+        }
+
+        if system_instruction:
+            body["messages"].append({
+                "role": "system",
+                "content": system_instruction,
+            })
+
+        for msg in messages:
+            role = msg.get("role", "user")
+            parts = msg.get("parts", [])
+            content_parts = []
+            for part in parts:
+                if "text" in part:
+                    content_parts.append({"type": "text", "text": part["text"]})
+                if "inline_data" in part:
+                    mime = part["inline_data"]["mime_type"]
+                    data = part["inline_data"]["data"]
+                    content_parts.append({
+                        "type": "image_url",
+                        "image_url": {"url": f"data:{mime};base64,{data}"},
+                    })
+            if not content_parts:
+                body["messages"].append({"role": role, "content": ""})
+            elif len(content_parts) == 1:
+                single = content_parts[0]
+                body["messages"].append({
+                    "role": role,
+                    "content": single["text"] if "text" in single else single,
+                })
+            else:
+                body["messages"].append({
+                    "role": role,
+                    "content": content_parts,
+                })
+
+        yield from self._stream_openai_compatible(
+            api_url=url,
+            api_key=self.config.api_key,
+            body=body,
+            provider_name="openrouter",
+            extra_headers={"HTTP-Referer": "https://tonjeo.app"},
+        )

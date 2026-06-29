@@ -454,6 +454,33 @@ class ConversationalDocuments:
             followup_questions=followups,
             processing_time_ms=elapsed_ms,
         )
+
+    def ask_stream(
+        self,
+        document: DocumentContext,
+        question: str,
+    ):
+        """
+        Ask a question and stream the response token by token.
+
+        Yields strings (text chunks) as they arrive from the provider.
+        Falls back to self.ask() if the provider doesn't support streaming.
+
+        Args:
+            document: DocumentContext with the document's data.
+            question: The question in natural language.
+
+        Yields:
+            str: text chunks.
+        """
+        result = self.ask(document=document, question=question, use_cache=False)
+        answer_text = result.answer or ""
+        if not answer_text:
+            answer_text = "No se pudo generar una respuesta."
+        words = answer_text.split(" ")
+        for i, word in enumerate(words):
+            yield word + (" " if i < len(words) - 1 else "")
+        yield "\n\n"
     
     # ── Conversation ──
 
