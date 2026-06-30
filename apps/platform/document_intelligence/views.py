@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import logging
+import sys
 import time
 import uuid
 from pathlib import Path
@@ -32,7 +33,7 @@ from django.http import JsonResponse, StreamingHttpResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
 
-from apps.platform.ai.models import AIAnalysisLog
+from apps.platform.ai.models import AIAnalysisLog, ConversationMessage, ConversationFeedback
 from apps.platform.ai.services.conversation_manager import ConversationManager
 from apps.platform.ai.providers import get_provider
 from apps.platform.ai.services.ai_dashboard import get_ai_dashboard
@@ -95,6 +96,12 @@ def _offline_json_response(message: str = "", suggestions: list | None = None, s
 
 
 _DI_SESSION_KEYS = ["di_pipeline_result", "di_import_ready", "di_catalog_suggestions"]
+
+# ── Streaming safety constants ──
+STREAM_MAX_WAIT_SECONDS = 45          # Max total streaming time before forced close
+STREAM_HEARTBEAT_INTERVAL = 8         # Send heartbeat every N seconds
+STREAM_IDLE_TIMEOUT = 20              # If no tokens for N seconds, close with timeout
+_STREAM_ABORT_EVENT = object()        # Sentinel for stream abortion
 
 def _cleanup_di(request, *, delete_tmp_path=None):
     """Clean ALL DI session keys. Delete temp file if path provided.
@@ -271,6 +278,7 @@ def document_upload(request):
     """
     if request.method == "POST":
         action = request.POST.get("action", "analyze")
+        print(f"[PRINT0] document_upload POST | action={action} POST_keys={list(request.POST.keys())}", flush=True)
 
         if action == "analyze":
             return _handle_e2e_analyze(request)
@@ -805,7 +813,34 @@ def ai_chat_ask(request):
     # STEP 1 — DecisionEngine.classify_chat(): classify intent
     # ════════════════════════════════════════════════════════════════
     decision_engine = get_decision_engine()
-    intent = decision_engine.classify_chat(question)
+
+    # Build previous context from conversation history for follow-up detection
+    from apps.platform.ai.services.decision_engine import ChatIntent
+    previous_context = None
+    try:
+        last_assistant_msg = ConversationManager.get_recent_messages(conversation, 2)
+        for msg in reversed(last_assistant_msg):
+            if msg.role == "assistant" and msg.intent:
+                # Extract form_alias from message metadata if available
+                _meta = {}
+                try:
+                    _meta = json.loads(msg.metadata_json) if msg.metadata_json else {}
+                except Exception:
+                    pass
+                previous_context = ChatIntent(
+                    intent_type=msg.intent if msg.intent != "plan_execution" else "general_chat",
+                    sub_intent=msg.intent,
+                    target_model="registro" if "data_query" in (msg.intent or "") else "",
+                    form_alias=_meta.get("form_alias", ""),
+                    params=dict(_meta.get("params", {})) if isinstance(_meta.get("params"), dict) else {},
+                    confidence=msg.confidence or 0.7,
+                    can_answer_without_ai=msg.source in ("data_agent", "heuristic"),
+                )
+                break
+    except Exception:
+        pass
+
+    intent = decision_engine.classify_chat(question, previous_context=previous_context)
 
     logger.info(
         "Chat: intent=%s sub_intent=%s model=%s alias=%s confidence=%.2f can_no_ai=%s",
@@ -849,6 +884,7 @@ def ai_chat_ask(request):
             intent=intent.sub_intent or "data_query",
             provider="orm", source="data_agent",
             confidence=intent.confidence, execution_time=elapsed,
+            metadata={"form_alias": intent.form_alias},
         )
         data_result["conversation_id"] = conversation.id
         return JsonResponse(data_result)
@@ -878,6 +914,7 @@ def ai_chat_ask(request):
             conversation, role="assistant", content=answer,
             intent="document_question", provider="heuristic", source="heuristic",
             confidence=0.8, execution_time=elapsed,
+            metadata={"form_alias": intent.form_alias},
         )
         return JsonResponse({
             "answer": answer,
@@ -907,6 +944,7 @@ def ai_chat_ask(request):
             conversation, role="assistant", content=answer,
             intent="form_creation", provider="heuristic", source="heuristic",
             confidence=0.9, execution_time=elapsed,
+            metadata={"form_alias": intent.form_alias},
         )
         return JsonResponse({
             "answer": answer,
@@ -944,6 +982,7 @@ def ai_chat_ask(request):
             conversation, role="assistant", content=offline_answer,
             intent="offline", provider="heuristic", source="heuristic",
             confidence=0.5, execution_time=elapsed,
+            metadata={"form_alias": intent.form_alias},
         )
         return JsonResponse({
             "answer": offline_answer,
@@ -1081,6 +1120,7 @@ def ai_chat_ask(request):
         provider=provider_name, source="ai",
         confidence=float(result.confidence) if hasattr(result, "confidence") else 0.7,
         execution_time=ai_elapsed,
+        metadata={"form_alias": intent.form_alias},
     )
 
     return JsonResponse({
@@ -1142,13 +1182,58 @@ def ai_chat_stream(request):
     t0 = time.perf_counter()
 
     def stream():
+        logger.info("[DIAG] ENTER ai_chat_stream | question='%s' | conv_id=%s", question[:80], conversation.id if conversation else "N/A")
         total_tokens = 0
         first_token_time = None
         intent_info = ""
         source_type = "heuristic"
         provider_name = "none"
         last_message_id = None
+        _last_token_time = time.perf_counter()
+        _heartbeat_count = 0
+        _stream_aborted = False
 
+        # Flag to ensure we always send done/error
+        _stream_finalized = False
+        first_token_latency = 0.0  # Declared for nonlocal access in _finalize
+
+        def _finalize(err_msg: str = "") -> list[str]:
+            """Build final SSE events. Returns list of event strings.
+            NOT a generator — returns a list so the caller can yield properly."""
+            nonlocal _stream_finalized, first_token_latency
+            if _stream_finalized:
+                logger.info("[DIAG] _finalize called but already finalized | total_tokens=%d", total_tokens)
+                return []
+            _stream_finalized = True
+            events = []
+            total_ms = (time.perf_counter() - t0) * 1000
+            if err_msg:
+                events.append(_sse_event("error", {
+                    "message": err_msg,
+                    "processing_time_ms": round(total_ms, 1),
+                }))
+            if first_token_time:
+                first_token_latency = (first_token_time - t0) * 1000
+            else:
+                first_token_latency = 0
+            tokens_per_sec = (total_tokens / (total_ms / 1000)) if total_ms > 0 else 0
+            logger.info("[DIAG] DONE SENT | total_tokens=%d | first_token_latency=%.1fms | total_ms=%.0fms | source=%s | provider=%s | intent=%s", total_tokens, first_token_latency, total_ms, source_type, provider_name, intent_info)
+            events.append(_sse_event("done", {
+                "metrics": {
+                    "total_ms": round(total_ms, 1),
+                    "first_token_ms": round(first_token_latency, 1),
+                    "tokens": total_tokens,
+                    "tokens_per_sec": round(tokens_per_sec, 1),
+                    "source": source_type,
+                    "provider": provider_name,
+                    "intent": intent_info,
+                },
+                "conversation_id": conversation.id,
+                "message_id": last_message_id,
+            }))
+            return events
+
+        # Exception-safe wrapper for all streaming
         try:
             # ════════════════════════════════════════════
             # STEP 0 — Offline check
@@ -1163,7 +1248,33 @@ def ai_chat_stream(request):
             yield _sse_event("status", {"status": "analyzing"})
 
             decision_engine = get_decision_engine()
-            intent = decision_engine.classify_chat(question)
+
+            # Build previous context from conversation history for follow-up detection
+            from apps.platform.ai.services.decision_engine import ChatIntent
+            _prev = None
+            try:
+                _last_msgs = ConversationManager.get_recent_messages(conversation, 2)
+                for _m in reversed(_last_msgs):
+                    if _m.role == "assistant" and _m.intent:
+                        _meta = {}
+                        try:
+                            _meta = json.loads(_m.metadata_json) if _m.metadata_json else {}
+                        except Exception:
+                            pass
+                        _prev = ChatIntent(
+                            intent_type=_m.intent if _m.intent != "plan_execution" else "general_chat",
+                            sub_intent=_m.intent,
+                            target_model="registro" if "data_query" in (_m.intent or "") else "",
+                            form_alias=_meta.get("form_alias", ""),
+                            params=dict(_meta.get("params", {})) if isinstance(_meta.get("params"), dict) else {},
+                            confidence=_m.confidence or 0.7,
+                            can_answer_without_ai=_m.source in ("data_agent", "heuristic"),
+                        )
+                        break
+            except Exception:
+                pass
+
+            intent = decision_engine.classify_chat(question, previous_context=_prev)
 
             intent_info = f"{intent.intent_type}/{intent.sub_intent}"
             logger.info(
@@ -1171,6 +1282,7 @@ def ai_chat_stream(request):
                 intent.intent_type, intent.sub_intent, intent.target_model,
                 intent.form_alias, intent.confidence,
             )
+            logger.info("[DIAG] INTENT CLASSIFIED: intent_type=%s sub_intent=%s confidence=%.2f can_no_ai=%s", intent.intent_type, intent.sub_intent, intent.confidence, intent.can_answer_without_ai)
 
             smart_learner = SmartLearner()
 
@@ -1224,6 +1336,7 @@ def ai_chat_stream(request):
                     provider="orm", source="data_agent",
                     confidence=data_result.get("confidence", 0.95),
                     execution_time=elapsed, token_count=total_tokens,
+                    metadata={"form_alias": intent.form_alias},
                 )
                 if last_assistant_msg:
                     last_message_id = last_assistant_msg.id
@@ -1293,6 +1406,7 @@ def ai_chat_stream(request):
                     provider="heuristic", source="heuristic",
                     confidence=confidence, execution_time=elapsed,
                     token_count=total_tokens,
+                    metadata={"form_alias": intent.form_alias},
                 )
                 if last_assistant_msg:
                     last_message_id = last_assistant_msg.id
@@ -1443,6 +1557,7 @@ def ai_chat_stream(request):
                         confidence=0.9 if is_plan_success else 0.0,
                         execution_time=plan_elapsed,
                         token_count=total_tokens,
+                        metadata={"form_alias": intent.form_alias},
                     )
                     if last_assistant_msg:
                         last_message_id = last_assistant_msg.id
@@ -1523,6 +1638,7 @@ def ai_chat_stream(request):
                             tool_success=tool_result.success,
                             tool_dry_run=bool(tool_result.confirmation_message),
                             tool_confirmation=tool_result.requires_confirmation,
+                            metadata={"form_alias": intent.form_alias},
                         )
                         if tool_assistant_msg:
                             last_message_id = tool_assistant_msg.id
@@ -1606,6 +1722,7 @@ def ai_chat_stream(request):
                                 _chat_metrics["fallback_used"] += 1
 
                         yield _sse_event("source", {"source": "ai_provider", "provider": provider_name})
+                        logger.info("[DIAG] AI PROVIDER ROUTED: provider=%s provider_type=%s is_heuristic=%s", provider_name, type(provider).__name__ if provider else "None", route.is_heuristic if hasattr(route, 'is_heuristic') else '?')
 
                         # ── Build system context + conversation history via ConversationManager ──
                         system_context = _build_system_context(request)
@@ -1614,10 +1731,11 @@ def ai_chat_stream(request):
                         )
                         enriched_question = f"{context_str}\n\n---\n\n## Pregunta del usuario:\n{question}"
 
-                        # ── Stream from provider ──
+                        # ── Stream from provider with heartbeat watchdog ──
                         collected_text = ""
                         ai_success = True
                         try:
+                            logger.info("[DIAG] ENTER provider loop | provider=%s | enriched_question length=%d", provider_name, len(enriched_question))
                             from apps.platform.ai.services.conversational_documents import (
                                 ConversationalDocuments, DocumentContext, QuestionType,
                             )
@@ -1629,24 +1747,54 @@ def ai_chat_stream(request):
                             )
                             messages = [{"role": "user", "parts": [{"text": enriched_question}]}]
 
+                            _provider_stream_start = time.perf_counter()
+                            _chunk_count = 0
                             for chunk in provider.stream_chat(
                                 system_instruction=system_instruction,
                                 messages=messages,
                             ):
                                 if total_tokens == 0:
                                     first_token_time = time.perf_counter()
+                                    logger.info("[DIAG] FIRST CHUNK from provider | chunk_len=%d | chunk_start='%s'", len(chunk), chunk[:100])
                                 if chunk:
+                                    _chunk_count += 1
                                     yield _sse_event("token", {"text": chunk})
                                     collected_text += chunk
                                     total_tokens += 1
+                                    _last_token_time = time.perf_counter()
+                                    if _chunk_count % 10 == 0:
+                                        logger.info("[DIAG] TOKEN COUNT from provider loop: total_tokens=%d | total_chunks=%d | collected_len=%d", total_tokens, _chunk_count, len(collected_text))
 
+                                # BUG 2: Watchdog timeout between tokens
+                                _elapsed_since_last_token = (time.perf_counter() - _last_token_time)
+                                if _elapsed_since_last_token > STREAM_IDLE_TIMEOUT:
+                                    logger.warning(
+                                        "Stream idle timeout after %.0fs (no new tokens)",
+                                        _elapsed_since_last_token,
+                                    )
+                                    break
+
+                                # BUG 2: Send periodic heartbeat
+                                _heartbeat_count += 1
+                                if _heartbeat_count % 5 == 0:
+                                    yield _sse_event("heartbeat", {
+                                        "tokens": total_tokens,
+                                        "elapsed_ms": round((time.perf_counter() - t0) * 1000, 1),
+                                    })
+
+                        except GeneratorExit:
+                            logger.info("[DIAG] GeneratorExit in provider loop | total_tokens=%d | collected_len=%d", total_tokens, len(collected_text))
+                            ai_success = False
+                            _stream_aborted = True
+                            _stream_finalized = True
                         except Exception as e:
-                            logger.warning("AI stream failed: %s", e)
+                            logger.warning("[DIAG] AI stream failed: %s | total_tokens=%d | collected_len=%d", str(e), total_tokens, len(collected_text))
                             _chat_metrics["fallback_used"] += 1
                             ai_success = False
                             yield _sse_event("token", {"text": "Lo siento, no pude generar una respuesta en este momento. Intenta de nuevo."})
 
                         ai_elapsed = (time.perf_counter() - t0) * 1000
+                        logger.info("[DIAG] EXIT provider loop | final total_tokens=%d | final collected_len=%d | ai_success=%s | ai_elapsed=%.0fms", total_tokens, len(collected_text), ai_success, ai_elapsed)
                         _record_chat_metrics("general_chat", "ai", ai_elapsed, provider=provider_name)
 
                 # SmartLearner
@@ -1675,11 +1823,12 @@ def ai_chat_stream(request):
                 if collected_text:
                     ai_assistant_msg = ConversationManager.add_message(
                         conversation, role="assistant", content=collected_text,
-                        intent=intent.sub_intent or "general_chat",
-                        provider=provider_name, source="ai",
-                        confidence=0.7, execution_time=ai_elapsed,
-                        token_count=total_tokens,
-                    )
+                            intent=intent.sub_intent or "general_chat",
+                            provider=provider_name, source="ai",
+                            confidence=0.7, execution_time=ai_elapsed,
+                            token_count=total_tokens,
+                            metadata={"form_alias": intent.form_alias},
+                        )
                     if ai_assistant_msg:
                         last_message_id = ai_assistant_msg.id
 
@@ -1696,29 +1845,15 @@ def ai_chat_stream(request):
 
         except GeneratorExit:
             logger.info("Stream cancelled by client (GeneratorExit)")
+            _stream_finalized = True
+            return
         except Exception as e:
             logger.exception("Stream error")
             yield _sse_event("status", {"status": "error", "message": str(e)})
         finally:
-            if first_token_time:
-                first_token_latency = (first_token_time - t0) * 1000
-            else:
-                first_token_latency = 0
-            total_ms = (time.perf_counter() - t0) * 1000
-            tokens_per_sec = (total_tokens / (total_ms / 1000)) if total_ms > 0 else 0
-            yield _sse_event("done", {
-                "metrics": {
-                    "total_ms": round(total_ms, 1),
-                    "first_token_ms": round(first_token_latency, 1),
-                    "tokens": total_tokens,
-                    "tokens_per_sec": round(tokens_per_sec, 1),
-                    "source": source_type,
-                    "provider": provider_name,
-                    "intent": intent_info,
-                },
-                "conversation_id": conversation.id,
-                "message_id": last_message_id,
-            })
+            if not _stream_finalized:
+                for _event in _finalize():
+                    yield _event
 
     return StreamingHttpResponse(
         stream(),
@@ -3411,7 +3546,9 @@ def _handle_create_form(request, template_name="document_upload.html"):
       - Form similarity detection and reuse
     """
     result_data = request.session.get("di_pipeline_result")
+    print(f"[PRINT10] _handle_create_form ENTER | session_has_result={bool(result_data)} has_form_name={bool(request.POST.get('form_name'))}", flush=True)
     if not result_data:
+        print("[PRINT10a] EARLY REDIRECT: no di_pipeline_result in session", flush=True)
         messages.error(request, "Session expired. Please upload the file again.")
         return redirect("document_intelligence:create_from_file")
 
@@ -3433,6 +3570,9 @@ def _handle_create_form(request, template_name="document_upload.html"):
         return redirect("dynamic_forms:ver_registros", existing.id)
 
     from apps.platform.dynamic_forms.models import Formulario, Campo
+    _t0 = time.perf_counter()
+    _t_last = _t0
+    _timings: dict[str, float] = {}
 
     form_name = request.POST.get("form_name", result_data.get("form_name", "Untitled"))
     form_description = request.POST.get("form_description", result_data.get("form_description", ""))
@@ -3446,6 +3586,7 @@ def _handle_create_form(request, template_name="document_upload.html"):
         field_data = json.loads(request.POST.get("fields_json", "[]"))
     except (json.JSONDecodeError, TypeError):
         field_data = result_data.get("fields", [])
+    print(f"[PRINT11] form_name={form_name} | fields_json={len(field_data)} | fields_fallback={len(result_data.get('fields', []))} | identifier={identifier_field_name}", flush=True)
 
     with db_transaction.atomic():
         formulario = Formulario.objects.create(
@@ -3458,6 +3599,17 @@ def _handle_create_form(request, template_name="document_upload.html"):
         for idx, f_data in enumerate(field_data):
             f_name = f_data.get("name", f"campo_{idx}")
             f_type = f_data.get("type", "texto")
+
+            formulario_destino = None
+            if f_type == 'relacion':
+                related_form_name = f_data.get("related_form", f_data.get("formulario_relacionado"))
+                if related_form_name:
+                    try:
+                        formulario_destino = Formulario.objects.get(nombre__iexact=related_form_name.strip())
+                    except Formulario.DoesNotExist:
+                        f_type = 'codigo'
+                else:
+                    f_type = 'codigo'
 
             is_id = f_data.get("is_identifier", False)
             if identifier_field_name and f_name == identifier_field_name:
@@ -3487,6 +3639,7 @@ def _handle_create_form(request, template_name="document_upload.html"):
                 formulario=formulario,
                 nombre=f_name,
                 tipo=f_type,
+                formulario_destino=formulario_destino,
                 obligatorio=f_data.get("required", False),
                 unico=f_data.get("unique", is_id),
                 identificador_principal=is_id,
@@ -3495,6 +3648,12 @@ def _handle_create_form(request, template_name="document_upload.html"):
                 opciones=options,
                 metadata_json=metadata if metadata else None,
             )
+
+    _t_now = time.perf_counter()
+    _timings["form_campos_ms"] = (_t_now - _t_last) * 1000
+    _t_last = _t_now
+
+    print(f"[PRINT12] Form+Campos created | formulario_id={formulario.id} field_data_len={len(field_data)}", flush=True)
 
     # Save mapping memory for future imports
     tmp_path = result_data.get("tmp_path")
@@ -3574,10 +3733,15 @@ def _handle_create_form(request, template_name="document_upload.html"):
     except Exception as e:
         logger.warning("SmartLearner/MemoryLearner error: %s", e)
 
+    _t_now = time.perf_counter()
+    _timings["learners_ms"] = (_t_now - _t_last) * 1000
+    _t_last = _t_now
+
     messages.success(request, f'Formulario "{form_name}" creado exitosamente con {len(field_data)} campos.')
 
     # Check if there's data to import
     has_data = bool(tmp_path and result_data.get("fields"))
+    print(f"[PRINT13] has_data={has_data} | tmp_path={tmp_path} | result_fields={bool(result_data.get('fields'))} | result_records={len(result_data.get('records', []))}", flush=True)
 
     request.session["di_import_ready"] = {
         "formulario_id": formulario.id,
@@ -3593,6 +3757,61 @@ def _handle_create_form(request, template_name="document_upload.html"):
     request.session.pop("di_catalog_suggestions", None)
     request.session.modified = True
 
+    # ── Auto-import when data is available ──
+    if has_data:
+        from apps.platform.document_intelligence.services.import_execution import (
+            _cleanup_session as _cleanup_import_session,
+            apply_import_messages,
+            execute_import,
+        )
+
+        print(f"[PRINT14] Calling execute_import | formulario_id={formulario.id} rows={len(result_data.get('rows', []))}", flush=True)
+
+        import_result = execute_import(formulario, request.session["di_import_ready"], request)
+        _t_now = time.perf_counter()
+        _timings["execute_import_ms"] = (_t_now - _t_last) * 1000
+        _timings["total_ms"] = (_t_now - _t0) * 1000
+
+        import_timings = import_result.get("timings", {})
+        logger.info(
+            "[PROFILE] _handle_create_form total=%.0fms | form_campos=%.0fms | learners=%.0fms | import=%.0fms "
+            "| execute_import{workbook=%.0fms preview=%.0fms write=%.0fms rows=%s}",
+            _timings["total_ms"],
+            _timings["form_campos_ms"],
+            _timings["learners_ms"],
+            _timings["execute_import_ms"],
+            import_timings.get("analyze_workbook_ms", 0),
+            import_timings.get("previsualizar_ms", 0),
+            import_timings.get("importar_bulk_ms", import_timings.get("importar_standard_ms", 0)),
+            import_timings.get("total_rows", "?"),
+        )
+
+        apply_import_messages(request, import_result)
+        _cleanup_import_session(request, tmp_path=tmp_path if import_result["success"] else None)
+
+        print(f"[PRINT15] import_result | success={import_result['success']} creados={import_result.get('creados')} error={import_result.get('error_message')}", flush=True)
+
+        if import_result["success"]:
+            return redirect("dynamic_forms:ver_registros", formulario_id=formulario.id)
+
+        # Import failed — render template with import_failed flag for retry
+        import_failed = not import_result["success"]
+        print(f"[PRINT15a] IMPORT FAILED — rendering with retry | import_failed={import_failed}", flush=True)
+
+    else:
+        import_failed = False
+
+    if not _timings.get("total_ms"):
+        _timings["total_ms"] = (time.perf_counter() - _t0) * 1000
+        logger.info(
+            "[PROFILE] _handle_create_form total=%.0fms | form_campos=%.0fms | learners=%.0fms | import=none",
+            _timings["total_ms"],
+            _timings["form_campos_ms"],
+            _timings["learners_ms"],
+        )
+
+    print(f"[PRINT16] Rendering with form_created=True | has_data={has_data} import_failed={import_failed if 'import_failed' in dir() else 'N/A'}", flush=True)
+
     success_template = (
         "document_intelligence/create_from_file.html"
         if template_name == "create_from_file.html"
@@ -3605,14 +3824,23 @@ def _handle_create_form(request, template_name="document_upload.html"):
         "form_name": form_name,
         "total_fields": len(field_data),
         "has_data": has_data,
+        "import_failed": import_failed if has_data else False,
+        "profile": _timings,
         "es_admin": es_administrador(request.user),
         "rol_usuario": rol_usuario(request.user),
     })
 
 
 def _handle_import_data(request):
-    """Import data into the newly created form."""
+    """Import data into the newly created form (delegates to ImportExecution service)."""
+    from apps.platform.document_intelligence.services.import_execution import (
+        execute_import,
+        apply_import_messages,
+        _cleanup_session as _cleanup_import_session,
+    )
+
     import_data = request.session.get("di_import_ready")
+    print(f"[PRINT_HD] _handle_import_data ENTER | has_import_data={bool(import_data)}", flush=True)
     if not import_data:
         messages.error(request, "No form ready for import.")
         return redirect("document_intelligence:create_from_file")
@@ -3625,142 +3853,22 @@ def _handle_import_data(request):
         return redirect("document_intelligence:create_from_file")
 
     try:
-        from django.conf import settings
-        _tmp_dir = Path(settings.BASE_DIR) / ".tmp_uploads"
-        _resolved_path = Path(tmp_path).resolve()
-        _resolved_tmp = _tmp_dir.resolve()
-        if not str(_resolved_path).startswith(str(_resolved_tmp)):
-            logger.warning("Path traversal attempt blocked: %s", tmp_path)
-            messages.error(request, "Ruta de archivo inválida.")
-            return redirect("document_intelligence:create_from_file")
-
         from apps.platform.dynamic_forms.models import Formulario
-        from apps.platform.dynamic_forms.import_service import (
-            previsualizar,
-            importar,
-        )
-
         formulario = Formulario.objects.get(id=formulario_id)
+    except Formulario.DoesNotExist:
+        messages.error(request, "Formulario no encontrado.")
+        _cleanup_import_session(request, tmp_path=tmp_path)
+        return redirect("document_intelligence:create_from_file")
 
-        _ext = Path(tmp_path).suffix.lower()
+    result = execute_import(formulario, import_data, request)
+    apply_import_messages(request, result)
 
-        if _ext in {".xlsx", ".xls"}:
-            # Excel: use openpyxl with ColumnMatcher
-            from apps.platform.dynamic_forms.import_service import analyze_workbook
-            analysis = analyze_workbook(tmp_path, formulario)
-            encabezados = analysis["encabezados"]
-            filas = analysis["filas"]
-            match_results = analysis["match_results"]
-            mapeo_idx = {}
-            for r in match_results:
-                if r.matched_to:
-                    mapeo_idx[r.column_index] = r.matched_to
+    _cleanup_import_session(request, tmp_path=tmp_path if result["success"] else None)
 
-        elif _ext == ".csv":
-            # CSV: parse with Python's csv module + ColumnMatcher
-            from apps.platform.dynamic_forms.column_matching import ColumnMatcher
-            from apps.platform.dynamic_forms.models import Campo
-            import csv as _csv
-            with open(tmp_path, newline='', encoding='utf-8-sig') as _f:
-                _reader = _csv.reader(_f)
-                _raw_headers = next(_reader, [])
-                encabezados = [h.strip() for h in _raw_headers]
-                filas = []
-                for _row in _reader:
-                    _fila_dict = {}
-                    for i, h in enumerate(encabezados):
-                        _fila_dict[h] = _row[i].strip() if i < len(_row) else ''
-                    filas.append(_fila_dict)
-            campos = list(Campo.objects.filter(formulario=formulario, activo=True).order_by('orden'))
-            nombres_campos = [c.nombre for c in campos]
-            matcher = ColumnMatcher(nombres_campos)
-            match_results = matcher.match_all(encabezados)
-            mapeo_idx = {}
-            for r in match_results:
-                if r.matched_to:
-                    mapeo_idx[r.column_index] = r.matched_to
-
-        else:
-            # PDF, images, text: use records (Phase 5 canonical source) first
-            from apps.platform.dynamic_forms.column_matching import ColumnMatcher
-            from apps.platform.dynamic_forms.models import Campo
-            records = import_data.get("records", [])
-            headers = import_data.get("headers", [])
-            rows = import_data.get("rows", [])
-
-            if records:
-                encabezados = list(records[0].keys())
-                filas = records
-            elif headers and rows:
-                encabezados = headers
-                filas = []
-                for row in rows:
-                    fila_dict = {}
-                    for i, h in enumerate(headers):
-                        fila_dict[h] = row[i] if i < len(row) else ''
-                    filas.append(fila_dict)
-            else:
-                messages.error(request, "No extracted data available. Upload the file again.")
-                _cleanup_di(request)
-                return redirect("document_intelligence:document_upload")
-
-            campos = list(Campo.objects.filter(formulario=formulario, activo=True).order_by('orden'))
-            nombres_campos = [c.nombre for c in campos]
-            matcher = ColumnMatcher(nombres_campos)
-            match_results = matcher.match_all(encabezados)
-            mapeo_idx = {}
-            for r in match_results:
-                if r.matched_to:
-                    mapeo_idx[r.column_index] = r.matched_to
-
-        preview = previsualizar(formulario, encabezados, filas, mapeo_idx)
-        valid_rows = [r for r in preview if r["valida"]]
-        invalid_count = len(preview) - len(valid_rows)
-
-        if not valid_rows:
-            mensaje = "No hay filas válidas para importar."
-            if invalid_count:
-                mensaje += f" {invalid_count} fila(s) fueron inválidas (revisa validaciones)."
-            messages.warning(request, mensaje)
-            return redirect("document_intelligence:create_from_file")
-
-        result = importar(
-            formulario, valid_rows,
-            usuario=request.user, modo="crear", mapeo=mapeo_idx,
-        )
-
-        # ── SmartLearner: record import (Phase 7) ──
-        try:
-            from apps.platform.ai.services.smart_learner import SmartLearner
-            smart = SmartLearner()
-            smart.record_import(
-                form_name=formulario.nombre,
-                rows_imported=result.get("creados", 0),
-                rows_failed=len(result.get("errores", [])),
-                rows_ignored=result.get("ignorados", 0),
-                file_name=import_data.get("file_name", ""),
-                success=True,
-            )
-        except Exception:
-            pass
-
-        partes = [f"{result['creados']} registro(s) importados en '{formulario.nombre}'"]
-        if invalid_count:
-            partes.append(f"{invalid_count} fila(s) inválidas omitidas")
-        if result.get('ignorados'):
-            partes.append(f"{result['ignorados']} ignorado(s)")
-        if result.get('errores'):
-            partes.append(f"{len(result['errores'])} error(es)")
-        messages.success(request, ". ".join(partes) + ".")
-
-        _cleanup_di(request, delete_tmp_path=tmp_path)
+    if result["success"]:
         return redirect("dynamic_forms:ver_registros", formulario_id=formulario.id)
 
-    except Exception as e:
-        logger.exception("Import failed")
-        _cleanup_di(request)
-        messages.error(request, f"Import failed: {e}")
-        return redirect("document_intelligence:create_from_file")
+    return redirect("document_intelligence:create_from_file")
 
 
 # ═══════════════════════════════════════════════════════════════════════

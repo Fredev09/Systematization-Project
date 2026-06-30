@@ -6,6 +6,55 @@ encontrados.
 
 ---
 
+## [2026-06-30] Corrección de inferencia y validación de tipo `relacion`
+
+### Trabajo realizado
+Corrección de 3 fases para evitar que identificadores de negocio (ID,
+Código, SKU, Referencia, Folio, etc.) sean clasificados como `relacion`
+y provoquen 100% de filas inválidas en la importación.
+
+**Fase 1 — Prompt `detect_fields.md`:**
+- Nueva regla explícita: columnas como "Código", "ID", "SKU", "Código Almacén",
+  "ID Relación Almacén", "Identificador", "Folio", "Número" deben clasificarse
+  como **codigo**, no como **relacion**.
+- Nueva regla: `relacion` solo cuando el valor representa el ID interno
+  (`Registro.id`) de otro registro existente. "Si hay duda, usa codigo".
+- Se reemplazó la regla ambigua "Código/ID/Referencia es probablemente texto"
+  por la regla precisa con los tipos correctos.
+
+**Fase 2 — Validador `_validar_valor_campo`:**
+- Antes: cualquier `relacion` con valor numérico buscaba `Registro.objects.filter(id=VALUE).exists()`,
+  fallando siempre que el valor fuera un código de negocio (no un PK de BD).
+- Ahora: solo busca `Registro.id` si `campo.formulario_destino_id` está definido.
+  Sin `formulario_destino`, pasa sin validar contra Registro (comportamiento igual a `codigo`).
+
+**Fase 3 — Creación de formulario `_handle_create_form()`:**
+- Antes: si el AI sugería `tipo=relacion` con `related_form`, el campo se creaba
+  como `relacion` pero `formulario_destino` nunca se asignaba → relación incompleta.
+- Ahora: resuelve `related_form` contra `Formulario.objects.get(nombre__iexact=...)`.
+  Si existe, asigna `formulario_destino` correctamente. Si no existe o no se
+  especificó `related_form`, degrada automáticamente a `tipo='codigo'`.
+
+### Archivos modificados
+- `apps/platform/ai/prompts/detect_fields.md` — 2 reglas nuevas, 1 regla corregida.
+- `apps/platform/dynamic_forms/validators.py:346-351` — validación condicional por `formulario_destino_id`.
+- `apps/platform/document_intelligence/views.py:3603-3612,3642` — degradación `relacion`→`codigo` y asignación de `formulario_destino`.
+
+### Decisiones importantes
+- **Backwards compatibility total**: todas las validaciones existentes se preservan
+  cuando `formulario_destino` está definido. Solo se cambia el comportamiento cuando
+  la relación está incompleta (sin destino).
+- **Tres líneas de defensa**: prompt → creación de formulario → validación. Cualquiera
+  de las tres detiene una relación inválida antes de que impacte al usuario.
+
+### Validaciones
+- `python manage.py check` — 0 issues.
+- Revisión de regresiones: todo código existente que maneja `tipo=relacion` ya
+  chequea `formulario_destino_id` (views.py:356, views.py:320, dynamic_values.py:77).
+  Ningún código existente se rompe.
+
+---
+
 ## [2026-06-26] Estado actual del proyecto
 
 ### Trabajo realizado
@@ -1600,3 +1649,46 @@ Interfaz visual completa para el sistema de planes multi-paso del asistente IA:
 - `python manage.py makemigrations --check` — No changes detected.
 - 79 unit tests (extractors, column matching) — 79/79 PASS.
 - Planner unit test — 6/6 PASS (create_plan single/multi-step, serialization, SmartLearner stats).
+
+---
+
+## [2026-06-29] Import Execution Service — Auto-import on Form Creation
+
+### Trabajo realizado
+
+Extracción de toda la lógica de importación de `_handle_import_data()` a un servicio reutilizable `import_execution.py`, eliminando el flujo de dos pasos (crear formulario → pulsar "Importar datos"):
+
+**Archivo creado:**
+- `apps/platform/document_intelligence/services/import_execution.py` — Servicio `execute_import()` con toda la lógica de parsing (Excel/CSV/PDF/imagen/texto/JSON), ColumnMatcher, preview, validación, importación, SmartLearner, y limpieza de sesión.
+
+**Refactor de vistas:**
+- `_handle_import_data()` (views.py) reducido de ~150 líneas a ~25 líneas: solo carga sesión, obtiene Formulario, delega en `execute_import()`, aplica mensajes y redirige.
+- `_handle_create_form()` (views.py): cuando `has_data=True`, ahora llama a `execute_import()` inmediatamente después de crear el formulario. Si la importación es exitosa, redirige automáticamente a `ver_registros`. Si falla, renderiza el template con `import_failed=True` para reintento.
+
+**Actualización de templates:**
+- `document_upload.html` y `create_from_file.html`: el botón "Importar datos" solo se muestra cuando `import_failed=True` (modo reintento). El flujo normal nunca muestra este botón porque el usuario es redirigido automáticamente.
+
+**Comportamiento del botón "Importar datos":**
+- Ahora se titula "Reintentar importación" y solo aparece cuando la importación automática falló.
+- Para el flujo normal, el usuario ve el mensaje de éxito con el conteo de registros importados y es redirigido a `ver_registros`.
+
+### Archivos creados
+- `apps/platform/document_intelligence/services/import_execution.py` — 163 líneas.
+
+### Archivos modificados
+- `apps/platform/document_intelligence/views.py` — `_handle_import_data()` refactorizado a delegado (~25 líneas); `_handle_create_form()` modificado para auto-importar cuando `has_data=True`.
+- `apps/platform/document_intelligence/templates/document_intelligence/document_upload.html` — botón condicional a `import_failed`.
+- `apps/platform/document_intelligence/templates/document_intelligence/create_from_file.html` — botón condicional a `import_failed`.
+- `docs/DECISIONS.md` — nueva decisión arquitectónica documentada.
+- `docs/SESSION_LOG.md` — este registro.
+
+### Decisiones importantes
+- **Import execution como servicio reutilizable**: `_handle_import_data()` y `_handle_create_form()` ejecutan exactamente el mismo código de importación via `execute_import()`. No hay duplicación.
+- **Auto-import en creación de formulario**: elimina el paso manual. Cuando el AI detecta datos en el documento, el formulario se crea y los datos se importan en un único flujo E2E.
+- **Botón de importación solo para reintentos**: si la importación automática falla (0 filas válidas, error de parsing, etc.), el template se renderiza con `import_failed=True` para que el usuario pueda reintentar manualmente.
+
+### Validaciones
+- `python manage.py check` — 0 issues.
+- `python manage.py makemigrations --check` — No changes detected.
+- 12 E2E tests (import pipeline) — 12/12 PASS, 42/42 checks.
+- Syntax checks de todos los archivos Python modificados/creados — OK.

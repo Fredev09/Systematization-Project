@@ -23,7 +23,8 @@ Para cada campo, determina:
 
 ## Reglas importantes
 - Si un valor contiene "$", es **moneda**
-- Si una columna se llama "Código", "ID", "Referencia", es probablemente **texto** (no número, aunque parezca)
+- Columnas como "Código", "ID", "Referencia", "SKU", "Código Producto", "Código Cliente", "Código Almacén", "ID Relación Almacén", "Identificador", "Folio", "Número" deben clasificarse como **codigo** (no número, aunque parezcan numéricos)
+- **relacion** solo debe usarse cuando el valor representa el ID interno (Registro.id de la base de datos) de otro registro existente del sistema. Si hay duda, usa **codigo** en vez de relacion
 - Las fechas pueden estar en formato DD/MM/YYYY, YYYY-MM-DD o similar
 - "Sí/No", "True/False", "1/0", "X" vacío son **booleano**
 - Correos electrónicos son **email**

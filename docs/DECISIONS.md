@@ -70,6 +70,18 @@
 
 ---
 
+## Decision: Import Execution as Reusable Service
+
+**Decision**: Extract all import logic from `_handle_import_data()` into a standalone service `import_execution.py` with `execute_import()`, so that both the manual POST handler and the auto-import after form creation execute exactly the same code.
+
+**Reason**: The bug was that `_handle_create_form()` created the form and set session data but never called the import — the user had to click a second "Importar datos" button. By extracting the import logic into a service, `_handle_create_form()` calls `execute_import()` immediately after form creation when `has_data=True`, then auto-redirects to `ver_registros`. This eliminates the two-step flow for the normal case.
+
+**Trade-off**: The "Importar datos" button is now only shown when `import_failed=True` (for retry). This means users cannot manually trigger import on a successfully created form — they would need to re-upload. This is acceptable because the normal flow is now fully automatic.
+
+**Current status**: Implemented. `apps/platform/document_intelligence/services/import_execution.py` exposes `execute_import()`, `apply_import_messages()`, and `_cleanup_session()`. `_handle_import_data()` is a ~20-line delegate. `_handle_create_form()` calls `execute_import()` inline when `has_data=True`. Templates show import button only for retry.
+
+---
+
 ## Decision: Parallel Dynamic and Legacy Views
 
 **Decision**: Keep both legacy views (`views.py`) and dynamic views (`views_dynamic.py`) in the same app, with the main URL config pointing to dynamic versions.
@@ -337,4 +349,22 @@ Subpackage `import_export/`:
 
 **Trade-off**: The pipeline is not yet the default for `importar_excel` view. Backward compatibility is preserved. The pipeline can be swapped in by modifying `views.py` to call `importar_con_pipeline()` instead of `previsualizar()` + `importar()`.
 
-**Current status**: Implemented. Migration `0008` applied. All models, modules, views, URLs, and templates created. `python manage.py check` — 0 issues. `makemigrations --check` — No changes detected. All imports verified. 
+**Current status**: Implemented. Migration `0008` applied. All models, modules, views, URLs, and templates created. `python manage.py check` — 0 issues. `makemigrations --check` — No changes detected. All imports verified.
+
+---
+
+## Decision: Three-Layer Defense for `relacion` Type Inference
+
+**Decision**: Protect against invalid `relacion` type assignment at three independent layers: AI prompt guidance, form creation logic, and runtime validation.
+
+**Reason**: The root cause was that `tipo=relacion` was being assigned by the AI (or MemoryLearner) to columns containing business identifiers (SKU, Código, ID Almacén, Folio, etc.), but the validator assumed all `relacion` values were `Registro.id` primary keys. Three layers of defense prevent this:
+
+1. **Prompt layer** (detect_fields.md): Explicit rules tell the AI that columns named "Código", "ID", "SKU", "ID Relación Almacén", etc. should be `codigo`, not `relacion`. Also clarifies that `relacion` is only for values representing internal DB primary keys.
+
+2. **Form creation layer** (`_handle_create_form`): When the AI suggests `tipo=relacion`, the system resolves `related_form` against actual `Formulario` objects. If the target form doesn't exist or `related_form` isn't specified, the field is automatically downgraded to `codigo`. This prevents creating structurally incomplete `relacion` fields (with `formulario_destino=NULL`).
+
+3. **Validation layer** (`_validar_valor_campo`): If a `relacion` field has `formulario_destino_id=NULL`, the validator skips the `Registro.id` existence check entirely (same behavior as `codigo`). Only when `formulario_destino_id` is set does it validate that the referenced Registro exists.
+
+**Trade-off**: A `relacion` field without `formulario_destino` will never be validated as a true relationship at the DB level. This is acceptable because such fields are already invalid by design (they should have been `codigo`).
+
+**Current status**: Implemented. Three-layer defense active. All existing code that handles `relacion` (views.py:356, views.py:320, dynamic_values.py:77) already checks `formulario_destino_id` and is unaffected. 

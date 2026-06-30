@@ -195,7 +195,7 @@ class ProviderConfig:
     model: str = ""
     temperature: float = 0.1
     max_tokens: int = 4096
-    timeout: int = 30
+    timeout: int = 30  # Connection/read timeout in seconds (streaming uses this)
     extra: dict[str, Any] = field(default_factory=dict)
     
     def __repr__(self) -> str:

@@ -344,7 +344,7 @@ def _validar_valor_campo(campo, valor_raw):
         return valor_raw, None
 
     if campo.tipo == 'relacion':
-        if valor_raw.isdigit():
+        if campo.formulario_destino_id and valor_raw.isdigit():
             ref_id = int(valor_raw)
             if not Registro.objects.filter(id=ref_id).exists():
                 return None, f'El registro #{ref_id} referenciado en "{campo.nombre}" no existe.'

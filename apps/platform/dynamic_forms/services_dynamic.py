@@ -528,6 +528,7 @@ class DynamicService:
                 valor = valores_dict.get(campo.nombre, '').strip()
                 if not valor:
                     errores.append(f'El campo "{campo.nombre}" es obligatorio.')
+                    print(f"[VALOBL] campo={campo.nombre} NO TIENE VALOR | valores_dict keys={list(valores_dict.keys())}", flush=True)
         return errores
 
     @staticmethod
@@ -555,10 +556,12 @@ class DynamicService:
         errores = []
 
         # 1. Campos obligatorios
-        errores.extend(DynamicService.validar_campos_obligatorios(formulario, valores_dict))
+        err_obl = DynamicService.validar_campos_obligatorios(formulario, valores_dict)
+        errores.extend(err_obl)
 
         # 2. Validación de tipos
-        errores.extend(DynamicService.validar_tipos(formulario, valores_dict))
+        err_tip = DynamicService.validar_tipos(formulario, valores_dict)
+        errores.extend(err_tip)
 
         # 3. Unicidad
         for campo in DynamicService._campos_activos(formulario):
@@ -573,7 +576,14 @@ class DynamicService:
                         errores.extend(e.errores)
 
         # 4. Validación personalizada
-        errores.extend(DynamicService.ejecutar_validacion_personalizada(formulario, valores_dict))
+        err_cust = DynamicService.ejecutar_validacion_personalizada(formulario, valores_dict)
+        errores.extend(err_cust)
+
+        if not hasattr(DynamicService, '_val_print_count'):
+            DynamicService._val_print_count = 0
+        if DynamicService._val_print_count < 3:
+            print(f"[VALCOMP] errores={errores} | valores_dict keys={list(valores_dict.keys())}", flush=True)
+            DynamicService._val_print_count += 1
 
         return errores
 

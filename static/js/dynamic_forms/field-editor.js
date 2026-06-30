@@ -97,21 +97,217 @@
             var form = container.closest('form');
             if (form && !form._fieldEditorBound) {
                 form.addEventListener('submit', function (e) {
-                    var fields = self.serialize(containerId);
-                    if (fields.length === 0) {
+                    console.log('[FE] submit HANDLER START');
+                    console.time('[FE] total_handler');
+
+                    // ── Step 1: serialize ──
+                    console.time('[FE] serialize');
+                    var fields;
+                    try {
+                        fields = self.serialize(containerId);
+                    } catch (serErr) {
+                        console.error('[FE] serialize() CRASHED:', serErr);
+                        console.error('[FE] stack:', serErr.stack);
+                        fields = [];
+                    }
+                    console.timeEnd('[FE] serialize');
+                    console.log('[FE] fields.length=' + (fields ? fields.length : 'null'));
+
+                    if (!fields || fields.length === 0) {
+                        console.log('[FE] ⚠️ fields empty — calling preventDefault');
+                        if (fields && fields.length === 0) {
+                            console.log('[FE] fields was empty array (not null)');
+                        }
                         e.preventDefault();
                         alert('Debe haber al menos un campo.');
                         return;
                     }
-                    // Set JSON hidden input
+
+                    // ── Step 2: JSON encode ──
+                    console.time('[FE] JSON.stringify');
+                    var jsonStr;
+                    try {
+                        jsonStr = JSON.stringify(fields);
+                    } catch (jsonErr) {
+                        console.error('[FE] JSON.stringify CRASHED:', jsonErr);
+                        console.log('[FE] fields sample:', fields.slice(0, 2));
+                        e.preventDefault();
+                        alert('Error al serializar campos: ' + jsonErr.message);
+                        return;
+                    }
+                    console.timeEnd('[FE] JSON.stringify');
+                    console.log('[FE] jsonStr length=' + jsonStr.length);
+                    console.log('[FE] jsonStr starts with: ' + jsonStr.substring(0, 100));
+
+                    // ── Step 3: find hidden input ──
+                    console.time('[FE] set_value');
                     var jsonInput = form.querySelector('[data-fields-json]') ||
                         document.getElementById('fields_json');
-                    if (jsonInput) {
-                        jsonInput.value = JSON.stringify(fields);
+                    if (!jsonInput) {
+                        console.error('[FE] ⚠️ jsonInput NOT FOUND');
+                        console.error('[FE] querySelector [data-fields-json]:', form.querySelector('[data-fields-json]'));
+                        console.error('[FE] getElementById fields_json:', document.getElementById('fields_json'));
+                    } else {
+                        console.log('[FE] jsonInput found: name=' + jsonInput.name + ' id=' + jsonInput.id);
+                        jsonInput.value = jsonStr;
+                        console.log('[FE] jsonInput.value length after set: ' + jsonInput.value.length);
                     }
+                    console.timeEnd('[FE] set_value');
+
+                    // ── Step 4: onSerialize callback ──
                     if (state.onSerialize) {
+                        console.log('[FE] calling onSerialize callback');
                         state.onSerialize(fields);
                     }
+
+                    // ── Step 5: HTML5 Validation Audit ──
+                    console.log('');
+                    console.log('╔═══════════════════════════════════════');
+                    console.log('║ [FE-HTML5] VALIDATION AUDIT');
+                    console.log('╚═══════════════════════════════════════');
+
+                    // 5a: form.checkValidity()
+                    var cv = form.checkValidity();
+                    console.log('[FE-HTML5] form.checkValidity() = ' + cv);
+
+                    // 5b: form.reportValidity() — muestra burbujas si hay inválidos
+                    var rv = form.reportValidity();
+                    console.log('[FE-HTML5] form.reportValidity() = ' + rv);
+                    console.log('[FE-HTML5] (si ves burbujas de validación arriba, ese es el problema)');
+
+                    // 5c: Listar todo elemento required que esté vacío
+                    var requiredEmpty = [];
+                    form.querySelectorAll('[required]').forEach(function(el) {
+                        var val = '';
+                        if (el.type === 'checkbox' || el.type === 'radio') {
+                            val = el.checked ? '(checked)' : '';
+                        } else {
+                            val = (el.value || '').trim();
+                        }
+                        if (!val) {
+                            var rect = el.getBoundingClientRect();
+                            var visible = rect.width > 0 && rect.height > 0;
+                            requiredEmpty.push({
+                                name: el.name || el.id || '(unnamed)',
+                                type: el.type || el.tagName,
+                                visible: visible,
+                                rect: (rect.width|0)+'x'+(rect.height|0)+' @('+(rect.left|0)+','+(rect.top|0)+')',
+                                tag: el.tagName + (el.id ? '#'+el.id : '')
+                            });
+                        }
+                    });
+                    if (requiredEmpty.length > 0) {
+                        console.log('[FE-HTML5] ⚠️ REQUIRED but EMPTY (' + requiredEmpty.length + '):');
+                        requiredEmpty.forEach(function(r) {
+                            console.log('  - name="' + r.name + '" type=' + r.type +
+                                        ' visible=' + r.visible + ' size=' + r.rect + ' ' + r.tag);
+                        });
+                    } else {
+                        console.log('[FE-HTML5] ✅ All required fields have values');
+                    }
+
+                    // 5d: Listar required que NO son visibles
+                    var requiredHidden = [];
+                    form.querySelectorAll('[required]').forEach(function(el) {
+                        var rect = el.getBoundingClientRect();
+                        var style = window.getComputedStyle(el);
+                        var isHidden = rect.width === 0 || rect.height === 0 ||
+                                      style.display === 'none' || style.visibility === 'hidden' ||
+                                      el.type === 'hidden';
+                        if (isHidden) {
+                            requiredHidden.push({
+                                name: el.name || el.id || '(unnamed)',
+                                tag: el.tagName + (el.id ? '#'+el.id : ''),
+                                display: style.display,
+                                visibility: style.visibility,
+                                rect: (rect.width|0)+'x'+(rect.height|0)
+                            });
+                        }
+                    });
+                    if (requiredHidden.length > 0) {
+                        console.log('[FE-HTML5] ⚠️ REQUIRED but HIDDEN (' + requiredHidden.length + '):');
+                        requiredHidden.forEach(function(r) {
+                            console.log('  - name="' + r.name + '" ' + r.tag +
+                                        ' display=' + r.display + ' visibility=' + r.visibility +
+                                        ' rect=' + r.rect);
+                        });
+                    } else {
+                        console.log('[FE-HTML5] ✅ No hidden required fields');
+                    }
+
+                    // 5e: Listar disabled inputs
+                    var disabledInputs = form.querySelectorAll('input:disabled, select:disabled, textarea:disabled, button:disabled');
+                    if (disabledInputs.length > 0) {
+                        console.log('[FE-HTML5] ⚠️ DISABLED inputs (' + disabledInputs.length + '):');
+                        disabledInputs.forEach(function(el) {
+                            console.log('  - name="' + (el.name||el.id||'(unnamed)') + '" tag=' + el.tagName + (el.id ? '#'+el.id : ''));
+                        });
+                    } else {
+                        console.log('[FE-HTML5] ✅ No disabled inputs');
+                    }
+
+                    // 5f: Verificar botón submit
+                    var submitBtn = form.querySelector('button[type="submit"], input[type="submit"]');
+                    if (submitBtn) {
+                        console.log('[FE-HTML5] Submit button: tag=' + submitBtn.tagName +
+                                    ' type=' + submitBtn.getAttribute('type') +
+                                    ' form=' + (submitBtn.form ? submitBtn.form.id || '(has form)' : 'NULL') +
+                                    ' disabled=' + submitBtn.disabled +
+                                    ' name=' + (submitBtn.name || '(none)'));
+                        // button.form === form ?
+                        if (submitBtn.form !== form) {
+                            console.log('[FE-HTML5] ❌ submitBtn.form !== form!');
+                            console.log('[FE-HTML5]    submitBtn.form.id=' + (submitBtn.form ? submitBtn.form.id : 'null'));
+                            console.log('[FE-HTML5]    form.id=' + form.id);
+                        } else {
+                            console.log('[FE-HTML5] ✅ submitBtn.form === form');
+                        }
+                    } else {
+                        console.log('[FE-HTML5] ⚠️ NO submit button found in form!');
+                    }
+
+                    // 5g: Buscar formularios anidados
+                    var nestedForms = form.querySelectorAll('form');
+                    if (nestedForms.length > 0) {
+                        console.log('[FE-HTML5] ❌ NESTED FORMS inside form (' + nestedForms.length + '):');
+                        nestedForms.forEach(function(f) {
+                            console.log('  - form id=' + (f.id||'(none)') + ' action=' + (f.action||'(self)'));
+                        });
+                    } else {
+                        console.log('[FE-HTML5] ✅ No nested forms');
+                    }
+
+                    // 5h: Verificar atributos del formulario
+                    console.log('[FE-HTML5] form.method=' + form.method);
+                    console.log('[FE-HTML5] form.action=' + (form.getAttribute('action') || '(empty/self)'));
+                    console.log('[FE-HTML5] form.enctype=' + (form.enctype || '(default)'));
+                    console.log('[FE-HTML5] form.novalidate=' + (form.noValidate ? 'true' : 'false'));
+
+                    // 5i: Listar todos los invalid events en el form
+                    var invalidElements = form.querySelectorAll(':invalid');
+                    if (invalidElements.length > 0) {
+                        console.log('[FE-HTML5] ⚠️ :invalid elements (' + invalidElements.length + '):');
+                        invalidElements.forEach(function(el) {
+                            var rect = el.getBoundingClientRect();
+                            var visible = rect.width > 0 && rect.height > 0;
+                            console.log('  - name="' + (el.name||el.id||'(unnamed)') + '" tag=' + el.tagName +
+                                        ' type=' + (el.type||'') +
+                                        ' value="' + ((el.value||'').substring(0, 30)) + '"' +
+                                        ' visible=' + visible +
+                                        ' validationMessage="' + (el.validationMessage||'') + '"');
+                        });
+                    } else {
+                        console.log('[FE-HTML5] ✅ No :invalid elements');
+                    }
+
+                    // 5j: Contar todos los form elements
+                    var allControls = form.elements;
+                    console.log('[FE-HTML5] form.elements.length=' + (allControls ? allControls.length : 'N/A'));
+                    console.log('[FE-HTML5] END audit');
+
+                    console.timeEnd('[FE] total_handler');
+                    console.log('[FE] handler done — form will submit (defaultPrevented=' + e.defaultPrevented + ')');
+                    console.log('[FE] ⬆ Si ves burbujas de validación HTML5 arriba, el navegador CANCELÓ el envío');
                 });
                 form._fieldEditorBound = true;
             }
@@ -168,21 +364,53 @@
          * @returns {Array<Object>}
          */
         serialize: function (containerId) {
+            console.time('[FE-ser] total');
+            console.log('[FE-ser] ENTER containerId=' + containerId);
+
             var state = this.containers[containerId];
-            if (!state) return [];
+            if (!state) {
+                console.warn('[FE-ser] ⚠️ state NOT FOUND for containerId=' + containerId);
+                console.log('[FE-ser] available containers:', Object.keys(this.containers));
+                console.timeEnd('[FE-ser] total');
+                return [];
+            }
+            console.log('[FE-ser] state OK | containerId=' + containerId);
 
             var fields = [];
             var container = state.container;
+            console.log('[FE-ser] container.id=' + (container.id || '(none)'));
 
-            container.querySelectorAll('.campo-fila').forEach(function (fila) {
-                var name = (fila.querySelector('[name="campo_nombre"]') ||
-                           fila.querySelector('.field-name'))?.value?.trim() || '';
-                if (!name) return;
+            var filas = container.querySelectorAll('.campo-fila');
+            console.log('[FE-ser] .campo-fila found: ' + filas.length);
+            if (filas.length === 0) {
+                console.warn('[FE-ser] ⚠️ NO .campo-fila elements in container');
+                console.log('[FE-ser] container innerHTML (first 500):', container.innerHTML.substring(0, 500));
+            }
 
+            var _iterStart = performance.now();
+            filas.forEach(function (fila, idx) {
+                var _filaStart = performance.now();
+
+                // ── Get name ──
+                var nameInput = fila.querySelector('[name="campo_nombre"]');
+                var nameInput2 = fila.querySelector('.field-name');
+                var name = (nameInput || nameInput2)?.value?.trim() || '';
+                if (idx === 0) {
+                    console.log('[FE-ser] fila[0] nameInput=' + (nameInput ? 'FOUND' : 'null') +
+                                ' nameInput2=' + (nameInput2 ? 'FOUND' : 'null') +
+                                ' name="' + name + '"');
+                }
+                if (!name) {
+                    if (idx === 0) console.log('[FE-ser] fila[0] SKIPPED (empty name)');
+                    return;
+                }
+
+                // ── Get type ──
                 var tipoSelect = fila.querySelector('[name="campo_tipo"]') ||
                                 fila.querySelector('.field-type');
                 var type = tipoSelect ? tipoSelect.value : 'texto';
 
+                // ── Get options ──
                 var optionsInput = fila.querySelector('[name="campo_opciones"]') ||
                                   fila.querySelector('.field-options');
                 var optionsVal = optionsInput ? optionsInput.value : '';
@@ -190,12 +418,13 @@
                     return s.trim();
                 }).filter(function (s) { return s; }) : null;
 
-                // Get checkbox values (handles both name= and class= approaches)
+                // ── Checkbox values ──
                 var checked = function (sel) {
                     var el = fila.querySelector(sel);
                     return el ? el.checked : false;
                 };
 
+                // ── Build field object ──
                 var field = {
                     name: name,
                     type: type,
@@ -217,8 +446,20 @@
                 };
 
                 fields.push(field);
+
+                if (idx === 0) {
+                    console.log('[FE-ser] fila[0] OK | name="' + name + '" type=' + type +
+                                ' time=' + (performance.now() - _filaStart).toFixed(1) + 'ms');
+                }
+                if (idx === filas.length - 1 && filas.length > 1) {
+                    console.log('[FE-ser] fila[' + idx + '] OK | name="' + name + '" type=' + type +
+                                ' time=' + (performance.now() - _filaStart).toFixed(1) + 'ms');
+                }
             });
 
+            console.log('[FE-ser] DONE | fields.length=' + fields.length +
+                        ' iter_time=' + (performance.now() - _iterStart).toFixed(1) + 'ms');
+            console.timeEnd('[FE-ser] total');
             return fields;
         },
 

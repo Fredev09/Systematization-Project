@@ -1,14 +1,14 @@
-/========================================================================
-// df-form-submit.js — Formulario de envío con patrón HTML5
-//
-// Busca todos los <form data-df-submit> en la página y adjunta un
-// handler al evento `submit` que:
-//   1. Ejecuta form.checkValidity() — si inválido, no hace nada
-//   2. Si válido: deshabilita botón, muestra spinner
-//   3. try/catch captura cualquier excepción y restaura el botón
-//   4. pageshow (bfcache) restaura botones al volver atrás
-//   5. [DIAG] console.time / console.timeEnd por formulario
-// ========================================================================
+/*
+ * df-form-submit.js — Formulario de envío con patrón HTML5
+ *
+ * Busca todos los <form data-df-submit> en la página y adjunta un
+ * handler al evento `submit` que:
+ *   1. Ejecuta form.checkValidity() — si inválido, no hace nada
+ *   2. Si válido: deshabilita botón, muestra spinner
+ *   3. try/catch captura cualquier excepción y restaura el botón
+ *   4. pageshow (bfcache) restaura botones al volver atrás
+ *   5. [DIAG] console.time / console.timeEnd por formulario
+ */
 
 (function () {
     'use strict';

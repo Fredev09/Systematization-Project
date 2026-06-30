@@ -151,6 +151,8 @@ class BaseAIProvider(ABC):
         if extra_headers:
             headers.update(extra_headers)
 
+        logger.info("[DIAG] ENTER _stream_openai_compatible | provider=%s | url=%s | model=%s", provider_name, api_url, body.get("model", "?"))
+
         import requests as _requests
         resp = _requests.post(
             api_url,
@@ -160,16 +162,23 @@ class BaseAIProvider(ABC):
             stream=True,
         )
 
+        logger.info("[DIAG] _stream_openai_compatible HTTP | provider=%s | status=%d", provider_name, resp.status_code)
+
         if resp.status_code != 200:
+            logger.info("[DIAG] _stream_openai_compatible non-200 | provider=%s | status=%d | body=%s", provider_name, resp.status_code, resp.text[:500])
             self._handle_http_error(resp.status_code, resp.text)
             return
 
+        _yielded_count = 0
+        _sse_line_count = 0
         for line in resp.iter_lines(decode_unicode=True):
             if not line:
                 continue
+            _sse_line_count += 1
             if line.startswith("data: "):
                 data_str = line[6:]
                 if data_str.strip() == "[DONE]":
+                    logger.info("[DIAG] _stream_openai_compatible [DONE] | provider=%s | lines=%d | yielded=%d", provider_name, _sse_line_count, _yielded_count)
                     break
                 try:
                     data = _json.loads(data_str)
@@ -178,10 +187,17 @@ class BaseAIProvider(ABC):
                         delta = choices[0].get("delta", {})
                         content = delta.get("content", "")
                         if content:
+                            _yielded_count += 1
+                            if _yielded_count == 1:
+                                logger.info("[DIAG] FIRST CHUNK from %s | len=%d | start='%s'", provider_name, len(content), content[:100])
+                            if _yielded_count % 10 == 0:
+                                logger.info("[DIAG] TOKEN COUNT in %s | yielded=%d", provider_name, _yielded_count)
                             yield content
-                except (_json.JSONDecodeError, KeyError, IndexError, TypeError):
+                except (_json.JSONDecodeError, KeyError, IndexError, TypeError) as e:
+                    logger.warning("[DIAG] %s SSE parse error at line %d: %s | line='%s'", provider_name, _sse_line_count, str(e), line[:200])
                     continue
 
+        logger.info("[DIAG] EXIT _stream_openai_compatible | provider=%s | lines=%d | yielded=%d", provider_name, _sse_line_count, _yielded_count)
         resp.close()
 
     # ──────────────────────────────────────────────

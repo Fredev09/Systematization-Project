@@ -518,6 +518,10 @@ def previsualizar(formulario, encabezados, filas, mapeo):
     """
     resultados: list[dict] = []
 
+    print(f"[PREV] ENTER | encabezados={encabezados} mapeo={mapeo} total_filas={len(filas)}", flush=True)
+    campos_activos = DS._campos_activos(formulario)
+    print(f"[PREV] campos_activos del formulario: {[(c.nombre, c.tipo, c.obligatorio) for c in campos_activos]}", flush=True)
+
     for fila_idx, fila in enumerate(filas):
         valores_dict: dict[str, str] = {}
 
@@ -535,6 +539,11 @@ def previsualizar(formulario, encabezados, filas, mapeo):
             'errores': errores,
         })
 
+        if fila_idx < 10:
+            print(f"[PREV] fila[{fila_idx}] | valores={valores_dict} | valida={len(errores)==0} | errores={errores}", flush=True)
+
+    validadas = sum(1 for r in resultados if r['valida'])
+    print(f"[PREV] DONE | total={len(resultados)} validas={validadas} invalidas={len(resultados)-validadas}", flush=True)
     return resultados
 
 

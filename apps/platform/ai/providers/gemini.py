@@ -178,7 +178,7 @@ class GeminiProvider(BaseAIProvider):
         import requests as _requests
 
         url = (
-            f"{GEMINI_API_BASE}/{self.config.model}:streamGenerateContent"
+            f"{GEMINI_API_BASE}/{self.config.model}:streamGenerateContent?alt=sse"
         )
 
         body: dict[str, Any] = {
@@ -201,9 +201,12 @@ class GeminiProvider(BaseAIProvider):
             stream=True,
             headers={
                 "Content-Type": "application/json",
+                "Accept": "text/event-stream",
                 "X-Goog-Api-Key": self.config.api_key,
             },
         )
+
+        resp.encoding = "utf-8"
 
         if resp.status_code != 200:
             self._handle_http_error(resp.status_code, resp.text)

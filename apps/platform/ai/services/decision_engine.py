@@ -55,6 +55,8 @@ class ChatIntent:
     confidence: float = 0.0
     can_answer_without_ai: bool = False
     explanation: str = ""
+    follow_up: bool = False
+    # True if this intent was inherited from a previous context (follow-up question)
 
 
 # ======================================================================
@@ -144,16 +146,16 @@ _GENERIC_DATA_PATTERNS: list[str] = [
 ]
 
 _CHAT_MODEL_KEYWORDS: dict[str, list[str]] = {
-    "formulario": ["formulario", "formularios", "form", "forms"],
-    "campo": ["campo", "campos", "field", "fields"],
-    "registro": ["registro", "registros", "record", "records"],
-    "valor": ["valor", "valores", "value", "values"],
-    "importacion": ["importacion", "importaciones", "import"],
-    "analisis": ["analisis", "analisis", "analysis", "documento"],
-    "usuario": ["usuario", "usuarios", "user", "users"],
-    "producto": ["producto", "productos", "product"],
-    "venta": ["venta", "ventas", "sale", "sales"],
-    "cliente": ["cliente", "clientes", "client"],
+    "formulario": ["formulario", "formularios"],
+    "campo": ["campo", "campos"],
+    "registro": ["registro", "registros"],
+    "valor": ["valor", "valores"],
+    "importacion": ["importacion", "importaciones", "importado"],
+    "analisis": ["analisis", "documento", "documentos"],
+    "usuario": ["usuario", "usuarios"],
+    "producto": ["producto", "productos"],
+    "venta": ["venta", "ventas"],
+    "cliente": ["cliente", "clientes"],
 }
 
 _CHAT_INTENT_PATTERNS: dict[str, list[str]] = {
@@ -239,6 +241,18 @@ _CHAT_INTENT_PATTERNS: dict[str, list[str]] = {
 }
 
 
+def _match_keywords_word_boundary(keywords: list[str], q: str) -> bool:
+    """Check if any keyword matches the question using word boundaries.
+    
+    Prevents false positives from substring matching (e.g., "import" inside "importe").
+    Uses \b word boundaries with re.escape for safety.
+    """
+    for kw in sorted(keywords, key=len, reverse=True):
+        if re.search(r'\b' + re.escape(kw) + r'\b', q, re.IGNORECASE):
+            return True
+    return False
+
+
 def _safe_int_match(q: str, pattern: str, default: int = 0) -> int:
     """Extract first integer from regex match in question."""
     m = re.search(pattern, q, re.IGNORECASE)
@@ -284,6 +298,30 @@ _AI_REQUIRED_EXTS: set[str] = {
 
 # Extensiones que NUNCA necesitan IA
 _NO_AI_EXTS: set[str] = {".csv", ".json", ".xml", ".yaml", ".yml", ".tsv"}
+
+# Patrones de seguimiento — preguntas que heredan contexto de la anterior
+# NOTA: Se usan con re.search() para soportar patrones regex completos
+_FOLLOWUP_PATTERNS: list[str] = [
+    r"pero cu[aá]l", r"cu[aá]l de ell[oa]s", r"cu[aá]l de los",
+    r"^es[eo]$", r"^es[eo] mism[oa]$", r"el anterior", r"el [uú]ltim[oa]",
+    r"el primero", r"mu[ée]stral[oa]", r"expl[ií]cal[oa]",
+    r"contin[uú]a", r"dame m[aá]s detalle", r"d[aá]me m[aá]s",
+    r"y ahora", r"tambi[eé]n", r"cu[aá]nto",
+    r"cu[aá]l[es]?",
+    r"cu[aá]l fue", r"cu[aá]l es", r"cu[aá]les son",
+    r"explica eso", r"explica de nuevo",
+    r"siguiente", r"anterior", r"lo mism[oa]",
+    r"adelante", r"prosigue", r"sigue",
+    r"desarrolla eso", r"desarr[oó]llalo", r"a ver",
+    r"expl[ií]came", r"de que se trata", r"cu[ée]ntame m[aá]s",
+    # Demostrativos de referencia (solo con sustantivo para evitar falsos positivos)
+    r"\bese\s+formulario\b", r"\bes[ea]\s+formulario\b",
+    r"\bese\s+mism[oa]\b",
+    r"\bdich[oa]\s+formulario\b", r"\bdich[oa]\s+dato\b",
+    r"\beste\s+formulario\b", r"\besta\s+informaci[oó]n\b",
+    r"\bel\s+mencionad[oa]\b",
+    r"\btiene\s+registros?\b",
+]
 
 
 @dataclass
@@ -524,20 +562,43 @@ class AIDecisionEngine:
     # Chat Intent Classification (Phase 7)
     # ════════════════════════════════════════════════════════════════
 
-    def classify_chat(self, question: str) -> ChatIntent:
+    def classify_chat(self, question: str, previous_context: Optional[ChatIntent] = None) -> ChatIntent:
         """
         Clasifica una pregunta del chat en un intent estructurado.
 
         Retorna ChatIntent con tipo, subtipo, modelo objetivo, alias
         de formulario, parámetros y confianza.
 
-        No llama a IA — solo heurísticas.
+        Si se proporciona previous_context (de una pregunta anterior) y la
+        pregunta actual es un seguimiento (follow-up), se heredan el intent,
+        sub_intent, modelo, alias, filtros y agregación del contexto anterior
+        en lugar de reclasificar desde cero.
         """
         q = question.lower().strip()
         result = ChatIntent(explanation="Intento no detectado")
 
+        # ── STEP 0: Detectar follow-up y heredar contexto ──
+        # Usar re.search() en lugar de substring para soportar patrones regex
+        is_follow_up = any(re.search(p, q) for p in _FOLLOWUP_PATTERNS)
+        if is_follow_up and previous_context is not None:
+            logger.info(
+                "Follow-up detected (q='%s'), inheriting context: intent=%s sub_intent=%s model=%s alias=%s",
+                q[:50], previous_context.intent_type, previous_context.sub_intent,
+                previous_context.target_model, previous_context.form_alias,
+            )
+            result.intent_type = previous_context.intent_type
+            result.sub_intent = previous_context.sub_intent
+            result.target_model = previous_context.target_model
+            result.form_alias = previous_context.form_alias
+            result.params = dict(previous_context.params)
+            result.confidence = min(previous_context.confidence + 0.1, 0.95)
+            result.can_answer_without_ai = previous_context.can_answer_without_ai
+            result.explanation = f"Follow-up heredado de: {previous_context.explanation}"
+            result.follow_up = True
+            return result
+
         # ── STEP 0: Detectar si es pregunta de datos genérica ──
-        is_data_question = any(p in q for p in _GENERIC_DATA_PATTERNS)
+        is_data_question = any(re.search(r'\b' + re.escape(p) + r'\b', q) for p in _GENERIC_DATA_PATTERNS)
 
         # ── STEP 1: Detectar sub_intent (más específico) ──
         matched_intents = []
@@ -545,18 +606,29 @@ class AIDecisionEngine:
             if any(re.search(p, q) for p in patterns):
                 matched_intents.append(intent_name)
 
-        # ── STEP 2: Detectar target model ──
+        # ── STEP 2: Detectar target model (word-boundary aware) ──
         target_model = ""
+        matched_models: dict[str, int] = {}
         for model_key, keywords in _CHAT_MODEL_KEYWORDS.items():
-            if any(kw in q for kw in keywords):
-                target_model = model_key
-                break
+            if _match_keywords_word_boundary(keywords, q):
+                matched_models[model_key] = sum(len(kw) for kw in keywords if re.search(r'\b' + re.escape(kw) + r'\b', q, re.IGNORECASE))
+        if matched_models:
+            # Conflict resolution: "documento" in question → prefer "analisis" over other models
+            if len(matched_models) > 1 and "analisis" in matched_models:
+                if re.search(r'\bdocumento\w*\b', q, re.IGNORECASE):
+                    target_model = "analisis"
+            if not target_model:
+                target_model = max(matched_models, key=matched_models.get)
+        # Level 2 fallback: verb stem matching for Spanish conjugations
+        # "importe", "importaste", "importaron", "importaria" → "importacion"
+        if not target_model and re.search(r'\bimport\w*\b', q, re.IGNORECASE):
+            target_model = "importacion"
 
         # ── STEP 3: Detectar form alias ──
         form_alias_found = ""
         if not target_model:
             for alias, fname in _FORM_ALIASES.items():
-                if alias in q:
+                if re.search(r'\b' + re.escape(alias) + r'\b', q):
                     form_alias_found = fname
                     target_model = "registro"
                     break
@@ -675,7 +747,7 @@ class AIDecisionEngine:
             can_answer_without_ai = True
             result.confidence = 0.8
             result.explanation = f"Pregunta genérica de datos + modelo '{target_model}'"
-        elif is_data_question and has_sub_intent:
+        elif is_data_question and has_sub_intent and target_model:
             intent_type = "data_query"
             can_answer_without_ai = True
             result.confidence = 0.7
@@ -686,13 +758,13 @@ class AIDecisionEngine:
             result.confidence = 0.75
             target_model = "registro"
             result.explanation = f"Alias '{form_alias_found}' + intent '{matched_intents[0]}'"
-        elif is_data_question:
+        elif is_data_question and target_model:
             intent_type = "data_query"
             can_answer_without_ai = True
-            if not target_model:
-                target_model = "registro"
             result.confidence = 0.6
-            result.explanation = "Pregunta genérica de datos (modelo default)"
+            result.explanation = f"Pregunta genérica de datos para '{target_model}'"
+        # Umbral mínimo: si no hay modelo objetivo ni alias, no forzar data_query
+        # Esto evita responder datos incorrectos con baja confianza
 
         # Search (fallback de data_query que busca en todo)
         if intent_type == "unknown" and "busca" in q or "encuentra" in q or "dónde" in q or "cómo encuentro" in q:

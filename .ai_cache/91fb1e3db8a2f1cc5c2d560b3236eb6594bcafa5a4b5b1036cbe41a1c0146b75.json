@@ -1,0 +1,17 @@
+{
+  "key": "91fb1e3db8a2f1cc5c2d560b3236eb6594bcafa5a4b5b1036cbe41a1c0146b75",
+  "data": {
+    "text": "inventario\n0.98",
+    "json_data": null,
+    "model": "gemini-2.5-flash",
+    "provider": "gemini",
+    "usage": {
+      "prompt_tokens": 2624,
+      "completion_tokens": 7,
+      "total_tokens": 4046
+    }
+  },
+  "created_at": 1782852073.9159768,
+  "provider": "gemini",
+  "model": "gemini-2.5-flash"
+}

@@ -1,0 +1,29 @@
+{
+  "import:1730c64af1474192a40325b776d44d15 importacion django eav:202606": {
+    "form_name": "1730C64Af1474192A40325B776D44D15 Importacion Django Eav",
+    "rows_imported": 5,
+    "rows_failed": 0,
+    "rows_ignored": 0,
+    "file_name": "importacion_django_eav.xlsx",
+    "success": true,
+    "timestamp": "2026-06-29T15:30:40.724120"
+  },
+  "import:test_exec_import_records:202606": {
+    "form_name": "Test_Exec_Import_Records",
+    "rows_imported": 3,
+    "rows_failed": 0,
+    "rows_ignored": 0,
+    "file_name": "test.xlsx",
+    "success": true,
+    "timestamp": "2026-06-30T17:18:49.745595"
+  },
+  "import:c3edd996fb4442498eacb2212613bb53 01 productos validos:202606": {
+    "form_name": "C3Edd996Fb4442498Eacb2212613Bb53 01 Productos Validos",
+    "rows_imported": 5,
+    "rows_failed": 50,
+    "rows_ignored": 0,
+    "file_name": "01_productos_validos.xlsx",
+    "success": true,
+    "timestamp": "2026-06-30T17:45:04.335428"
+  }
+}

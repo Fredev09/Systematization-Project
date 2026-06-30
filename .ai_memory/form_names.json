@@ -1,0 +1,8 @@
+{
+  ".xlsx": "C3Edd996Fb4442498Eacb2212613Bb53 01 Productos Validos",
+  "4202cc05df4349adb3cc323ee9b99097 importacion django eav:order": "SKU|||Nombre|||Precio|||Stock|||Fecha de Ingreso|||Activo|||Email|||URL|||Descripción",
+  "1730c64af1474192a40325b776d44d15 importacion django eav:order": "SKU|||Nombre|||Precio|||Stock|||Fecha de Ingreso|||Activo|||Email|||URL|||Descripción",
+  "b42850316b9a4725b4b0569c9e065e78 ventas masivas performance:order": "ID|||Fecha|||Código Producto|||Cantidad|||Precio Unitario|||Descuento %|||Subtotal|||IVA|||Total|||Estado|||Categoría|||Producto|||Proveedor|||Cliente|||Ciudad|||Departamento|||País|||Método de Pago|||Vendedor|||Observaciones",
+  "c06333326aba4f3f97d038f77069af94 01 productos validos:order": "SKU (Único)|||Nombre Producto|||Precio Público|||Stock Actual|||Fecha de Ingreso|||Activo (Booleano)|||Email de Contacto|||URL Ficha|||Teléfono de Soporte|||Descripción Larga|||Categoría|||ID Relación Almacén|||Proveedor Oficial",
+  "c3edd996fb4442498eacb2212613bb53 01 productos validos:order": "SKU (Único)|||Nombre Producto|||Precio Público|||Stock Actual|||Proveedor Oficial|||Fecha de Ingreso|||Activo (Booleano)|||Email de Contacto|||URL Ficha|||Teléfono de Soporte|||Descripción Larga|||Categoría|||ID Relación Almacén"
+}

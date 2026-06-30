@@ -276,13 +276,15 @@
         <p class="text-info">Se detectaron datos para importar en el documento original.</p>
         {% endif %}
         <div class="d-flex justify-content-center gap-3 mt-3 flex-wrap">
+            {% if import_failed %}
             <form method="POST">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="import_data">
                 <button type="submit" class="btn btn-primary btn-lg">
-                    📥 Importar datos al formulario
+                    📥 Reintentar importación
                 </button>
             </form>
+            {% endif %}
             <a href="{% url 'dynamic_forms:ver_registros' formulario_id %}" class="btn btn-outline-secondary btn-lg">
                 👁️ Ver registros
             </a>
@@ -344,6 +346,53 @@
             });
         });
     }
+
+    // ── [DIAG] Form submit tracer ──
+    var _formEditor = document.getElementById('form-editor');
+    if (_formEditor) {
+        console.log('[DIAG-FORM] form-editor found');
+        _formEditor.addEventListener('submit', function(e) {
+            console.log('[DIAG-FORM] submit EVENT FIRED');
+            console.log('[DIAG-FORM] action=' + (new FormData(_formEditor).get('action') || '(empty)'));
+            console.log('[DIAG-FORM] fields_json length=' + (
+                document.getElementById('fields_json')?.value?.length || 0
+            ));
+            console.log('[DIAG-FORM] form_name=' + (document.getElementById('form_name')?.value || '(empty)'));
+            console.log('[DIAG-FORM] csrf token present: ' + (!!document.querySelector('[name=csrfmiddlewaretoken]')));
+            console.log('[DIAG-FORM] form.getAttribute(action)=' + (_formEditor.getAttribute('action') || '(empty/self)'));
+            console.log('[DIAG-FORM] window.location.href=' + window.location.href);
+            console.log('[DIAG-FORM] checkValidity() pre-FieldEditor=' + _formEditor.checkValidity());
+            var _reqEmpty = [];
+            _formEditor.querySelectorAll('[required]').forEach(function(el) {
+                if (!(el.value||'').trim()) _reqEmpty.push(el.name||el.id);
+            });
+            if (_reqEmpty.length) console.log('[DIAG-FORM] ⚠️ required empty:', _reqEmpty.join(', '));
+            setTimeout(function() {
+                console.log('[DIAG-FORM] ⚠️ 3s elapsed — POST may have been blocked!');
+                console.log('[DIAG-FORM] e.defaultPrevented=' + e.defaultPrevented);
+            }, 3000);
+        });
+    } else {
+        console.warn('[DIAG-FORM] ⚠️ form-editor NOT FOUND in DOM');
+    }
+
+    var _createBtn = document.getElementById('btn-crear-formulario');
+    if (_createBtn) {
+        console.log('[DIAG-FORM] btn-crear-formulario found');
+        _createBtn.addEventListener('click', function(e) {
+            console.log('[DIAG-FORM] button CLICKED');
+            console.log('[DIAG-FORM] button inside form: ' + !!_createBtn.closest('form'));
+            console.log('[DIAG-FORM] form action attr: ' + (_createBtn.closest('form')?.getAttribute('action') || 'empty/self'));
+        });
+    } else {
+        console.warn('[DIAG-FORM] ⚠️ btn-crear-formulario NOT FOUND');
+    }
+
+    console.log('[DIAG-FORM] Running fetch test...');
+    fetch(window.location.href + '?diag_ping=1', { method: 'HEAD' })
+        .then(function(r) { console.log('[DIAG-FORM] fetch test OK status=' + r.status); })
+        .catch(function(err) { console.warn('[DIAG-FORM] fetch test FAILED:', err); });
+
 })();
 </script>
 {% endblock %}
