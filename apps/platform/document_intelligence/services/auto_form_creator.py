@@ -117,13 +117,11 @@ class AutoFormCreator:
         """Create proposal from structured document (has columns/headers)."""
         form_name = self._suggest_form_name(extracted_doc, doc_type)
 
-        sample_rows = (
-            extracted_doc.rows[:5] if extracted_doc.rows else None
-        )
-
+        # Pass ALL rows — FieldDetector._format_sample_rows will
+        # uniformly sample ~20 rows internally for the LLM context.
         fields = self.field_detector.analyze_data(
             headers=extracted_doc.columns,
-            sample_rows=sample_rows,
+            sample_rows=extracted_doc.rows,
             use_cache=use_cache,
         )
 

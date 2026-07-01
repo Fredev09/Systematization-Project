@@ -12,13 +12,18 @@ Basado en la descripción del usuario, genera un formulario completo con:
 1. **Nombre del formulario**: Un nombre descriptivo y profesional
 2. **Campos**: Para cada campo necesario:
     - nombre: Nombre del campo (en español, descriptivo)
-    - tipo: Tipo de dato (texto, numero, moneda, fecha, booleano, lista, email, url, telefono, textarea, relacion)
+    - tipo: Tipo de dato (texto, codigo, numero, moneda, fecha, booleano, lista, email, url, telefono, textarea)
     - obligatorio: Si debe ser obligatorio (true/false)
     - unico: Si debe ser único (true/false)
     - identificador: Si es el campo identificador principal (solo uno, true/false)
     - confianza: Tu nivel de confianza (0.0 a 1.0). **CALIBRA** la confianza: 0.8-0.9 para campos estándar bien definidos; 0.6-0.7 para campos opcionales o ambiguos; no uses 0.95 por defecto.
     - explicacion: Por qué sugieres este campo
 3. **Descripción del formulario**: Explicación breve de para qué sirve
+
+## Tipos permitidos
+La IA SOLO puede generar estos tipos: texto, codigo, numero, moneda, fecha, booleano, lista, email, url, telefono, textarea, calculado, imagen, archivo
+
+**NUNCA uses 'relacion'** — la IA no puede distinguir entre codigos de negocio y IDs de registro internos. Cualquier columna que parezca referenciar otra tabla debe clasificarse como **codigo**. Las relaciones solo pueden ser creadas manualmente por el usuario desde el editor de campos.
 
 ## Reglas
 - Los formularios colombianos típicamente tienen: código, nombre, descripción, estado (activo/inactivo)

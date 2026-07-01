@@ -245,11 +245,11 @@
                         </div>
 
                         {# ── Editor unificado de campos ── #}
-                        {% include "dynamic_forms/_field_editor.html" with campos=result_fields_objects formularios_disponibles=formularios_disponibles ocultar_header=False %}
+                        {% include "dynamic_forms/_field_editor.html" with campos=result_fields_objects formularios_disponibles=formularios_disponibles ocultar_header=False show_ai_warning=True %}
 
                         <div class="d-flex justify-content-between mt-4">
                             <div>
-                                <a href="{% url 'document_intelligence:dashboard' %}" class="btn btn-outline-secondary">
+                                <a href="{% url 'document_intelligence:cancel_import' %}" class="btn btn-outline-secondary">
                                     ↩ Cancelar
                                 </a>
                             </div>

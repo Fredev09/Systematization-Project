@@ -71,6 +71,10 @@ class FieldType(str, Enum):
     IMAGEN = "imagen"
     ARCHIVO = "archivo"
     RELACION = "relacion"
+    # DEPRECATED: The AI should never produce 'relacion' as a field type.
+    # This value is kept for legacy Campo model compatibility (users can
+    # still manually set relaciones via the field editor).
+    # Use codigo for any AI-generated fields that reference other entities.
     CALCULADO = "calculado"
     COLOR = "color"
     IP = "ip"

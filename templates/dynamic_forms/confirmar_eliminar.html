@@ -59,11 +59,13 @@
 
                 <form method="post" class="mt-4" data-df-submit>
                     {% csrf_token %}
+                    {# Hidden input para que el valor se envíe aunque JS deshabilite el botón #}
+                    <input type="hidden" name="confirmar" value="si">
                     <div class="d-flex justify-content-center gap-3">
                         <a href="{% url 'dynamic_forms:listar_formularios' %}" class="btn btn-secondary">
                             <i class='fas fa-times'></i> Cancelar
                         </a>
-                        <button type="submit" name="confirmar" value="si" class="btn btn-danger" data-loading-text="Eliminando...">
+                        <button type="submit" class="btn btn-danger" data-loading-text="Eliminando...">
                             <i class='fas fa-trash'></i> Sí, eliminar
                         </button>
                     </div>

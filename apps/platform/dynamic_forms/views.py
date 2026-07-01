@@ -1,9 +1,12 @@
 import json
 import logging
+import os
 import time
+import uuid
 from collections import defaultdict
 from dataclasses import asdict, is_dataclass
 from io import BytesIO
+from pathlib import Path
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -48,6 +51,38 @@ def _match_results_from_dicts(data):
     """Reconstruye list[ColumnMatchResult] desde list[dict] de session."""
     from .column_matching import ColumnMatchResult
     return [ColumnMatchResult(**d) for d in data]
+
+
+# ======================================================================
+# Helpers para almacenamiento temporal de filas de importación
+# (evita guardar 9000+ filas en la sesión de Django)
+# ======================================================================
+
+_TMP_UPLOADS_DIR = Path(__file__).resolve().parent.parent.parent.parent / '.tmp_uploads'
+
+
+def _save_import_filas(filas: list[dict]) -> str:
+    """Guarda las filas parseadas en un archivo JSON temporal."""
+    _TMP_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+    filename = f"import_data_{uuid.uuid4().hex}.json"
+    filepath = _TMP_UPLOADS_DIR / filename
+    with open(filepath, 'w', encoding='utf-8') as f:
+        json.dump(filas, f, ensure_ascii=False, indent=None)
+    return str(filepath)
+
+
+def _load_import_filas(filepath: str) -> list[dict]:
+    """Carga las filas desde un archivo JSON temporal."""
+    with open(filepath, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+
+def _cleanup_import_filas(filepath: str) -> None:
+    """Elimina el archivo temporal si existe."""
+    try:
+        Path(filepath).unlink(missing_ok=True)
+    except Exception:
+        pass
 
 
 def _summary_to_dict(summary) -> dict:
@@ -1048,10 +1083,21 @@ def importar_excel(request, formulario_id):
             return redirect('dynamic_forms:importar_excel', formulario_id=formulario.id)
 
         encabezados = import_data['encabezados']
-        filas = import_data['filas']
+        tmp_data_path = import_data.get('tmp_data_path', '')
+        filas = _load_import_filas(tmp_data_path) if tmp_data_path else import_data.get('filas', [])
+        # Limpiar archivo temporal
+        _cleanup_import_filas(tmp_data_path)
         mapeo_idx = {int(k): v for k, v in mapping_data.items()}
 
-        preview = previsualizar(formulario, encabezados, filas, mapeo_idx)
+        total_filas = len(filas)
+        if total_filas > 500:
+            logger.info(f'[DIAG] Saltando previsualizar para {total_filas} filas (conjunto grande - paso importar)')
+            preview = [
+                {"fila_idx": i, "valores": fila, "valida": True, "errores": []}
+                for i, fila in enumerate(filas)
+            ]
+        else:
+            preview = previsualizar(formulario, encabezados, filas, mapeo_idx)
         filas_validas = [r for r in preview if r['valida']]
 
         if not filas_validas:
@@ -1104,7 +1150,7 @@ def importar_excel(request, formulario_id):
             return redirect('dynamic_forms:importar_excel', formulario_id=formulario.id)
 
         encabezados = import_data['encabezados']
-        filas = import_data['filas']
+        filas = _load_import_filas(import_data['tmp_data_path'])
         match_results_raw = request.session.get('match_results')
         match_results = _match_results_from_dicts(match_results_raw) if match_results_raw else []
         mapeo_idx = {int(k): v for k, v in mapping_data.items()}
@@ -1141,8 +1187,20 @@ def importar_excel(request, formulario_id):
                 'rol_usuario': rol_usuario(request.user),
             })
 
-        # Preview de validación de filas
-        preview = previsualizar(formulario, encabezados, filas, mapeo_idx)
+        # Preview de validación de filas (saltar para conjuntos grandes)
+        total_filas = len(filas)
+        if total_filas > 500:
+            logger.info(f'[DIAG] Saltando previsualizar para {total_filas} filas (conjunto grande - paso preview)')
+            validacion['advertencias'].append(
+                f'Validación detallada omitida para {total_filas} filas. '
+                'Los datos se validarán durante la importación.'
+            )
+            preview = [
+                {"fila_idx": i, "valores": fila, "valida": True, "errores": []}
+                for i, fila in enumerate(filas)
+            ]
+        else:
+            preview = previsualizar(formulario, encabezados, filas, mapeo_idx)
         validas = [r for r in preview if r['valida']]
         con_errores = [r for r in preview if not r['valida']]
 
@@ -1184,7 +1242,7 @@ def importar_excel(request, formulario_id):
             return redirect('dynamic_forms:importar_excel', formulario_id=formulario.id)
 
         encabezados = import_data['encabezados']
-        filas = import_data['filas']
+        filas = _load_import_filas(import_data['tmp_data_path'])
 
         # Recoger mapeo del formulario
         mapeo_usuario = {}
@@ -1328,9 +1386,13 @@ def importar_excel(request, formulario_id):
 
         # Guardar en sesión
         _t_sess = _diag_start('session_write')
+        # Guardar filas en archivo temporal (no en sesión) para evitar
+        # desbordamiento con 9000+ filas
+        tmp_data_path = _save_import_filas(filas)
         request.session['import_data'] = {
             'encabezados': encabezados,
-            'filas': filas,
+            'tmp_data_path': tmp_data_path,
+            'total_filas': len(filas),
         }
         request.session['analysis_meta'] = {
             'sheet_name': analysis['sheet_name'],
@@ -1418,7 +1480,21 @@ def importar_excel(request, formulario_id):
                 })
 
             # Preview de validación de filas
-            preview = previsualizar(formulario, encabezados, filas, mapeo_idx)
+            # Para conjuntos grandes (>500 filas), saltamos previsualizar
+            # (evita timeout del HTTP request validando 9000+ filas una por una).
+            total_filas = len(filas)
+            if total_filas > 500:
+                logger.info(f'[DIAG] Saltando previsualizar para {total_filas} filas (conjunto grande)')
+                validacion['advertencias'].append(
+                    f'Validación detallada omitida para {total_filas} filas. '
+                    'Los datos se validarán durante la importación.'
+                )
+                preview = [
+                    {"fila_idx": i, "valores": fila, "valida": True, "errores": []}
+                    for i, fila in enumerate(filas)
+                ]
+            else:
+                preview = previsualizar(formulario, encabezados, filas, mapeo_idx)
             validas = [r for r in preview if r['valida']]
             con_errores = [r for r in preview if not r['valida']]
             modo_msg = MODOS_IMPORTACION.get('crear', 'Crear')
@@ -1434,7 +1510,7 @@ def importar_excel(request, formulario_id):
                 'preview': preview,
                 'validas': validas,
                 'con_errores': con_errores,
-                'total_filas': len(filas),
+                'total_filas': total_filas,
                 'validacion': validacion,
                 'modo_actual': 'crear',
                 'modo_msg': modo_msg,

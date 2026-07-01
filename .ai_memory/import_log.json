@@ -25,5 +25,32 @@
     "file_name": "01_productos_validos.xlsx",
     "success": true,
     "timestamp": "2026-06-30T17:45:04.335428"
+  },
+  "import:7ec666ba68164bd086f7b74ec9fdf911 importacion django eav:202607": {
+    "form_name": "7Ec666Ba68164Bd086F7B74Ec9Fdf911 Importacion Django Eav",
+    "rows_imported": 5,
+    "rows_failed": 0,
+    "rows_ignored": 0,
+    "file_name": "importacion_django_eav.xlsx",
+    "success": true,
+    "timestamp": "2026-07-01T14:27:21.534337"
+  },
+  "import:8bc52a383add47d9b4f65a3eee4eb0bd ventas masivas performance:202607": {
+    "form_name": "8Bc52A383Add47D9B4F65A3Eee4Eb0Bd Ventas Masivas Performance",
+    "rows_imported": 9096,
+    "rows_failed": 0,
+    "rows_ignored": 0,
+    "file_name": "Ventas_Masivas_Performance.xlsx",
+    "success": true,
+    "timestamp": "2026-07-01T15:35:17.540654"
+  },
+  "import:2faf08e08cae43cea661f31e8cc3662c ventas masivas 50k rendimiento:202607": {
+    "form_name": "2Faf08E08Cae43Cea661F31E8Cc3662C Ventas Masivas 50K Rendimiento",
+    "rows_imported": 49967,
+    "rows_failed": 0,
+    "rows_ignored": 0,
+    "file_name": "Ventas_Masivas_50k_Rendimiento.xlsx",
+    "success": true,
+    "timestamp": "2026-07-01T15:56:59.103171"
   }
 }

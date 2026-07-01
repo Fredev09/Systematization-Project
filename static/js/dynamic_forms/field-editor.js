@@ -545,6 +545,7 @@
                 '<select name="campo_tipo" class="form-select form-select-sm campo-tipo field-type">',
                 typeOptions,
                 '</select>',
+                '<div class="campo-tipo-descripcion small text-muted mt-1" style="font-size:0.7rem; line-height:1.3; min-height:1.2rem;"></div>',
                 '</div>',
                 '<div class="col-6 col-md-2">',
                 '<div class="form-check mt-2"><input type="checkbox" name="campo_obligatorio" class="form-check-input field-required" id="req_' + idx + '"><label class="form-check-label small" for="req_' + idx + '">Req</label></div>',
@@ -580,7 +581,43 @@
             ].join('\n');
         },
 
+        _getTipoDescripcion: function (tipo) {
+            var descs = {
+                'texto': '',
+                'textarea': 'Para observaciones largas.',
+                'codigo': 'Para identificadores de negocio como PROD-001 o CLI-123.',
+                'email': 'Correos electrónicos válidos.',
+                'url': 'Enlaces web.',
+                'telefono': 'Números telefónicos.',
+                'documento': 'Números de identificación.',
+                'numero': 'Cantidades numéricas.',
+                'moneda': 'Para valores monetarios.',
+                'porcentaje': 'Valores entre 0 y 100.',
+                'duracion': 'Intervalos de tiempo.',
+                'fecha': 'Para fechas en cualquiera de los formatos soportados.',
+                'hora': 'Para horas del día.',
+                'fecha_hora': 'Combinación de fecha y hora.',
+                'booleano': 'Solo acepta Sí/No, True/False o 1/0.',
+                'estado': 'Estado actual del registro.',
+                'categoria': 'Clasificaciones.',
+                'tags': 'Etiquetas o palabras clave.',
+                'lista': 'Utilice este tipo cuando existan varias opciones posibles.',
+                'codigo_barras': 'Códigos de barras EAN/UPC.',
+                'qr': 'Códigos QR.',
+                'color': 'Códigos de color.',
+                'ip': 'Direcciones IP.',
+                'uuid': 'Identificadores únicos.',
+                'geolocalizacion': 'Coordenadas geográficas.',
+                'imagen': 'Archivos de imagen.',
+                'archivo': 'Archivos adjuntos.',
+                'relacion': 'Conexión con otro formulario.',
+                'calculado': 'Valor calculado automáticamente.'
+            };
+            return descs[tipo] || '';
+        },
+
         _actualizarVisibilidad: function (container) {
+            var self = this;
             container.querySelectorAll('.campo-fila').forEach(function (fila) {
                 var select = fila.querySelector('.campo-tipo') || fila.querySelector('.field-type');
                 if (!select) return;
@@ -595,6 +632,12 @@
                 toggle('.campo-opciones-container', val === 'lista');
                 toggle('.campo-relacion-container', val === 'relacion');
                 toggle('.campo-formula-container', val === 'calculado');
+
+                // Update contextual description
+                var descEl = fila.querySelector('.campo-tipo-descripcion');
+                if (descEl) {
+                    descEl.textContent = self._getTipoDescripcion(val);
+                }
 
                 // Calculated fields can't be required
                 var reqCheck = fila.querySelector('[name="campo_obligatorio"]');

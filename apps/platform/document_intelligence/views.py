@@ -95,8 +95,6 @@ def _offline_json_response(message: str = "", suggestions: list | None = None, s
     }, status=status)
 
 
-_DI_SESSION_KEYS = ["di_pipeline_result", "di_import_ready", "di_catalog_suggestions"]
-
 # ── Streaming safety constants ──
 STREAM_MAX_WAIT_SECONDS = 45          # Max total streaming time before forced close
 STREAM_HEARTBEAT_INTERVAL = 8         # Send heartbeat every N seconds
@@ -104,27 +102,17 @@ STREAM_IDLE_TIMEOUT = 20              # If no tokens for N seconds, close with t
 _STREAM_ABORT_EVENT = object()        # Sentinel for stream abortion
 
 def _cleanup_di(request, *, delete_tmp_path=None):
-    """Clean ALL DI session keys. Delete temp file if path provided.
+    """Clean ALL DI session keys and delete temp file.
 
-    Call at:
-      - Start of analyze (new file upload) — stale results disappear
-      - After create_form new form success — pipeline_result stale, import_ready set
-      - After create_form use_existing_form — full cleanup
-      - After import_data (success and error) — full cleanup
-      - All exception handlers
+    Delegates to clear_document_intelligence_session in import_execution.
 
     delete_tmp_path: explicit path to delete (for import_data where
                      di_pipeline_result is already popped from create_form).
     """
-    if delete_tmp_path:
-        Path(delete_tmp_path).unlink(missing_ok=True)
-    else:
-        result_data = request.session.get("di_pipeline_result")
-        if result_data and result_data.get("tmp_path"):
-            Path(result_data["tmp_path"]).unlink(missing_ok=True)
-    for key in _DI_SESSION_KEYS:
-        request.session.pop(key, None)
-    request.session.modified = True
+    from apps.platform.document_intelligence.services.import_execution import (
+        clear_document_intelligence_session,
+    )
+    clear_document_intelligence_session(request, tmp_path=delete_tmp_path)
 
 
 def _get_ai_mode() -> dict:
@@ -348,6 +336,25 @@ def create_from_file(request):
     return redirect("document_intelligence:document_upload")
 
 
+@login_required(login_url="login")
+@admin_required
+def cancel_import(request):
+    """
+    Cancel the current import flow and clean up all session state.
+
+    - Removes all di_* session keys
+    - Deletes the uploaded temp file from disk
+    - Shows a confirmation message
+    - Redirects to the document upload page (clean, fresh start)
+    """
+    from apps.platform.document_intelligence.services.import_execution import (
+        clear_document_intelligence_session,
+    )
+    clear_document_intelligence_session(request)
+    messages.info(request, "Importación cancelada.")
+    return redirect("document_intelligence:document_upload")
+
+
 def _handle_e2e_analyze(request):
     """
     E2E analyze: unified handler for ALL document types.
@@ -515,6 +522,22 @@ def _handle_e2e_analyze(request):
         return render(request, "document_intelligence/document_upload.html", ctx)
 
 
+def _sanitize_ai_field_type(field_type: str) -> str:
+    """
+    Sanitiza el tipo de campo sugerido por la IA.
+
+    La IA NUNCA debe producir 'relacion' porque no puede determinar con
+    certeza si una columna contiene IDs de Registro o códigos de negocio.
+    Cualquier 'relacion' sugerido se degrada automáticamente a 'codigo'.
+
+    Las relaciones solo pueden ser creadas manualmente por el usuario
+    desde el editor de campos después de crear el formulario.
+    """
+    if field_type == 'relacion':
+        return 'codigo'
+    return field_type
+
+
 def _serialize_pipeline_result(result, tmp_path, file_name):
     """Serialize PipelineResult to session-safe dict."""
     from apps.platform.ai.utils import make_json_serializable
@@ -524,7 +547,7 @@ def _serialize_pipeline_result(result, tmp_path, file_name):
         "fields": [
             {
                 "name": f.name,
-                "type": f.suggested_type,
+                "type": _sanitize_ai_field_type(f.suggested_type),
                 "required": f.required,
                 "unique": f.unique,
                 "is_identifier": f.is_identifier,
@@ -3506,7 +3529,7 @@ def _ai_fields_to_campo_objects(fields_data: list[dict]) -> list:
         def __init__(self, data):
             self._data = data
             self.nombre = data.get("name", "")
-            self.tipo = data.get("type", "texto")
+            self.tipo = _sanitize_ai_field_type(data.get("type", "texto"))
             self.obligatorio = data.get("required", False)
             self.unico = data.get("unique", False)
             self.identificador_principal = data.get("is_identifier", False)
@@ -3545,6 +3568,9 @@ def _handle_create_form(request, template_name="document_upload.html"):
       - Field description and metadata
       - Form similarity detection and reuse
     """
+    # ── Defensive cleanup: ensure no stale di_import_ready from previous flow ──
+    request.session.pop("di_import_ready", None)
+
     result_data = request.session.get("di_pipeline_result")
     print(f"[PRINT10] _handle_create_form ENTER | session_has_result={bool(result_data)} has_form_name={bool(request.POST.get('form_name'))}", flush=True)
     if not result_data:
@@ -3760,7 +3786,7 @@ def _handle_create_form(request, template_name="document_upload.html"):
     # ── Auto-import when data is available ──
     if has_data:
         from apps.platform.document_intelligence.services.import_execution import (
-            _cleanup_session as _cleanup_import_session,
+            clear_document_intelligence_session,
             apply_import_messages,
             execute_import,
         )
@@ -3787,7 +3813,7 @@ def _handle_create_form(request, template_name="document_upload.html"):
         )
 
         apply_import_messages(request, import_result)
-        _cleanup_import_session(request, tmp_path=tmp_path if import_result["success"] else None)
+        clear_document_intelligence_session(request, tmp_path=tmp_path if import_result["success"] else None)
 
         print(f"[PRINT15] import_result | success={import_result['success']} creados={import_result.get('creados')} error={import_result.get('error_message')}", flush=True)
 
@@ -3836,34 +3862,34 @@ def _handle_import_data(request):
     from apps.platform.document_intelligence.services.import_execution import (
         execute_import,
         apply_import_messages,
-        _cleanup_session as _cleanup_import_session,
+        clear_document_intelligence_session,
     )
 
     import_data = request.session.get("di_import_ready")
     print(f"[PRINT_HD] _handle_import_data ENTER | has_import_data={bool(import_data)}", flush=True)
     if not import_data:
         messages.error(request, "No form ready for import.")
-        return redirect("document_intelligence:create_from_file")
+        return redirect("document_intelligence:document_upload")
 
     formulario_id = import_data.get("formulario_id")
     tmp_path = import_data.get("tmp_path")
 
     if not formulario_id or not tmp_path:
         messages.error(request, "Import data incomplete.")
-        return redirect("document_intelligence:create_from_file")
+        return redirect("document_intelligence:document_upload")
 
     try:
         from apps.platform.dynamic_forms.models import Formulario
         formulario = Formulario.objects.get(id=formulario_id)
     except Formulario.DoesNotExist:
         messages.error(request, "Formulario no encontrado.")
-        _cleanup_import_session(request, tmp_path=tmp_path)
-        return redirect("document_intelligence:create_from_file")
+        clear_document_intelligence_session(request, tmp_path=tmp_path)
+        return redirect("document_intelligence:document_upload")
 
     result = execute_import(formulario, import_data, request)
     apply_import_messages(request, result)
 
-    _cleanup_import_session(request, tmp_path=tmp_path if result["success"] else None)
+    clear_document_intelligence_session(request, tmp_path=tmp_path if result["success"] else None)
 
     if result["success"]:
         return redirect("dynamic_forms:ver_registros", formulario_id=formulario.id)

@@ -1,0 +1,17 @@
+{
+  "key": "4de0926f32ffa2ad89f50d69342b3413a93a78acc4fb22b6712d621f499961d3",
+  "data": {
+    "text": "```json\n{\n  \"fields\": [\n    {\n      \"name\": \"ID\",\n      \"type\": \"codigo\",\n      \"required\": true,\n      \"unique\": true,\n      \"is_identifier\": true,\n      \"confidence\": 0.95,\n      \"explanation\": \"Es un identificador único y principal para cada registro, siguiendo el patrón de códigos.\"\n    },\n    {\n      \"name\": \"Fecha\",\n      \"type\": \"fecha\",\n      \"required\": true,\n      \"unique\": false,\n      \"is_identifier\": false,\n      \"confidence\": 0.95,\n      \"explanation\": \"Contiene fechas en diferentes formatos (DD/MM/YYYY,",
+    "json_data": null,
+    "model": "gemini-2.5-flash",
+    "provider": "gemini",
+    "usage": {
+      "prompt_tokens": 6496,
+      "completion_tokens": 161,
+      "total_tokens": 10588
+    }
+  },
+  "created_at": 1782937116.5217042,
+  "provider": "gemini",
+  "model": "gemini-2.5-flash"
+}

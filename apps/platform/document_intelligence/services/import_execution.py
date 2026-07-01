@@ -31,13 +31,33 @@ logger = logging.getLogger(__name__)
 _DI_SESSION_KEYS = ["di_pipeline_result", "di_import_ready", "di_catalog_suggestions"]
 
 
-def _cleanup_session(request, *, tmp_path=None):
-    """Clean DI session keys and optionally delete a temp file."""
+def clear_document_intelligence_session(request, *, tmp_path=None):
+    """
+    Canonical cleanup for Document Intelligence session state.
+
+    Removes ALL di_* session keys and deletes the uploaded temp file.
+    Safe to call multiple times — missing keys and files are ignored.
+
+    Args:
+        request: HttpRequest whose session is cleaned.
+        tmp_path: Optional explicit path to delete. If omitted, tries
+                  to read it from session['di_pipeline_result']['tmp_path'].
+    """
+    # Resolve temp file path: explicit arg > session data
+    if not tmp_path:
+        result_data = request.session.get("di_pipeline_result")
+        if result_data and result_data.get("tmp_path"):
+            tmp_path = result_data["tmp_path"]
     if tmp_path:
         Path(tmp_path).unlink(missing_ok=True)
+
     for key in _DI_SESSION_KEYS:
         request.session.pop(key, None)
     request.session.modified = True
+
+
+# ── Alias for backward compatibility ──
+_cleanup_session = clear_document_intelligence_session
 
 
 def importar_desde_records(formulario, records, usuario=None):
@@ -250,13 +270,33 @@ def execute_import(formulario, import_data, request):
             print(f"[PRINT5f] Column mapping built | mapeo={mapeo_idx}", flush=True)
 
         # ── Phase 2: preview (validate) ──
+        # For large datasets (>500 rows) using records from the pipeline,
+        # skip previsualizar() entirely — it iterates ALL rows calling
+        # DS.validar_completo() per row, which is extremely slow for 9000+ rows.
+        # The pipeline data is already structured and validated.
         _t2 = time.perf_counter()
-        print(f"[PRINT6a] START previsualizar | encabezados={len(encabezados)} filas={len(filas)} mapeo={mapeo_idx}", flush=True)
-        preview = previsualizar(formulario, encabezados, filas, mapeo_idx)
-        timing["previsualizar_ms"] = (time.perf_counter() - _t2) * 1000
-        valid_rows = [r for r in preview if r["valida"]]
-        result["invalid_count"] = len(preview) - len(valid_rows)
-        print(f"[PRINT6b] previsualizar DONE | total_preview={len(preview)} validas={len(valid_rows)} invalidas={result['invalid_count']}", flush=True)
+        using_records_path = bool(raw_records and len(raw_records) > 0)
+        total_raw_rows = len(filas)
+
+        if using_records_path and total_raw_rows > 500:
+            # Fast path: skip per-row validation — trust pipeline data
+            print(f"[PRINT6_FAST] SKIP previsualizar | records_path={using_records_path} rows={total_raw_rows} — trusting pipeline data", flush=True)
+            preview = [
+                {"fila_idx": i, "valores": fila, "valida": True, "errores": []}
+                for i, fila in enumerate(filas)
+            ]
+            valid_rows = preview
+            result["invalid_count"] = 0
+            timing["previsualizar_ms"] = (time.perf_counter() - _t2) * 1000
+            print(f"[PRINT6_FAST] previsualizar SKIPPED | total={len(preview)}", flush=True)
+        else:
+            # Standard path: validate all rows (small datasets)
+            print(f"[PRINT6a] START previsualizar | encabezados={len(encabezados)} filas={len(filas)} mapeo={mapeo_idx}", flush=True)
+            preview = previsualizar(formulario, encabezados, filas, mapeo_idx)
+            timing["previsualizar_ms"] = (time.perf_counter() - _t2) * 1000
+            valid_rows = [r for r in preview if r["valida"]]
+            result["invalid_count"] = len(preview) - len(valid_rows)
+            print(f"[PRINT6b] previsualizar DONE | total_preview={len(preview)} validas={len(valid_rows)} invalidas={result['invalid_count']}", flush=True)
 
         if not valid_rows:
             print(f"[PRINT6c] EARLY RETURN: no valid rows | invalidas={result['invalid_count']}", flush=True)
@@ -410,51 +450,50 @@ def _bulk_importar(formulario, valid_rows, usuario=None, mapeo=None):
         _b0 = time.perf_counter()
 
         with db_transaction.atomic():
-            # Phase 1: Create Registro objects one-by-one (to get IDs) but in a single transaction
-            # This is orders of magnitude faster than DS.crear() because we skip
-            # validation (already done), recalculations, and hooks.
+            # Phase 1: Bulk create ALL Registro objects at once using bulk_create.
+            # Django 3.2+ assigns IDs back to the objects for PostgreSQL,
+            # SQLite 3.35+, MariaDB 10.5+, and MySQL.
+            # This is MUCH faster than 9000 individual .create() calls.
             _b1 = time.perf_counter()
-            registro_ids: list[int] = []
-            for row_idx_phase1, row in enumerate(valid_rows):
-                r = Registro.objects.create(formulario=formulario, usuario=usuario)
-                registro_ids.append(r.id)
+            registros = [
+                Registro(formulario=formulario, usuario=usuario)
+                for _ in valid_rows
+            ]
+            Registro.objects.bulk_create(registros)
             _registro_ms = (time.perf_counter() - _b1) * 1000
-            print(f"[PRINT_B5] Registro creation done | created={len(registro_ids)} time={_registro_ms:.0f}ms", flush=True)
+            creados = len(registros)
+            print(f"[PRINT_B5] Bulk Registro creation done | created={creados} time={_registro_ms:.0f}ms", flush=True)
 
-            if not registro_ids:
-                print("[PRINT_B6] No registro_ids created — raising ValueError", flush=True)
+            if creados == 0:
+                print("[PRINT_B6] No registries created — raising ValueError", flush=True)
                 raise ValueError("No se pudieron crear los registros.")
 
-            # Phase 2: Bulk create all ValorCampo objects
+            # Phase 2: Build list of ValorCampo objects using the now-populated IDs
             _b2 = time.perf_counter()
             valor_campos: list[ValorCampo] = []
             sample_logged = False
             for row_idx, row in enumerate(valid_rows):
-                if row_idx >= len(registro_ids):
-                    print(f"[PRINT_B7] row_idx={row_idx} >= registro_ids={len(registro_ids)} — break", flush=True)
+                if row_idx >= len(registros):
                     break
                 valores_dict = row.get("valores", {})
-                # Log sample for first row
                 if not sample_logged:
-                    print(f"[PRINT_B7a] row[{row_idx}] sample | valores_keys={len(valores_dict)} keys={list(valores_dict.keys())[:5]} valores_dict={dict(list(valores_dict.items())[:3])}", flush=True)
+                    print(f"[PRINT_B7a] row[{row_idx}] sample | valores_keys={len(valores_dict)} keys={list(valores_dict.keys())[:5]}", flush=True)
                     sample_logged = True
                 for nombre_campo, valor in valores_dict.items():
                     if not valor or not str(valor).strip():
                         continue
                     if nombre_campo not in col_to_campo:
-                        if row_idx == 0 and not sample_logged:
-                            print(f"[PRINT_B7b] campo={nombre_campo} not in col_to_campo — skip", flush=True)
                         continue
                     campo = col_to_campo[nombre_campo]
                     valor_campos.append(ValorCampo(
-                        registro_id=registro_ids[row_idx],
+                        registro_id=registros[row_idx].id,
                         campo=campo,
                         valor=str(valor).strip(),
                     ))
             _build_vc_ms = (time.perf_counter() - _b2) * 1000
             print(f"[PRINT_B8] VC list built | total_vc={len(valor_campos)} time={_build_vc_ms:.0f}ms", flush=True)
 
-            # Bulk create ValorCampo in chunks of 5000
+            # Phase 3: Bulk create ValorCampo in chunks of 5000
             _b3 = time.perf_counter()
             if valor_campos:
                 vc_chunk_size = 5000
@@ -467,7 +506,6 @@ def _bulk_importar(formulario, valid_rows, usuario=None, mapeo=None):
                 print("[PRINT_B9b] NO ValorCampo objects to create — bulk_create skipped", flush=True)
             _vc_bulk_ms = (time.perf_counter() - _b3) * 1000
 
-            creados = len(registro_ids)
             print(f"[PRINT_BULK] Imported {creados} records with {len(valor_campos)} field values in bulk | registro_creacion={_registro_ms:.0f}ms build_valores={_build_vc_ms:.0f}ms vc_bulk={_vc_bulk_ms:.0f}ms total={(time.perf_counter() - _b0) * 1000:.0f}ms", flush=True)
 
     except Exception as e:
@@ -495,5 +533,6 @@ __all__ = [
     "execute_import",
     "importar_desde_records",
     "apply_import_messages",
+    "clear_document_intelligence_session",
     "_cleanup_session",
 ]

@@ -1,0 +1,17 @@
+{
+  "key": "2e50ba5a2fb0bdd0cb2fed182931a87d9675ebe4efd3d0959b8abbc567169243",
+  "data": {
+    "text": "```json\n{\n  \"fields\": [\n    {\n      \"name\": \"SKU\",\n      \"type\": \"codigo\",\n      \"required\": true,\n      \"unique\": true,\n      \"is_identifier\": true,\n      \"confidence\": 0.95,\n      \"explanation\": \"El nombre 'SKU' y los valores de ejemplo 'PROD-001' indican claramente un código de producto único y el identificador principal.\"\n    },\n    {\n      \"name\": \"Nombre\",\n      \"type\": \"texto\",\n      \"required\": true,\n      \"unique\": false,\n      \"is_identifier\": false,\n      \"confidence\": 0.95,\n      \"explanation\": \"El nombre 'Nombre' y los valores de ejemplo como 'Camiseta de Algodón Orgánico' son texto descriptivo corto.\"\n    },\n    {\n      \"name\": \"Precio\",\n      \"type\": \"moneda\",\n      \"required\": true,\n      \"unique\": false,\n      \"is_identifier\": false,\n      \"confidence\": 0.95,\n      \"explanation\": \"El nombre 'Precio' y los valores numéricos con decimales como '25.99' sugieren un tipo de moneda, aunque no contengan el símbolo '$'.\"\n    },\n    {\n      \"name\": \"Stock\",\n      \"type\": \"numero\",\n      \"required\": true,\n      \"unique\": false,\n      \"is_identifier\": false,\n      \"confidence\": 0.95,\n      \"explanation\": \"El nombre 'Stock' y los valores enteros como '120' indican una cantidad numérica.\"\n    },\n    {\n      \"name\": \"Fecha de Ingreso\",\n      \"type\": \"fecha\",\n      \"required\": true,\n      \"unique\": false,\n      \"is_identifier\": false,\n      \"confidence\": 0.95,\n      \"explanation\": \"El nombre 'Fecha de Ingreso' y el formato 'YYYY-MM-DD' de los valores de ejemplo son claramente una fecha.\"\n    },\n    {\n      \"name\": \"Activo\",\n      \"type\": \"booleano\",\n      \"required\": true,\n      \"unique\": false,\n      \"is_identifier\": false,\n      \"confidence\": 0.95,\n      \"explanation\": \"El nombre 'Activo' y los valores 'TRUE'/'FALSE' son indicadores booleanos.\"\n    },\n    {\n      \"name\": \"Email\",\n      \"type\": \"email\",\n      \"required\": false,\n      \"unique\": false,\n      \"is_identifier\": false,\n      \"confidence\": 0.95,\n      \"explanation\": \"El nombre 'Email' y los valores de ejemplo con formato de correo electrónico como 'soporte@textilesdelsur.com' son claramente un tipo email.\"\n    },\n    {\n      \"name\": \"URL\",\n      \"type\": \"url\",\n      \"required\": false,\n      \"unique\": false,\n      \"is_identifier\": false,\n      \"confidence\": 0.95,\n      \"explanation\": \"El nombre 'URL' y los valores de ejemplo con formato de URL como 'https://textilesdelsur.com/prod1' son claramente un tipo URL.\"\n    },\n    {\n      \"name\": \"Descripción\",\n      \"type\": \"textarea\",\n      \"required\": false,\n      \"unique\": false,\n      \"is_identifier\": false,\n      \"confidence\": 0.95,\n      \"explanation\": \"El nombre 'Descripción' y los valores de ejemplo con texto más largo y detallado sugieren un campo de texto multi-línea.\"\n    }\n  ]\n}\n```",
+    "json_data": null,
+    "model": "gemini-2.5-flash",
+    "provider": "gemini",
+    "usage": {
+      "prompt_tokens": 1348,
+      "completion_tokens": 843,
+      "total_tokens": 3773
+    }
+  },
+  "created_at": 1782921404.440077,
+  "provider": "gemini",
+  "model": "gemini-2.5-flash"
+}

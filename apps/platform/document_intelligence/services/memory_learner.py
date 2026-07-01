@@ -88,7 +88,16 @@ class MemoryLearner:
             logger.info("MemoryLearner: rename '%s' → '%s'", original_name, corrected_name)
 
     def learn_type_correction(self, field_name: str, corrected_type: str) -> None:
-        """Remember that a user changed a field type."""
+        """Remember that a user changed a field type.
+
+        NEVER stores 'relacion' — the AI cannot reliably distinguish
+        between business codes and Registro IDs. Relations must be
+        created manually by the user. 'relacion' is automatically
+        converted to 'codigo'.
+        """
+        if corrected_type == 'relacion':
+            logger.warning("MemoryLearner: ignoring 'relacion' correction for '%s' (converted to 'codigo')", field_name)
+            corrected_type = 'codigo'
         self._type_corrections[field_name.lower().strip()] = corrected_type
         self._save()
         logger.info("MemoryLearner: type '%s' → '%s'", field_name, corrected_type)
@@ -150,8 +159,16 @@ class MemoryLearner:
         return self._field_renames.get(original_name.lower().strip())
 
     def suggest_type(self, field_name: str) -> Optional[str]:
-        """Suggest a field type based on past corrections."""
-        return self._type_corrections.get(field_name.lower().strip())
+        """Suggest a field type based on past corrections.
+
+        NEVER returns 'relacion' — the AI cannot reliably distinguish
+        between business codes and Registro IDs. Relations must be
+        created manually by the user.
+        """
+        raw = self._type_corrections.get(field_name.lower().strip())
+        if raw == 'relacion':
+            return 'codigo'
+        return raw
 
     def suggest_form_name(self, source_type: str) -> Optional[str]:
         """Suggest a form name based on past usage."""

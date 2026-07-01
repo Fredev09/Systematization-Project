@@ -13,7 +13,7 @@
       "enum": [
         "texto", "numero", "moneda", "fecha", "booleano",
         "lista", "email", "url", "telefono", "textarea",
-        "relacion", "calculado", "imagen", "archivo"
+        "calculado", "imagen", "archivo"
       ],
       "description": "Suggested field type"
     },

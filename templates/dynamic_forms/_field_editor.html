@@ -15,17 +15,82 @@
 ════════════════════════════════════════════════════════════════════════
 {% endcomment %}
 
+{% if show_ai_warning %}
+{# ── AI Detection Warning ── #}
+<div class="card border-0 rounded-4 mb-3" style="background: #fffbeb; border-left: 4px solid #f59e0b !important;">
+    <div class="card-body py-3 px-4">
+        <div class="d-flex align-items-start gap-3">
+            <div style="font-size: 1.5rem; line-height: 1;">🤖</div>
+            <div>
+                <strong class="d-block mb-1">Tipos detectados autom&aacute;ticamente por IA</strong>
+                <p class="text-muted small mb-2">
+                    La inteligencia artificial propone autom&aacute;ticamente el tipo de cada campo
+                    bas&aacute;ndose en una muestra del documento.
+                </p>
+                <p class="text-muted small mb-2">
+                    Aunque la detecci&oacute;n suele ser precisa, puede cometer errores.
+                </p>
+                <p class="text-muted small mb-0">
+                    <strong>Antes de crear el formulario</strong> revise cuidadosamente los tipos detectados,
+                    especialmente en campos como:
+                </p>
+                <div class="d-flex flex-wrap gap-1 mt-1">
+                    <span class="badge bg-warning text-dark">Estados</span>
+                    <span class="badge bg-warning text-dark">Categor&iacute;as</span>
+                    <span class="badge bg-warning text-dark">C&oacute;digos</span>
+                    <span class="badge bg-warning text-dark">Fechas</span>
+                    <span class="badge bg-warning text-dark">Porcentajes</span>
+                    <span class="badge bg-warning text-dark">Monedas</span>
+                    <span class="badge bg-warning text-dark">Listas</span>
+                </div>
+                <p class="text-muted small mt-2 mb-0">
+                    Siempre puede modificar cualquier tipo antes de continuar.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% if not ocultar_header %}
+{# ── Help button for field types ── #}
 <div class="d-flex justify-content-between align-items-center mb-2">
     <div>
         <span class="badge bg-secondary" id="field-count">{{ campos|length|default:"0" }}</span>
         <small class="text-muted ms-1">campos</small>
     </div>
-    <button type="button" class="btn btn-sm btn-outline-primary" data-action="add-field" id="agregarCampo">
-        <i class='fas fa-plus'></i> Agregar campo
-    </button>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#tiposAyudaModal">
+            ❓ &iquest;Qu&eacute; significa cada tipo?
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-action="add-field" id="agregarCampo">
+            <i class='fas fa-plus'></i> Agregar campo
+        </button>
+    </div>
 </div>
 {% endif %}
+
+{# ── Field Types Help Modal ── #}
+<div class="modal fade" id="tiposAyudaModal" tabindex="-1" aria-labelledby="tiposAyudaModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="tiposAyudaModalLabel">
+                    ❓ Tipos de campo disponibles
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    {% include "dynamic_forms/_tipos_ayuda.html" %}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <div id="camposContainer" class="field-editor-container">
     {% if campos %}

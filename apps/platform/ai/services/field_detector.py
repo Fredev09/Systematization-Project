@@ -43,6 +43,63 @@ class FieldDetector:
         )
     """
 
+    # Target number of sample rows for uniform distribution
+    _SAMPLE_ROW_TARGET: int = 20
+
+    @staticmethod
+    def uniform_sample_rows(
+        rows: list[list[str]],
+        target: int = 20,
+    ) -> list[tuple[int, list[str]]]:
+        """
+        Select ~target rows uniformly distributed across the document.
+
+        - If fewer rows than target, return ALL rows (with indices).
+        - Otherwise, select target rows evenly spaced (first + last included).
+        - Returns (original_index, row) tuples so callers know the exact
+          position of each sampled row without O(n) lookups.
+
+        Args:
+            rows: Full list of data rows.
+            target: Desired number of sample rows (default 20).
+
+        Returns:
+            List of (original_index, row) tuples in original row order.
+        """
+        total = len(rows)
+        if total <= target:
+            return list(enumerate(rows))
+
+        indices: set[int] = set()
+        # Always include first and last
+        indices.add(0)
+        indices.add(total - 1)
+
+        step = (total - 1) / (target - 1)
+        for i in range(1, target - 1):
+            idx = round(i * step)
+            if 0 < idx < total - 1:
+                indices.add(idx)
+
+        # Fill any remaining slots with evenly distributed rows
+        sorted_idx = sorted(indices)
+        while len(sorted_idx) < target:
+            # Find the largest gap and insert the midpoint
+            max_gap = 0
+            insert_pos = 0
+            for i in range(len(sorted_idx) - 1):
+                gap = sorted_idx[i + 1] - sorted_idx[i]
+                if gap > max_gap:
+                    max_gap = gap
+                    insert_pos = i
+            if max_gap <= 1:
+                break
+            mid = (sorted_idx[insert_pos] + sorted_idx[insert_pos + 1]) // 2
+            sorted_idx.append(mid)
+            sorted_idx = sorted(set(sorted_idx))
+
+        return [(i, rows[i]) for i in sorted_idx]
+
     def __init__(
         self,
         provider: BaseAIProvider,
@@ -318,7 +375,7 @@ class FieldDetector:
             elif any(kw in header_lower for kw in ["cantidad", "stock", "existencia", "número", "numero", "unidades"]):
                 confidence = 0.9
                 guessed_type = "numero"
-            elif any(kw in header_lower for kw in ["porcentaje", "%", "tasa", "tarifa", "interés", "interes", "iva"]):
+            elif any(kw in header_lower for kw in ["porcentaje", "%", "tasa", "tarifa", "interés", "interes"]):
                 confidence = 0.9
                 guessed_type = "porcentaje"
             elif any(kw in header_lower for kw in ["fecha", "date"]):
@@ -393,16 +450,33 @@ class FieldDetector:
         headers: list[str],
         sample_rows: Optional[list[list[str]]],
     ) -> str:
-        """Format sample rows for the prompt."""
+        """
+        Format sample rows for the prompt with uniform distribution.
+
+        - Each row is formatted as:
+            Fila N
+            Columna1: valor1
+            Columna2: valor2
+            ...
+            -------------------
+
+        - Uses uniform_sample_rows() to get a representative sample
+          (~20 rows) from across the entire document.
+        - Returns (index, row) tuples directly — NO O(n) lookups.
+        """
         if not sample_rows:
             return "(sin datos de ejemplo)"
+
+        sampled = self.uniform_sample_rows(sample_rows, target=self._SAMPLE_ROW_TARGET)
         lines = []
-        for row in sample_rows[:5]:  # Max 5 rows
+        for orig_idx, row in sampled:
             pairs = []
             for idx, val in enumerate(row):
                 if idx < len(headers):
                     pairs.append(f"{headers[idx]}: {val}")
-            lines.append(" | ".join(pairs))
+            line = "\n".join(pairs)
+            # orig_idx is 0-based, display as 1-based for readability
+            lines.append(f"Fila {orig_idx + 1}\n{line}\n" + "-" * 19)
         return "\n".join(lines)
 
     def _parse_fields(
@@ -446,7 +520,8 @@ class FieldDetector:
                     alternatives=f_data.get("alternatives", f_data.get("alternativas", [])),
                     order=idx,
                     options=f_data.get("options", f_data.get("opciones")),
-                    related_form=f_data.get("related_form", f_data.get("formulario_relacionado")),
+                    # NEVER include related_form from AI output (relaciones must be manual)
+                    related_form=None,
                     formula=f_data.get("formula", None),
                 ))
 

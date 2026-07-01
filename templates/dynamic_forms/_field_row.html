@@ -73,6 +73,39 @@
                 <option value="calculado" {% if campo and campo.tipo == 'calculado' %}selected{% endif %}>Calculado</option>
             </optgroup>
         </select>
+        <div class="campo-tipo-descripcion small text-muted mt-1" style="font-size:0.7rem; line-height:1.3; min-height:1.2rem;">
+            {% if campo and campo.tipo %}
+                {% if campo.tipo == 'booleano' %}Solo acepta S&iacute;/No, True/False o 1/0.
+                {% elif campo.tipo == 'lista' %}Utilice este tipo cuando existan varias opciones posibles.
+                {% elif campo.tipo == 'codigo' %}Para identificadores de negocio como PROD-001 o CLI-123.
+                {% elif campo.tipo == 'moneda' %}Para valores monetarios.
+                {% elif campo.tipo == 'numero' %}Cantidades num&eacute;ricas.
+                {% elif campo.tipo == 'porcentaje' %}Valores entre 0 y 100.
+                {% elif campo.tipo == 'fecha' %}Para fechas en cualquiera de los formatos soportados.
+                {% elif campo.tipo == 'hora' %}Para horas del d&iacute;a.
+                {% elif campo.tipo == 'fecha_hora' %}Combinaci&oacute;n de fecha y hora.
+                {% elif campo.tipo == 'email' %}Correos electr&oacute;nicos v&aacute;lidos.
+                {% elif campo.tipo == 'telefono' %}N&uacute;meros telef&oacute;nicos.
+                {% elif campo.tipo == 'url' %}Enlaces web.
+                {% elif campo.tipo == 'textarea' %}Para observaciones largas.
+                {% elif campo.tipo == 'documento' %}N&uacute;meros de identificaci&oacute;n.
+                {% elif campo.tipo == 'categoria' %}Clasificaciones.
+                {% elif campo.tipo == 'estado' %}Estado actual del registro.
+                {% elif campo.tipo == 'tags' %}Etiquetas o palabras clave.
+                {% elif campo.tipo == 'codigo_barras' %}C&oacute;digos de barras EAN/UPC.
+                {% elif campo.tipo == 'qr' %}C&oacute;digos QR.
+                {% elif campo.tipo == 'color' %}C&oacute;digos de color.
+                {% elif campo.tipo == 'ip' %}Direcciones IP.
+                {% elif campo.tipo == 'uuid' %}Identificadores &uacute;nicos.
+                {% elif campo.tipo == 'geolocalizacion' %}Coordenadas geogr&aacute;ficas.
+                {% elif campo.tipo == 'duracion' %}Intervalos de tiempo.
+                {% elif campo.tipo == 'relacion' %}Conexi&oacute;n con otro formulario.
+                {% elif campo.tipo == 'calculado' %}Valor calculado autom&aacute;ticamente.
+                {% elif campo.tipo == 'imagen' %}Archivos de imagen.
+                {% elif campo.tipo == 'archivo' %}Archivos adjuntos.
+                {% endif %}
+            {% endif %}
+        </div>
     </div>
 
     {# Propiedades: Obligatorio, Único, Visible #}
